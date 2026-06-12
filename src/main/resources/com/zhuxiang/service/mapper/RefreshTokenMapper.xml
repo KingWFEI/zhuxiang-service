@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhuxiang.service.mapper.RefreshTokenMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhuxiang.service.entity.RefreshToken">
+            <id property="id" column="id" />
+            <result property="userId" column="user_id" />
+            <result property="refreshToken" column="refresh_token" />
+            <result property="expiresAt" column="expires_at" />
+            <result property="revoked" column="revoked" />
+            <result property="revokedAt" column="revoked_at" />
+            <result property="createdAt" column="created_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,user_id,refresh_token,expires_at,revoked,revoked_at,
+        created_at
+    </sql>
+</mapper>

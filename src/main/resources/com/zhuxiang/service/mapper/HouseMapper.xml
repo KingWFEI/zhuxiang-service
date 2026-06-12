@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhuxiang.service.mapper.HouseMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhuxiang.service.entity.House">
+            <id property="id" column="id" />
+            <result property="title" column="title" />
+            <result property="coverImage" column="cover_image" />
+            <result property="location" column="location" />
+            <result property="communityId" column="community_id" />
+            <result property="address" column="address" />
+            <result property="building" column="building" />
+            <result property="unit" column="unit" />
+            <result property="room" column="room" />
+            <result property="price" column="price" />
+            <result property="deposit" column="deposit" />
+            <result property="paymentMethod" column="payment_method" />
+            <result property="roomType" column="room_type" />
+            <result property="area" column="area" />
+            <result property="floor" column="floor" />
+            <result property="orientation" column="orientation" />
+            <result property="decoration" column="decoration" />
+            <result property="availableDate" column="available_date" />
+            <result property="metro" column="metro" />
+            <result property="description" column="description" />
+            <result property="rentType" column="rent_type" />
+            <result property="status" column="status" />
+            <result property="isSmartLockSupported" column="is_smart_lock_supported" />
+            <result property="isSelfViewingSupported" column="is_self_viewing_supported" />
+            <result property="landlordId" column="landlord_id" />
+            <result property="viewCount" column="view_count" />
+            <result property="favoriteCount" column="favorite_count" />
+            <result property="createdAt" column="created_at" />
+            <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,title,cover_image,location,community_id,address,
+        building,unit,room,price,deposit,
+        payment_method,room_type,area,floor,orientation,
+        decoration,available_date,metro,description,rent_type,
+        status,is_smart_lock_supported,is_self_viewing_supported,landlord_id,view_count,
+        favorite_count,created_at,updated_at
+    </sql>
+</mapper>

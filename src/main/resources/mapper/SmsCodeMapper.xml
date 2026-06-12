@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhuxiang.service.mapper.SmsCodeMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhuxiang.service.entity.SmsCode">
+            <id property="id" column="id" />
+            <result property="phone" column="phone" />
+            <result property="scene" column="scene" />
+            <result property="code" column="code" />
+            <result property="expiresAt" column="expires_at" />
+            <result property="used" column="used" />
+            <result property="usedAt" column="used_at" />
+            <result property="createdAt" column="created_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,phone,scene,code,expires_at,used,
+        used_at,created_at
+    </sql>
+</mapper>

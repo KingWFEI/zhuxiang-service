@@ -28,6 +28,7 @@ Controller、Service、Mapper、Entity 等业务代码。
 | 用户名 | `DB_USERNAME` | `root` |
 | 密码 | `DB_PASSWORD` | 空 |
 | 服务端口 | `SERVER_PORT` | `8000` |
+| API 前缀 | `API_PREFIX` | `/api` |
 
 首次运行前请创建数据库：
 
@@ -48,6 +49,10 @@ $env:DB_PASSWORD = "your_password"
 ```
 
 服务默认地址为 `http://localhost:8000/api`。
+
+`/api` 已配置为服务的统一上下文路径。后续 Controller 只声明业务路径，
+例如 `@RequestMapping("/users")`，最终访问路径即为 `/api/users`，不要在
+Controller 中重复添加 `/api`。
 
 ## 构建与测试
 
