@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhuxiang.service.mapper.ConversationMessageMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhuxiang.service.entity.ConversationMessage">
+            <id property="id" column="id" />
+            <result property="conversationId" column="conversation_id" />
+            <result property="senderId" column="sender_id" />
+            <result property="senderType" column="sender_type" />
+            <result property="contentType" column="content_type" />
+            <result property="content" column="content" />
+            <result property="isRead" column="is_read" />
+            <result property="createdAt" column="created_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,conversation_id,sender_id,sender_type,content_type,content,
+        is_read,created_at
+    </sql>
+</mapper>

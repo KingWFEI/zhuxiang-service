@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhuxiang.service.mapper.AppUserMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhuxiang.service.entity.AppUser">
+            <id property="id" column="id" />
+            <result property="phone" column="phone" />
+            <result property="passwordHash" column="password_hash" />
+            <result property="nickname" column="nickname" />
+            <result property="avatarUrl" column="avatar_url" />
+            <result property="isVerified" column="is_verified" />
+            <result property="status" column="status" />
+            <result property="lastLoginAt" column="last_login_at" />
+            <result property="createdAt" column="created_at" />
+            <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,phone,password_hash,nickname,avatar_url,is_verified,
+        status,last_login_at,created_at,updated_at
+    </sql>
+</mapper>

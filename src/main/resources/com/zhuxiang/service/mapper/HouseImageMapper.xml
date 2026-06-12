@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhuxiang.service.mapper.HouseImageMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhuxiang.service.entity.HouseImage">
+            <id property="id" column="id" />
+            <result property="houseId" column="house_id" />
+            <result property="imageUrl" column="image_url" />
+            <result property="imageType" column="image_type" />
+            <result property="title" column="title" />
+            <result property="sortOrder" column="sort_order" />
+            <result property="createdAt" column="created_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,house_id,image_url,image_type,title,sort_order,
+        created_at
+    </sql>
+</mapper>
