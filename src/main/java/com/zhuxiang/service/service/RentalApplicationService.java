@@ -2,6 +2,7 @@ package com.zhuxiang.service.service;
 
 import com.zhuxiang.service.entity.RentalApplication;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.zhuxiang.service.dto.BookingDtos;
 
 /**
 * @author king-wang
@@ -10,4 +11,11 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface RentalApplicationService extends IService<RentalApplication> {
 
+    /**
+     * 创建房源租住申请。
+     */
+    BookingDtos.RentalApplicationResult createRentalApplication(
+            String userId,
+            BookingDtos.RentalApplicationRequest request
+    );
 }

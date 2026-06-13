@@ -2,6 +2,9 @@ package com.zhuxiang.service.service;
 
 import com.zhuxiang.service.entity.AppUser;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.zhuxiang.service.dto.AuthDtos;
+import com.zhuxiang.service.dto.ProfileDtos;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
 * @author king-wang
@@ -10,4 +13,41 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface AppUserService extends IService<AppUser> {
 
+    /**
+     * 使用短信验证码登录。
+     */
+    AuthDtos.AuthResult loginByCode(AuthDtos.CodeLoginRequest request);
+
+    /**
+     * 使用账号密码登录。
+     */
+    AuthDtos.AuthResult loginByPassword(AuthDtos.PasswordLoginRequest request);
+
+    /**
+     * 注册移动端用户。
+     */
+    AuthDtos.AuthResult register(AuthDtos.RegisterRequest request);
+
+    /**
+     * 获取指定用户资料。
+     */
+    AuthDtos.UserView getProfile(String userId);
+
+    /**
+     * 更新指定用户资料。
+     */
+    AuthDtos.UserView updateProfile(
+            String userId,
+            ProfileDtos.UpdateProfileRequest request
+    );
+
+    /**
+     * 上传并更新用户头像。
+     */
+    ProfileDtos.AvatarResult uploadAvatar(String userId, MultipartFile file);
+
+    /**
+     * 获取状态正常的用户实体。
+     */
+    AppUser requireActiveUser(String userId);
 }

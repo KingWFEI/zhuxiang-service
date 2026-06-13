@@ -2,6 +2,7 @@ package com.zhuxiang.service.service;
 
 import com.zhuxiang.service.entity.Advertisement;
 import com.baomidou.mybatisplus.extension.service.IService;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
 * @author king-wang
