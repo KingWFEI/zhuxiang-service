@@ -2,6 +2,7 @@ package com.zhuxiang.service.service;
 
 import com.zhuxiang.service.entity.Conversation;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.zhuxiang.service.dto.BookingDtos;
 
 /**
 * @author king-wang
@@ -10,4 +11,11 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface ConversationService extends IService<Conversation> {
 
+    /**
+     * 创建房源咨询会话。
+     */
+    BookingDtos.ConversationResult createConversation(
+            String userId,
+            BookingDtos.ConversationRequest request
+    );
 }

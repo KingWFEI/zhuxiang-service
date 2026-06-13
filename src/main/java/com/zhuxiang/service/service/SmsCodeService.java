@@ -2,6 +2,7 @@ package com.zhuxiang.service.service;
 
 import com.zhuxiang.service.entity.SmsCode;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.zhuxiang.service.dto.AuthDtos;
 
 /**
 * @author king-wang
@@ -10,4 +11,13 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface SmsCodeService extends IService<SmsCode> {
 
+    /**
+     * 生成并发送短信验证码。
+     */
+    AuthDtos.SmsCodeResult sendSmsCode(AuthDtos.SmsCodeRequest request);
+
+    /**
+     * 校验并核销短信验证码。
+     */
+    void consumeSmsCode(String phone, String scene, String code);
 }

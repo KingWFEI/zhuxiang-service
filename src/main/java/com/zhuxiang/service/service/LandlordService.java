@@ -2,6 +2,7 @@ package com.zhuxiang.service.service;
 
 import com.zhuxiang.service.entity.Landlord;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.zhuxiang.service.dto.HouseDtos;
 
 /**
 * @author king-wang
@@ -10,4 +11,13 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface LandlordService extends IService<Landlord> {
 
+    /**
+     * 获取指定房东资料。
+     */
+    HouseDtos.LandlordView getLandlordDetail(String landlordId);
+
+    /**
+     * 获取存在的房东实体。
+     */
+    Landlord requireLandlord(String landlordId);
 }

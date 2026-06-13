@@ -2,6 +2,7 @@ package com.zhuxiang.service.service;
 
 import com.zhuxiang.service.entity.Lease;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.zhuxiang.service.dto.ProfileDtos;
 
 /**
 * @author king-wang
@@ -10,4 +11,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface LeaseService extends IService<Lease> {
 
+    /**
+     * 获取用户当前生效的租约。
+     */
+    ProfileDtos.CurrentHome getCurrentHome(String userId);
 }

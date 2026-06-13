@@ -2,6 +2,7 @@ package com.zhuxiang.service.service;
 
 import com.zhuxiang.service.entity.Appointment;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.zhuxiang.service.dto.BookingDtos;
 
 /**
 * @author king-wang
@@ -10,4 +11,11 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface AppointmentService extends IService<Appointment> {
 
+    /**
+     * 创建预约看房记录。
+     */
+    BookingDtos.AppointmentResult createAppointment(
+            String userId,
+            BookingDtos.AppointmentRequest request
+    );
 }
