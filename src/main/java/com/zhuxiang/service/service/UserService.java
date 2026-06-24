@@ -1,17 +1,18 @@
 package com.zhuxiang.service.service;
 
-import com.zhuxiang.service.entity.AppUser;
+import com.zhuxiang.service.entity.User;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.zhuxiang.service.dto.AdminAuthDtos;
 import com.zhuxiang.service.dto.AuthDtos;
 import com.zhuxiang.service.dto.ProfileDtos;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
 * @author king-wang
-* @description 针对表【app_user(移动端用户表)】的数据库操作Service
+* @description 针对表【user(用户表)】的数据库操作Service
 * @createDate 2026-06-12 19:55:54
 */
-public interface AppUserService extends IService<AppUser> {
+public interface UserService extends IService<User> {
 
     /**
      * 使用短信验证码登录。
@@ -49,5 +50,15 @@ public interface AppUserService extends IService<AppUser> {
     /**
      * 获取状态正常的用户实体。
      */
-    AppUser requireActiveUser(String userId);
+    User requireActiveUser(String userId);
+
+    /**
+     * 管理端账号密码登录（仅限 ADMIN/HOUSEKEEPER/LANDLORD 角色）。
+     */
+    AuthDtos.AuthResult adminLogin(AuthDtos.PasswordLoginRequest request);
+
+    /**
+     * 管理端注册新用户（可指定 ADMIN/HOUSEKEEPER/LANDLORD 角色）。
+     */
+    AuthDtos.AuthResult adminRegister(AdminAuthDtos.AdminRegisterRequest request);
 }

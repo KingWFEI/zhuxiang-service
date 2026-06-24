@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.common.PageData;
+import com.zhuxiang.service.dto.AdminHouseDtos;
 import com.zhuxiang.service.dto.HouseDtos;
 import com.zhuxiang.service.entity.Advertisement;
 import com.zhuxiang.service.entity.Community;
@@ -18,6 +19,7 @@ import com.zhuxiang.service.entity.HouseTag;
 import com.zhuxiang.service.entity.HouseTagRelation;
 import com.zhuxiang.service.entity.Landlord;
 import com.zhuxiang.service.entity.Region;
+import com.zhuxiang.service.entity.LockDevice;
 import com.zhuxiang.service.entity.UserFavoriteHouse;
 import com.zhuxiang.service.mapper.UserFavoriteHouseMapper;
 import com.zhuxiang.service.service.AdvertisementService;
@@ -29,6 +31,7 @@ import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.HouseTagRelationService;
 import com.zhuxiang.service.service.HouseTagService;
 import com.zhuxiang.service.service.LandlordService;
+import com.zhuxiang.service.service.LockDeviceService;
 import com.zhuxiang.service.service.RegionService;
 import com.zhuxiang.service.mapper.HouseMapper;
 import org.springframework.stereotype.Service;
@@ -41,7 +44,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -67,6 +72,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     private final LandlordService landlordService;
     private final AdvertisementService advertisementService;
     private final RegionService regionService;
+    private final LockDeviceService lockDeviceService;
     private final UserFavoriteHouseMapper favoriteHouseMapper;
 
     public HouseServiceImpl(
@@ -79,6 +85,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             LandlordService landlordService,
             AdvertisementService advertisementService,
             RegionService regionService,
+            LockDeviceService lockDeviceService,
             UserFavoriteHouseMapper favoriteHouseMapper
     ) {
         this.communityService = communityService;
@@ -90,6 +97,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         this.landlordService = landlordService;
         this.advertisementService = advertisementService;
         this.regionService = regionService;
+        this.lockDeviceService = lockDeviceService;
         this.favoriteHouseMapper = favoriteHouseMapper;
     }
 
@@ -518,6 +526,118 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
      */
     private boolean integerBoolean(Integer value) {
         return Integer.valueOf(1).equals(value);
+    }
+
+    /**
+     * 创建新房源，返回管理端视图。
+     */
+    @Override
+    @Transactional
+    public AdminHouseDtos.AdminHouseView createHouse(AdminHouseDtos.CreateHouseRequest request) {
+        LocalDateTime now = LocalDateTime.now();
+        House house = new House();
+        house.setId(UUID.randomUUID().toString());
+        house.setTitle(request.title());
+        house.setCoverImage(request.coverImage());
+        house.setLocation(request.location());
+        house.setCommunityId(request.communityId());
+        house.setAddress(request.address());
+        house.setBuilding(request.building());
+        house.setUnit(request.unit());
+        house.setRoom(request.room());
+        house.setPrice(request.price());
+        house.setDeposit(request.deposit() != null ? request.deposit() : 0);
+        house.setPaymentMethod(request.paymentMethod());
+        house.setRoomType(request.roomType());
+        house.setArea(request.area());
+        house.setFloor(request.floor());
+        house.setOrientation(request.orientation());
+        house.setDecoration(request.decoration());
+        house.setAvailableDate(request.availableDate());
+        house.setMetro(request.metro());
+        house.setDescription(request.description());
+        house.setRentType(request.rentType());
+        house.setStatus("draft");
+        house.setIsSmartLockSupported(request.isSmartLockSupported() != null
+                && request.isSmartLockSupported() ? 1 : 0);
+        house.setIsSelfViewingSupported(request.isSelfViewingSupported() != null
+                && request.isSelfViewingSupported() ? 1 : 0);
+        house.setLandlordId(request.landlordId());
+        house.setViewCount(0);
+        house.setFavoriteCount(0);
+        house.setCreatedAt(now);
+        house.setUpdatedAt(now);
+        save(house);
+        return toAdminHouseView(house, null);
+    }
+
+    /**
+     * 获取所有房源（含智能锁绑定信息）。
+     */
+    @Override
+    public List<AdminHouseDtos.AdminHouseView> getAllHousesWithLockInfo() {
+        List<House> houses = list(Wrappers.<House>lambdaQuery().orderByDesc(House::getCreatedAt));
+        List<String> houseIds = houses.stream().map(House::getId).toList();
+        Map<String, LockDevice> lockDeviceMap = houseIds.isEmpty()
+                ? Map.of()
+                : lockDeviceService.list(
+                        Wrappers.<LockDevice>lambdaQuery().in(LockDevice::getHouseId, houseIds)
+                ).stream().collect(Collectors.toMap(LockDevice::getHouseId, d -> d, (a, b) -> a));
+        return houses.stream()
+                .map(house -> toAdminHouseView(house, lockDeviceMap.get(house.getId())))
+                .toList();
+    }
+
+    /**
+     * 将房源实体及门锁信息转换为管理端视图。
+     */
+    private AdminHouseDtos.AdminHouseView toAdminHouseView(House house, LockDevice lockDevice) {
+        AdminHouseDtos.LockDeviceView lockDeviceView = null;
+        boolean smartLockBound = false;
+        if (lockDevice != null) {
+            smartLockBound = true;
+            lockDeviceView = new AdminHouseDtos.LockDeviceView(
+                    lockDevice.getId(),
+                    lockDevice.getLockName(),
+                    lockDevice.getLockBrand(),
+                    lockDevice.getLockSn(),
+                    lockDevice.getStatus(),
+                    lockDevice.getBatteryLevel()
+            );
+        }
+        return new AdminHouseDtos.AdminHouseView(
+                house.getId(),
+                house.getTitle(),
+                house.getCoverImage(),
+                house.getLocation(),
+                house.getCommunityId(),
+                house.getAddress(),
+                house.getBuilding(),
+                house.getUnit(),
+                house.getRoom(),
+                house.getPrice(),
+                house.getDeposit(),
+                house.getPaymentMethod(),
+                house.getRoomType(),
+                house.getArea(),
+                house.getFloor(),
+                house.getOrientation(),
+                house.getDecoration(),
+                house.getAvailableDate(),
+                house.getMetro(),
+                house.getDescription(),
+                house.getRentType(),
+                house.getStatus(),
+                integerBoolean(house.getIsSmartLockSupported()),
+                integerBoolean(house.getIsSelfViewingSupported()),
+                smartLockBound,
+                lockDeviceView,
+                house.getLandlordId(),
+                house.getViewCount(),
+                house.getFavoriteCount(),
+                house.getCreatedAt(),
+                house.getUpdatedAt()
+        );
     }
 
     /**

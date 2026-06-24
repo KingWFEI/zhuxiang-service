@@ -28,4 +28,23 @@ public final class ProfileDtos {
             String lockStatus
     ) {
     }
+
+    /**
+     * 个人中心门锁展示信息（关联当前用户租约的门锁摘要）。
+     */
+    public record LockInfo(
+            String lockId,
+            String lockName,
+            String lockBrand,
+            String lockStatus,
+            Integer batteryLevel,
+            String leaseId,
+            String leaseStatus,
+            String startDate,
+            String endDate,
+            String permissionStatus,
+            String validFrom,
+            String validTo
+    ) {
+    }
 }

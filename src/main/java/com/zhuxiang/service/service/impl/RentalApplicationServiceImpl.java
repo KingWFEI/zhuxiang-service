@@ -4,9 +4,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.dto.BookingDtos;
-import com.zhuxiang.service.entity.AppUser;
+import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.entity.RentalApplication;
-import com.zhuxiang.service.service.AppUserService;
+import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.RentalApplicationService;
 import com.zhuxiang.service.mapper.RentalApplicationMapper;
@@ -25,14 +25,14 @@ import java.util.UUID;
 public class RentalApplicationServiceImpl extends ServiceImpl<RentalApplicationMapper, RentalApplication>
     implements RentalApplicationService{
 
-    private final AppUserService appUserService;
+    private final UserService userService;
     private final HouseService houseService;
 
     public RentalApplicationServiceImpl(
-            AppUserService appUserService,
+            UserService userService,
             HouseService houseService
     ) {
-        this.appUserService = appUserService;
+        this.userService = userService;
         this.houseService = houseService;
     }
 
@@ -45,7 +45,7 @@ public class RentalApplicationServiceImpl extends ServiceImpl<RentalApplicationM
             String userId,
             BookingDtos.RentalApplicationRequest request
     ) {
-        AppUser user = appUserService.requireActiveUser(userId);
+        User user = userService.requireActiveUser(userId);
         if (!Integer.valueOf(1).equals(user.getIsVerified())) {
             throw BusinessException.forbidden("请先完成实名认证");
         }

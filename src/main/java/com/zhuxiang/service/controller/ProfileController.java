@@ -7,7 +7,7 @@ import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.AuthDtos;
 import com.zhuxiang.service.dto.HouseDtos;
 import com.zhuxiang.service.dto.ProfileDtos;
-import com.zhuxiang.service.service.AppUserService;
+import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.service.LeaseService;
 import com.zhuxiang.service.service.UserFavoriteHouseService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,16 +33,16 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/profile")
 public class ProfileController {
 
-    private final AppUserService appUserService;
+    private final UserService userService;
     private final LeaseService leaseService;
     private final UserFavoriteHouseService favoriteHouseService;
 
     public ProfileController(
-            AppUserService appUserService,
+            UserService userService,
             LeaseService leaseService,
             UserFavoriteHouseService favoriteHouseService
     ) {
-        this.appUserService = appUserService;
+        this.userService = userService;
         this.leaseService = leaseService;
         this.favoriteHouseService = favoriteHouseService;
     }
@@ -52,7 +52,7 @@ public class ProfileController {
      */
     @GetMapping
     public ApiResponse<AuthDtos.UserView> getProfile(HttpServletRequest request) {
-        return ApiResponse.success(appUserService.getProfile(CurrentUser.id(request)));
+        return ApiResponse.success(userService.getProfile(CurrentUser.id(request)));
     }
 
     /**
@@ -64,7 +64,7 @@ public class ProfileController {
             @Valid @RequestBody ProfileDtos.UpdateProfileRequest request
     ) {
         return ApiResponse.success(
-                appUserService.updateProfile(CurrentUser.id(servletRequest), request)
+                userService.updateProfile(CurrentUser.id(servletRequest), request)
         );
     }
 
@@ -78,7 +78,7 @@ public class ProfileController {
     ) {
         return ApiResponse.success(
                 "上传成功",
-                appUserService.uploadAvatar(CurrentUser.id(request), file)
+                userService.uploadAvatar(CurrentUser.id(request), file)
         );
     }
 
@@ -88,6 +88,14 @@ public class ProfileController {
     @GetMapping("/current-home")
     public ApiResponse<ProfileDtos.CurrentHome> currentHome(HttpServletRequest request) {
         return ApiResponse.success(leaseService.getCurrentHome(CurrentUser.id(request)));
+    }
+
+    /**
+     * 获取当前用户租约对应的门锁展示信息。
+     */
+    @GetMapping("/lock")
+    public ApiResponse<ProfileDtos.LockInfo> lockInfo(HttpServletRequest request) {
+        return ApiResponse.success(leaseService.getLockInfo(CurrentUser.id(request)));
     }
 
     /**

@@ -1,15 +1,16 @@
-CREATE TABLE app_user (
+CREATE TABLE `user` (
     id VARCHAR(36) PRIMARY KEY,
     phone VARCHAR(20) NOT NULL,
     password_hash VARCHAR(100),
     nickname VARCHAR(30) NOT NULL,
     avatar_url VARCHAR(500) NOT NULL DEFAULT '',
+    role VARCHAR(20) NOT NULL DEFAULT 'TENANT',
     is_verified TINYINT NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'active',
     last_login_at TIMESTAMP NULL,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
-    CONSTRAINT uk_app_user_phone UNIQUE (phone)
+    CONSTRAINT uk_user_phone UNIQUE (phone)
 );
 
 CREATE TABLE sms_code (

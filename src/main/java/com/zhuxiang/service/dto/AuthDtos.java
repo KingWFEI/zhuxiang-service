@@ -61,6 +61,7 @@ public final class AuthDtos {
             String phone,
             String nickname,
             String avatarUrl,
+            String role,
             boolean isVerified
     ) {
     }

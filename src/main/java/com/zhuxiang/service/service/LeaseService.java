@@ -15,4 +15,9 @@ public interface LeaseService extends IService<Lease> {
      * 获取用户当前生效的租约。
      */
     ProfileDtos.CurrentHome getCurrentHome(String userId);
+
+    /**
+     * 获取用户当前租约对应的门锁展示信息。
+     */
+    ProfileDtos.LockInfo getLockInfo(String userId);
 }

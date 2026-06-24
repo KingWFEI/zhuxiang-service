@@ -3,6 +3,9 @@ package com.zhuxiang.service.service;
 import com.zhuxiang.service.entity.House;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.zhuxiang.service.common.PageData;
+
+import java.util.List;
+import com.zhuxiang.service.dto.AdminHouseDtos;
 import com.zhuxiang.service.dto.HouseDtos;
 
 /**
@@ -60,4 +63,14 @@ public interface HouseService extends IService<House> {
      * 将房源实体转换为列表视图。
      */
     HouseDtos.HouseView toHouseView(House house, String userId);
+
+    /**
+     * 创建新房源，返回管理端视图。
+     */
+    AdminHouseDtos.AdminHouseView createHouse(AdminHouseDtos.CreateHouseRequest request);
+
+    /**
+     * 获取所有房源（含智能锁绑定信息）。
+     */
+    List<AdminHouseDtos.AdminHouseView> getAllHousesWithLockInfo();
 }

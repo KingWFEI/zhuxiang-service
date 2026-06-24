@@ -3,81 +3,57 @@ package com.zhuxiang.service.controller;
 import com.zhuxiang.service.auth.CurrentUser;
 import com.zhuxiang.service.auth.RequireAuth;
 import com.zhuxiang.service.common.ApiResponse;
+import com.zhuxiang.service.dto.AdminAuthDtos;
 import com.zhuxiang.service.dto.AuthDtos;
-import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.service.RefreshTokenService;
-import com.zhuxiang.service.service.SmsCodeService;
+import com.zhuxiang.service.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 用户认证接口。
+ * 管理端认证接口。
  */
 @RestController
-@RequestMapping("/auth")
-public class AuthController {
+@RequestMapping("/admin/auth")
+public class AdminAuthController {
 
     private final UserService userService;
-    private final SmsCodeService smsCodeService;
     private final RefreshTokenService refreshTokenService;
 
-    public AuthController(
+    public AdminAuthController(
             UserService userService,
-            SmsCodeService smsCodeService,
             RefreshTokenService refreshTokenService
     ) {
         this.userService = userService;
-        this.smsCodeService = smsCodeService;
         this.refreshTokenService = refreshTokenService;
     }
 
     /**
-     * 发送短信验证码。
+     * 管理端账号密码登录（仅限 ADMIN/HOUSEKEEPER/LANDLORD）。
      */
-    @PostMapping("/sms-code")
-    public ApiResponse<AuthDtos.SmsCodeResult> sendSmsCode(
-            @Valid @RequestBody AuthDtos.SmsCodeRequest request
-    ) {
-        return ApiResponse.success("验证码发送成功", smsCodeService.sendSmsCode(request));
-    }
-
-    /**
-     * 使用短信验证码登录。
-     */
-    @PostMapping("/login/code")
-    public ApiResponse<AuthDtos.AuthResult> loginByCode(
-            @Valid @RequestBody AuthDtos.CodeLoginRequest request
-    ) {
-        return ApiResponse.success("登录成功", userService.loginByCode(request));
-    }
-
-    /**
-     * 使用密码登录。
-     */
-    @PostMapping("/login/password")
-    public ApiResponse<AuthDtos.AuthResult> loginByPassword(
+    @PostMapping("/login")
+    public ApiResponse<AuthDtos.AuthResult> login(
             @Valid @RequestBody AuthDtos.PasswordLoginRequest request
     ) {
-        return ApiResponse.success("登录成功", userService.loginByPassword(request));
+        return ApiResponse.success("登录成功", userService.adminLogin(request));
     }
 
     /**
-     * 注册移动端用户。
+     * 管理端注册新用户（可指定角色）。
      */
     @PostMapping("/register")
     public ApiResponse<AuthDtos.AuthResult> register(
-            @Valid @RequestBody AuthDtos.RegisterRequest request
+            @Valid @RequestBody AdminAuthDtos.AdminRegisterRequest request
     ) {
-        return ApiResponse.success("注册成功", userService.register(request));
+        return ApiResponse.success("注册成功", userService.adminRegister(request));
     }
 
     /**
-     * 刷新用户访问令牌。
+     * 刷新访问令牌。
      */
     @PostMapping("/refresh")
     public ApiResponse<AuthDtos.TokenResult> refresh(
@@ -87,7 +63,7 @@ public class AuthController {
     }
 
     /**
-     * 退出当前用户登录。
+     * 退出登录。
      */
     @RequireAuth
     @PostMapping("/logout")

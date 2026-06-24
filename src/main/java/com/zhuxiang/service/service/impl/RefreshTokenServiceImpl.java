@@ -5,10 +5,10 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.zhuxiang.service.auth.TokenProvider;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.dto.AuthDtos;
-import com.zhuxiang.service.entity.AppUser;
+import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.entity.RefreshToken;
 import com.zhuxiang.service.service.RefreshTokenService;
-import com.zhuxiang.service.mapper.AppUserMapper;
+import com.zhuxiang.service.mapper.UserMapper;
 import com.zhuxiang.service.mapper.RefreshTokenMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -26,16 +26,16 @@ import java.util.UUID;
 public class RefreshTokenServiceImpl extends ServiceImpl<RefreshTokenMapper, RefreshToken>
     implements RefreshTokenService{
 
-    private final AppUserMapper appUserMapper;
+    private final UserMapper userMapper;
     private final TokenProvider tokenProvider;
     private final long refreshTokenDays;
 
     public RefreshTokenServiceImpl(
-            AppUserMapper appUserMapper,
+            UserMapper userMapper,
             TokenProvider tokenProvider,
             @Value("${app.auth.refresh-token-days}") long refreshTokenDays
     ) {
-        this.appUserMapper = appUserMapper;
+        this.userMapper = userMapper;
         this.tokenProvider = tokenProvider;
         this.refreshTokenDays = refreshTokenDays;
     }
@@ -57,7 +57,7 @@ public class RefreshTokenServiceImpl extends ServiceImpl<RefreshTokenMapper, Ref
                 || current.getExpiresAt().isBefore(now)) {
             throw BusinessException.unauthorized("Refresh Token 无效或已过期");
         }
-        AppUser user = appUserMapper.selectById(current.getUserId());
+        User user = userMapper.selectById(current.getUserId());
         if (user == null || !"active".equals(user.getStatus())) {
             throw BusinessException.unauthorized("用户不存在或状态不可用");
         }

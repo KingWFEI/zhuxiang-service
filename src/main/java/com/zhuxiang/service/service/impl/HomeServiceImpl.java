@@ -5,10 +5,10 @@ import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.HomeDtos;
 import com.zhuxiang.service.dto.HouseDtos;
 import com.zhuxiang.service.entity.Advertisement;
-import com.zhuxiang.service.entity.AppUser;
+import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.entity.Region;
 import com.zhuxiang.service.service.AdvertisementService;
-import com.zhuxiang.service.service.AppUserService;
+import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.service.HomeService;
 import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.MessageService;
@@ -54,20 +54,20 @@ public class HomeServiceImpl implements HomeService {
 
     private final HouseService houseService;
     private final MessageService messageService;
-    private final AppUserService appUserService;
+    private final UserService userService;
     private final AdvertisementService advertisementService;
     private final RegionService regionService;
 
     public HomeServiceImpl(
             HouseService houseService,
             MessageService messageService,
-            AppUserService appUserService,
+            UserService userService,
             AdvertisementService advertisementService,
             RegionService regionService
     ) {
         this.houseService = houseService;
         this.messageService = messageService;
-        this.appUserService = appUserService;
+        this.userService = userService;
         this.advertisementService = advertisementService;
         this.regionService = regionService;
     }
@@ -84,7 +84,7 @@ public class HomeServiceImpl implements HomeService {
             long pageSize,
             String userId
     ) {
-        AppUser user = StringUtils.hasText(userId) ? appUserService.requireActiveUser(userId) : null;
+        User user = StringUtils.hasText(userId) ? userService.requireActiveUser(userId) : null;
         List<Advertisement> activeAdvertisements = getActiveAdvertisements();
         return new HomeDtos.HomeData(
                 buildHeader(cityCode, region, user),
@@ -99,7 +99,7 @@ public class HomeServiceImpl implements HomeService {
     /**
      * 组装首页头部信息。
      */
-    private HomeDtos.Header buildHeader(String cityCode, String region, AppUser user) {
+    private HomeDtos.Header buildHeader(String cityCode, String region, User user) {
         return new HomeDtos.Header(
                 resolveCityName(cityCode, region),
                 buildGreeting(user),
@@ -150,7 +150,7 @@ public class HomeServiceImpl implements HomeService {
     /**
      * 根据当前时间和用户昵称生成问候语。
      */
-    private String buildGreeting(AppUser user) {
+    private String buildGreeting(User user) {
         int hour = LocalTime.now().getHour();
         String greeting;
         if (hour < 6) {

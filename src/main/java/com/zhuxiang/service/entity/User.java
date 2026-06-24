@@ -9,12 +9,12 @@ import java.time.LocalDateTime;
 import lombok.Data;
 
 /**
- * 移动端用户表
- * @TableName app_user
+ * 用户表
+ * @TableName user
  */
-@TableName(value ="app_user")
+@TableName(value ="user")
 @Data
-public class AppUser implements Serializable {
+public class User implements Serializable {
     /**
      * 用户ID，主键
      */
@@ -40,6 +40,11 @@ public class AppUser implements Serializable {
      * 用户头像URL
      */
     private String avatarUrl;
+
+    /**
+     * 用户角色：TENANT租客，HOUSEKEEPER管家，LANDLORD房东，ADMIN管理员
+     */
+    private String role;
 
     /**
      * 是否已实名认证：0未实名，1已实名
@@ -80,12 +85,13 @@ public class AppUser implements Serializable {
         if (getClass() != that.getClass()) {
             return false;
         }
-        AppUser other = (AppUser) that;
+        User other = (User) that;
         return (this.getId() == null ? other.getId() == null : this.getId().equals(other.getId()))
             && (this.getPhone() == null ? other.getPhone() == null : this.getPhone().equals(other.getPhone()))
             && (this.getPasswordHash() == null ? other.getPasswordHash() == null : this.getPasswordHash().equals(other.getPasswordHash()))
             && (this.getNickname() == null ? other.getNickname() == null : this.getNickname().equals(other.getNickname()))
             && (this.getAvatarUrl() == null ? other.getAvatarUrl() == null : this.getAvatarUrl().equals(other.getAvatarUrl()))
+            && (this.getRole() == null ? other.getRole() == null : this.getRole().equals(other.getRole()))
             && (this.getIsVerified() == null ? other.getIsVerified() == null : this.getIsVerified().equals(other.getIsVerified()))
             && (this.getStatus() == null ? other.getStatus() == null : this.getStatus().equals(other.getStatus()))
             && (this.getLastLoginAt() == null ? other.getLastLoginAt() == null : this.getLastLoginAt().equals(other.getLastLoginAt()))
@@ -102,6 +108,7 @@ public class AppUser implements Serializable {
         result = prime * result + ((getPasswordHash() == null) ? 0 : getPasswordHash().hashCode());
         result = prime * result + ((getNickname() == null) ? 0 : getNickname().hashCode());
         result = prime * result + ((getAvatarUrl() == null) ? 0 : getAvatarUrl().hashCode());
+        result = prime * result + ((getRole() == null) ? 0 : getRole().hashCode());
         result = prime * result + ((getIsVerified() == null) ? 0 : getIsVerified().hashCode());
         result = prime * result + ((getStatus() == null) ? 0 : getStatus().hashCode());
         result = prime * result + ((getLastLoginAt() == null) ? 0 : getLastLoginAt().hashCode());
@@ -121,6 +128,7 @@ public class AppUser implements Serializable {
         sb.append(", passwordHash=").append(passwordHash);
         sb.append(", nickname=").append(nickname);
         sb.append(", avatarUrl=").append(avatarUrl);
+        sb.append(", role=").append(role);
         sb.append(", isVerified=").append(isVerified);
         sb.append(", status=").append(status);
         sb.append(", lastLoginAt=").append(lastLoginAt);

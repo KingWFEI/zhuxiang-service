@@ -1,7 +1,7 @@
 package com.zhuxiang.service.auth;
 
 import com.zhuxiang.service.common.BusinessException;
-import com.zhuxiang.service.service.AppUserService;
+import com.zhuxiang.service.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
@@ -12,11 +12,11 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AuthInterceptor implements HandlerInterceptor {
 
     private final TokenProvider tokenProvider;
-    private final AppUserService appUserService;
+    private final UserService userService;
 
-    public AuthInterceptor(TokenProvider tokenProvider, AppUserService appUserService) {
+    public AuthInterceptor(TokenProvider tokenProvider, UserService userService) {
         this.tokenProvider = tokenProvider;
-        this.appUserService = appUserService;
+        this.userService = userService;
     }
 
     @Override
@@ -34,7 +34,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
         String userId = tokenProvider.parseAccessToken(authorization.substring(7).trim());
-        appUserService.requireActiveUser(userId);
+        userService.requireActiveUser(userId);
         request.setAttribute(CurrentUser.USER_ID_ATTRIBUTE, userId);
         return true;
     }

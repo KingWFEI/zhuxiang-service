@@ -2,8 +2,8 @@ package com.zhuxiang.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhuxiang.service.entity.AppUser;
-import com.zhuxiang.service.service.AppUserService;
+import com.zhuxiang.service.entity.User;
+import com.zhuxiang.service.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -38,7 +38,7 @@ class FirstBatchApiIntegrationTests {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private AppUserService appUserService;
+    private UserService userService;
 
     @Test
     void corsHeadersAreReturned() throws Exception {
@@ -153,9 +153,9 @@ class FirstBatchApiIntegrationTests {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403));
 
-        AppUser user = appUserService.getById(userId);
+        User user = userService.getById(userId);
         user.setIsVerified(1);
-        appUserService.updateById(user);
+        userService.updateById(user);
 
         mockMvc.perform(post("/rental-applications")
                         .header("Authorization", bearer(accessToken))
