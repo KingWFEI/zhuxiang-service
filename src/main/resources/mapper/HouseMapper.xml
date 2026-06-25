@@ -29,6 +29,8 @@
             <result property="status" column="status" />
             <result property="isSmartLockSupported" column="is_smart_lock_supported" />
             <result property="isSelfViewingSupported" column="is_self_viewing_supported" />
+            <result property="smartLockId" column="smart_lock_id" />
+            <result property="lockBindStatus" column="lock_bind_status" />
             <result property="landlordId" column="landlord_id" />
             <result property="viewCount" column="view_count" />
             <result property="favoriteCount" column="favorite_count" />
@@ -41,7 +43,7 @@
         building,unit,room,price,deposit,
         payment_method,room_type,area,floor,orientation,
         decoration,available_date,metro,description,rent_type,
-        status,is_smart_lock_supported,is_self_viewing_supported,landlord_id,view_count,
+        status,is_smart_lock_supported,is_self_viewing_supported,smart_lock_id,lock_bind_status,landlord_id,view_count,
         favorite_count,created_at,updated_at
     </sql>
 </mapper>

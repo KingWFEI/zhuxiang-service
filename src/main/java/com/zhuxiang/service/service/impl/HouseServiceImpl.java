@@ -593,7 +593,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
      */
     private AdminHouseDtos.AdminHouseView toAdminHouseView(House house, LockDevice lockDevice) {
         AdminHouseDtos.LockDeviceView lockDeviceView = null;
-        boolean smartLockBound = false;
+        boolean smartLockBound = StringUtils.hasText(house.getSmartLockId())
+                || (StringUtils.hasText(house.getLockBindStatus())
+                && !"UNBOUND".equals(house.getLockBindStatus()));
         if (lockDevice != null) {
             smartLockBound = true;
             lockDeviceView = new AdminHouseDtos.LockDeviceView(

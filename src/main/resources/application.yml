@@ -36,3 +36,11 @@ app:
     fixed-sms-code: ${FIXED_SMS_CODE:123456}
   upload:
     directory: ${UPLOAD_DIRECTORY:./uploads}
+
+ttlock:
+  client-id: ${TTLOCK_CLIENT_ID:cb5534587e624eb59a9244cc14b8e281}
+  client-secret: ${TTLOCK_CLIENT_SECRET:b73051c1d61c6c3aa7a5bb4917a495e8}
+  username: ${TTLOCK_USERNAME:15282398801}
+  password: ${TTLOCK_PASSWORD:wf010931}
+  access-token: ${TTLOCK_ACCESS_TOKEN:}
+  base-url: ${TTLOCK_BASE_URL:https://api.sciener.com}
