@@ -61,6 +61,9 @@ public class SmsCodeServiceImpl extends ServiceImpl<SmsCodeMapper, SmsCode>
         smsCode.setCode(fixedSmsCode == null || fixedSmsCode.isBlank()
                 ? String.format("%06d", (int) (Math.random() * 1_000_000))
                 : fixedSmsCode);
+        System.out.println("【开发测试】手机号 " + request.phone()
+                + "，场景 " + request.scene()
+                + " 的验证码是：" + smsCode.getCode());
         smsCode.setExpiresAt(now.plusSeconds(SMS_EXPIRES_SECONDS));
         smsCode.setUsed(0);
         smsCode.setCreatedAt(now);

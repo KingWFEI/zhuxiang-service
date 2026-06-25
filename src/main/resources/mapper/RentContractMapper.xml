@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhuxiang.service.mapper.RentContractMapper">
+
+    <resultMap id="BaseResultMap" type="com.zhuxiang.service.entity.RentContract">
+            <id property="id" column="id" />
+            <result property="orderId" column="order_id" />
+            <result property="userId" column="user_id" />
+            <result property="houseId" column="house_id" />
+            <result property="contractNo" column="contract_no" />
+            <result property="status" column="status" />
+            <result property="tenantName" column="tenant_name" />
+            <result property="tenantPhone" column="tenant_phone" />
+            <result property="tenantIdCard" column="tenant_id_card" />
+            <result property="startDate" column="start_date" />
+            <result property="endDate" column="end_date" />
+            <result property="leaseMonths" column="lease_months" />
+            <result property="monthlyRent" column="monthly_rent" />
+            <result property="deposit" column="deposit" />
+            <result property="serviceFee" column="service_fee" />
+            <result property="houseName" column="house_name" />
+            <result property="roomName" column="room_name" />
+            <result property="houseAddress" column="house_address" />
+            <result property="signedAt" column="signed_at" />
+            <result property="createdAt" column="created_at" />
+            <result property="updatedAt" column="updated_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,order_id,user_id,house_id,contract_no,status,
+        tenant_name,tenant_phone,tenant_id_card,
+        start_date,end_date,lease_months,
+        monthly_rent,deposit,service_fee,
+        house_name,room_name,house_address,
+        signed_at,created_at,updated_at
+    </sql>
+</mapper>
