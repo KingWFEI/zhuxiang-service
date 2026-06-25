@@ -139,6 +139,16 @@ public class House implements Serializable {
     private Integer isSelfViewingSupported;
 
     /**
+     * 当前绑定的智能门锁ID。
+     */
+    private String smartLockId;
+
+    /**
+     * 门锁绑定状态：UNBOUND未绑定，BOUND已绑定。
+     */
+    private String lockBindStatus;
+
+    /**
      * 关联房东或管家ID
      */
     private String landlordId;
