@@ -1,0 +1,89 @@
+@baseUrl = http://localhost:8000
+@token = MWVlZjYwN2QtOTljOS00NjZhLWE1NGUtYTQ1NzM3ZjM3Mjg2.1782377904.ervElbzyKvQH5o_E3diCAdjA4ZS_TlWMxpeA4baQSWE
+@orderId = 44318db6-0849-4099-8f21-9b981fe75027
+
+### 0.1 发送登录验证码
+POST {{baseUrl}}/api/auth/sms-code
+Content-Type: application/json
+
+{
+  "phone": "13213592847",
+  "scene": "login"
+}
+
+### 0.2 验证码登录
+### 验证码登录
+POST http://localhost:8000/api/auth/login/code
+Content-Type: application/json
+
+{
+  "phone": "13213592847",
+  "code": "123456"
+}
+
+### 查询房源列表
+GET http://localhost:8000/api/houses?page=1&pageSize=20
+Authorization: Bearer {{token}}
+
+### 1. 创建租住订单
+POST http://localhost:8000/api/rent-orders
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "houseId": "house-1",
+  "startDate": "2026-07-01",
+  "leaseMonths": 12,
+  "paymentMethod": "monthly",
+  "tenantCount": 1
+}
+
+
+### 2. 查询订单详情
+GET {{baseUrl}}/api/rent-orders/{{orderId}}
+Authorization: Bearer {{token}}
+
+
+### 3. 提交实名认证
+POST {{baseUrl}}/api/rent-orders/{{orderId}}/real-name
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "tenantName": "张小杰",
+  "tenantPhone": "13213592847",
+  "tenantIdCard": "500212200001011234"
+}
+
+
+### 4. 获取合同预览
+### 获取合同预览
+GET {{baseUrl}}/api/rent-orders/{{orderId}}/contract-preview
+Authorization: Bearer {{token}}
+
+### 5. 确认合同
+POST http://localhost:8000/api/rent-orders/{{orderId}}/confirm-contract
+Authorization: Bearer {{token}}
+
+### 6. 获取支付信息
+GET http://localhost:8000/api/rent-orders/{{orderId}}/payment-info
+Authorization: Bearer {{token}}
+
+### 7. 模拟支付
+POST http://localhost:8000/api/rent-orders/{{orderId}}/pay
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "paymentMethod": "wechat"
+}
+
+
+### 8. 在线签约
+POST http://localhost:8000/api/rent-orders/{{orderId}}/sign
+Authorization: Bearer {{token}}
+
+
+### 9. 查询我的租约
+GET http://localhost:8000/api/leases/my
+Authorization: Bearer {{token}}
