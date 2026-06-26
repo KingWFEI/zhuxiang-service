@@ -6,7 +6,6 @@ import com.zhuxiang.service.common.ApiResponse;
 import com.zhuxiang.service.dto.BookingDtos;
 import com.zhuxiang.service.service.AppointmentService;
 import com.zhuxiang.service.service.ConversationService;
-import com.zhuxiang.service.service.RentalApplicationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,23 +13,20 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 房源预约、申请和咨询接口。
+ * 房源预约和咨询接口。
  */
 @RequireAuth
 @RestController
 public class BookingController {
 
     private final AppointmentService appointmentService;
-    private final RentalApplicationService rentalApplicationService;
     private final ConversationService conversationService;
 
     public BookingController(
             AppointmentService appointmentService,
-            RentalApplicationService rentalApplicationService,
             ConversationService conversationService
     ) {
         this.appointmentService = appointmentService;
-        this.rentalApplicationService = rentalApplicationService;
         this.conversationService = conversationService;
     }
 
@@ -45,20 +41,6 @@ public class BookingController {
         return ApiResponse.success(
                 "预约提交成功",
                 appointmentService.createAppointment(CurrentUser.id(servletRequest), request)
-        );
-    }
-
-    /**
-     * 提交房源租住申请。
-     */
-    @PostMapping("/rental-applications")
-    public ApiResponse<BookingDtos.RentalApplicationResult> createRentalApplication(
-            HttpServletRequest servletRequest,
-            @Valid @RequestBody BookingDtos.RentalApplicationRequest request
-    ) {
-        return ApiResponse.success(
-                "租住申请已提交",
-                rentalApplicationService.createRentalApplication(CurrentUser.id(servletRequest), request)
         );
     }
 

@@ -48,6 +48,21 @@ public class Lease implements Serializable {
     private LocalDate endDate;
 
     /**
+     * 租期月数
+     */
+    private Integer leaseMonths;
+
+    /**
+     * 付款方式：monthly/quarterly/semi_annual/annual
+     */
+    private String paymentMethod;
+
+    /**
+     * 每期付款覆盖月数
+     */
+    private Integer paymentMonths;
+
+    /**
      * 月租金，单位：分
      */
     private Integer monthlyRent;
@@ -56,6 +71,16 @@ public class Lease implements Serializable {
      * 押金，单位：分
      */
     private Integer deposit;
+
+    /**
+     * 服务费，单位：分
+     */
+    private Integer serviceFee;
+
+    /**
+     * 首期款金额，单位：分
+     */
+    private Integer firstPaymentAmount;
 
     /**
      * 合同ID，第二阶段接入合同表后关联
@@ -93,8 +118,13 @@ public class Lease implements Serializable {
             && (this.getStatus() == null ? other.getStatus() == null : this.getStatus().equals(other.getStatus()))
             && (this.getStartDate() == null ? other.getStartDate() == null : this.getStartDate().equals(other.getStartDate()))
             && (this.getEndDate() == null ? other.getEndDate() == null : this.getEndDate().equals(other.getEndDate()))
+            && (this.getLeaseMonths() == null ? other.getLeaseMonths() == null : this.getLeaseMonths().equals(other.getLeaseMonths()))
+            && (this.getPaymentMethod() == null ? other.getPaymentMethod() == null : this.getPaymentMethod().equals(other.getPaymentMethod()))
+            && (this.getPaymentMonths() == null ? other.getPaymentMonths() == null : this.getPaymentMonths().equals(other.getPaymentMonths()))
             && (this.getMonthlyRent() == null ? other.getMonthlyRent() == null : this.getMonthlyRent().equals(other.getMonthlyRent()))
             && (this.getDeposit() == null ? other.getDeposit() == null : this.getDeposit().equals(other.getDeposit()))
+            && (this.getServiceFee() == null ? other.getServiceFee() == null : this.getServiceFee().equals(other.getServiceFee()))
+            && (this.getFirstPaymentAmount() == null ? other.getFirstPaymentAmount() == null : this.getFirstPaymentAmount().equals(other.getFirstPaymentAmount()))
             && (this.getContractId() == null ? other.getContractId() == null : this.getContractId().equals(other.getContractId()))
             && (this.getCreatedAt() == null ? other.getCreatedAt() == null : this.getCreatedAt().equals(other.getCreatedAt()))
             && (this.getUpdatedAt() == null ? other.getUpdatedAt() == null : this.getUpdatedAt().equals(other.getUpdatedAt()));
@@ -110,8 +140,13 @@ public class Lease implements Serializable {
         result = prime * result + ((getStatus() == null) ? 0 : getStatus().hashCode());
         result = prime * result + ((getStartDate() == null) ? 0 : getStartDate().hashCode());
         result = prime * result + ((getEndDate() == null) ? 0 : getEndDate().hashCode());
+        result = prime * result + ((getLeaseMonths() == null) ? 0 : getLeaseMonths().hashCode());
+        result = prime * result + ((getPaymentMethod() == null) ? 0 : getPaymentMethod().hashCode());
+        result = prime * result + ((getPaymentMonths() == null) ? 0 : getPaymentMonths().hashCode());
         result = prime * result + ((getMonthlyRent() == null) ? 0 : getMonthlyRent().hashCode());
         result = prime * result + ((getDeposit() == null) ? 0 : getDeposit().hashCode());
+        result = prime * result + ((getServiceFee() == null) ? 0 : getServiceFee().hashCode());
+        result = prime * result + ((getFirstPaymentAmount() == null) ? 0 : getFirstPaymentAmount().hashCode());
         result = prime * result + ((getContractId() == null) ? 0 : getContractId().hashCode());
         result = prime * result + ((getCreatedAt() == null) ? 0 : getCreatedAt().hashCode());
         result = prime * result + ((getUpdatedAt() == null) ? 0 : getUpdatedAt().hashCode());
@@ -130,8 +165,13 @@ public class Lease implements Serializable {
         sb.append(", status=").append(status);
         sb.append(", startDate=").append(startDate);
         sb.append(", endDate=").append(endDate);
+        sb.append(", leaseMonths=").append(leaseMonths);
+        sb.append(", paymentMethod=").append(paymentMethod);
+        sb.append(", paymentMonths=").append(paymentMonths);
         sb.append(", monthlyRent=").append(monthlyRent);
         sb.append(", deposit=").append(deposit);
+        sb.append(", serviceFee=").append(serviceFee);
+        sb.append(", firstPaymentAmount=").append(firstPaymentAmount);
         sb.append(", contractId=").append(contractId);
         sb.append(", createdAt=").append(createdAt);
         sb.append(", updatedAt=").append(updatedAt);

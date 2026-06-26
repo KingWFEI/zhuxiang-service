@@ -6,6 +6,10 @@
       "Bash(mysql *)",
       "Bash(ping *)",
       "Bash(git config *)"
+      "Bash(mysql *)",
+      "Bash(mvn test *)",
+      "Bash(mvn clean *)",
+      "Bash(git stash *)"
     ]
   }
 }
