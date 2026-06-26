@@ -2,6 +2,8 @@ package com.zhuxiang.service.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.dto.*;
 import com.zhuxiang.service.entity.*;
@@ -14,9 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder>
@@ -37,6 +37,9 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
     private final LockDeviceService lockDeviceService;
     private final LockPermissionService lockPermissionService;
     private final FileRecordService fileRecordService;
+    private final PaymentRecordService paymentRecordService;
+    private final RentBillService rentBillService;
+    private final ObjectMapper objectMapper;
 
     public RentOrderServiceImpl(
             HouseService houseService,
@@ -44,7 +47,10 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             LeaseService leaseService,
             LockDeviceService lockDeviceService,
             LockPermissionService lockPermissionService,
-            FileRecordService fileRecordService
+            FileRecordService fileRecordService,
+            PaymentRecordService paymentRecordService,
+            RentBillService rentBillService,
+            ObjectMapper objectMapper
     ) {
         this.houseService = houseService;
         this.rentContractMapper = rentContractMapper;
@@ -52,6 +58,9 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         this.lockDeviceService = lockDeviceService;
         this.lockPermissionService = lockPermissionService;
         this.fileRecordService = fileRecordService;
+        this.paymentRecordService = paymentRecordService;
+        this.rentBillService = rentBillService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -248,14 +257,60 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             throw BusinessException.badRequest("当前订单状态不允许支付");
         }
 
-        order.setPaymentMethod(request.paymentMethod());
-        order.setStatus("pendingSign");
-        order.setPaidAt(LocalDateTime.now());
-        order.setUpdatedAt(LocalDateTime.now());
-        updateById(order);
+        // 创建支付记录，包含费用明细拆账
+        int rentAmount = order.getMonthlyRent() * order.getPaymentMonths();
+        int depositAmount = order.getDeposit();
+        int serviceFeeAmount = order.getServiceFee();
+
+        String feeBreakdown = buildFeeBreakdown(rentAmount, depositAmount, serviceFeeAmount, order.getPaymentMonths());
+
+        PaymentRecord record = new PaymentRecord();
+        record.setId(UUID.randomUUID().toString());
+        record.setOrderId(orderId);
+        record.setUserId(userId);
+        record.setAmount(order.getFirstPaymentAmount());
+        record.setPaymentChannel(request.paymentChannel());
+        record.setStatus("pending");
+        record.setFeeBreakdown(feeBreakdown);
+        record.setCreatedAt(LocalDateTime.now());
+        record.setUpdatedAt(LocalDateTime.now());
+        paymentRecordService.save(record);
+
+        // mock 渠道自动确认支付（开发阶段），真实渠道等待回调确认
+        if ("mock".equals(request.paymentChannel())) {
+            confirmPayment(record.getId(), null);
+        }
 
         House house = houseService.getById(order.getHouseId());
         return toResponse(order, house);
+    }
+
+    @Override
+    @Transactional
+    public void confirmPayment(String recordId, String channelTradeNo) {
+        PaymentRecord record = paymentRecordService.getById(recordId);
+        if (record == null || !"pending".equals(record.getStatus())) {
+            throw BusinessException.badRequest("支付记录不存在或状态不正确");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        String tradeNo = channelTradeNo != null ? channelTradeNo : "mock_" + UUID.randomUUID().toString().replace("-", "");
+
+        record.setStatus("success");
+        record.setChannelTradeNo(tradeNo);
+        record.setPaidAt(now);
+        record.setCallbackTime(now);
+        record.setUpdatedAt(now);
+        paymentRecordService.updateById(record);
+
+        // 支付确认后推进订单状态
+        RentOrder order = getById(record.getOrderId());
+        if (order != null && "pendingPayment".equals(order.getStatus())) {
+            order.setStatus("pendingSign");
+            order.setPaidAt(now);
+            order.setUpdatedAt(now);
+            updateById(order);
+        }
     }
 
     @Override
@@ -276,6 +331,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
 
         LocalDateTime now = LocalDateTime.now();
 
+        // 创建租约（补齐所有履约字段）
         Lease lease = new Lease();
         lease.setId(UUID.randomUUID().toString());
         lease.setUserId(userId);
@@ -283,13 +339,22 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         lease.setStatus("active");
         lease.setStartDate(order.getStartDate());
         lease.setEndDate(order.getEndDate());
+        lease.setLeaseMonths(order.getLeaseMonths());
+        lease.setPaymentMethod(order.getPaymentMethod());
+        lease.setPaymentMonths(order.getPaymentMonths());
         lease.setMonthlyRent(order.getMonthlyRent());
         lease.setDeposit(order.getDeposit());
+        lease.setServiceFee(order.getServiceFee());
+        lease.setFirstPaymentAmount(order.getFirstPaymentAmount());
         lease.setContractId(contract != null ? contract.getId() : null);
         lease.setCreatedAt(now);
         lease.setUpdatedAt(now);
         leaseService.save(lease);
 
+        // 批量生成租金账单
+        generateRentBills(lease, order);
+
+        // 门锁授权（保持不变）
         LockDevice lockDevice = lockDeviceService.getOne(
                 Wrappers.<LockDevice>lambdaQuery()
                         .eq(LockDevice::getHouseId, order.getHouseId())
@@ -310,6 +375,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             lockPermissionService.save(permission);
         }
 
+        // 合同签署
         if (contract != null) {
             contract.setStatus("signed");
             contract.setSignedAt(now);
@@ -317,11 +383,13 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             rentContractMapper.updateById(contract);
         }
 
+        // 订单完成
         order.setStatus("completed");
         order.setSignedAt(now);
         order.setUpdatedAt(now);
         updateById(order);
 
+        // 房源置为已租
         House house = houseService.getById(order.getHouseId());
         if (house != null) {
             house.setStatus("rented");
@@ -329,6 +397,45 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             houseService.updateById(house);
         }
         return toResponse(order, house);
+    }
+
+    private void generateRentBills(Lease lease, RentOrder order) {
+        LocalDate billStartDate = order.getStartDate();
+        int leaseMonths = order.getLeaseMonths();
+        int paidMonths = order.getPaymentMonths();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (int i = 1; i <= leaseMonths; i++) {
+            RentBill bill = new RentBill();
+            bill.setId(UUID.randomUUID().toString());
+            bill.setLeaseId(lease.getId());
+            bill.setPeriodNo(i);
+            bill.setAmountDue(order.getMonthlyRent());
+            bill.setDueDate(billStartDate.plusMonths(i - 1));
+            if (i <= paidMonths) {
+                bill.setAmountPaid(order.getMonthlyRent());
+                bill.setPaidAt(now);
+                bill.setStatus("paid");
+            } else {
+                bill.setAmountPaid(0);
+                bill.setStatus("pending");
+            }
+            bill.setCreatedAt(now);
+            bill.setUpdatedAt(now);
+            rentBillService.save(bill);
+        }
+    }
+
+    private String buildFeeBreakdown(int rentAmount, int depositAmount, int serviceFeeAmount, int paymentMonths) {
+        try {
+            List<Map<String, Object>> items = new ArrayList<>();
+            items.add(Map.of("type", "rent", "amount", rentAmount, "description", "租金(" + paymentMonths + "个月)"));
+            items.add(Map.of("type", "deposit", "amount", depositAmount, "description", "押金"));
+            items.add(Map.of("type", "service_fee", "amount", serviceFeeAmount, "description", "服务费"));
+            return objectMapper.writeValueAsString(items);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("序列化费用明细失败", e);
+        }
     }
 
     private RentOrder getOwnedOrder(String userId, String orderId) {
