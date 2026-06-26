@@ -3,7 +3,9 @@
     "allow": [
       "Bash(mvn compile *)",
       "Bash(./mvnw compile *)",
-      "Bash(mysql *)"
+      "Bash(mysql *)",
+      "Bash(ping *)",
+      "Bash(git config *)"
     ]
   }
 }
