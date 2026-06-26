@@ -12,6 +12,7 @@ public record RentOrderResponse(
         LocalDate endDate,
         Integer leaseMonths,
         String paymentMethod,
+        Integer paymentMonths,
         Integer tenantCount,
         Integer monthlyRent,
         Integer deposit,

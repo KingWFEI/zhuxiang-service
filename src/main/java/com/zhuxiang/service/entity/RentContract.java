@@ -44,6 +44,14 @@ public class RentContract implements Serializable {
 
     private Integer serviceFee;
 
+    private Integer paymentMonths;
+
+    private Integer firstPaymentAmount;
+
+    private String idCardFrontUrl;
+
+    private String idCardBackUrl;
+
     private String houseName;
 
     private String roomName;

@@ -12,6 +12,10 @@ public record RealNameRequest(
         @Pattern(regexp = "^1\\d{10}$", message = "联系电话格式错误") String tenantPhone,
 
         @NotBlank(message = "身份证号不能为空")
-        @Pattern(regexp = "^\\d{17}[\\dXx]$", message = "身份证号格式错误") String tenantIdCard
+        @Pattern(regexp = "^\\d{17}[\\dXx]$", message = "身份证号格式错误") String tenantIdCard,
+
+        @NotBlank(message = "身份证人像面图片不能为空") String idCardFrontUrl,
+
+        @NotBlank(message = "身份证国徽面图片不能为空") String idCardBackUrl
 ) {
 }

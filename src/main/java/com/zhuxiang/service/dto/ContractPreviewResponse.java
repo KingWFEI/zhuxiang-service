@@ -17,6 +17,7 @@ public record ContractPreviewResponse(
         Integer monthlyRent,
         Integer deposit,
         Integer serviceFee,
-        Integer firstPaymentAmount
+        Integer firstPaymentAmount,
+        Integer paymentMonths
 ) {
 }
