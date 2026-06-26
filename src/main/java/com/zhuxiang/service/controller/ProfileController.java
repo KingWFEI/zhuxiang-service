@@ -69,6 +69,30 @@ public class ProfileController {
     }
 
     /**
+     * 修改当前用户密码。
+     */
+    @PutMapping("/password")
+    public ApiResponse<Void> changePassword(
+            HttpServletRequest request,
+            @Valid @RequestBody ProfileDtos.ChangePasswordRequest body
+    ) {
+        userService.changePassword(CurrentUser.id(request), body);
+        return ApiResponse.success("密码修改成功", null);
+    }
+
+    /**
+     * 修改当前用户手机号。
+     */
+    @PutMapping("/phone")
+    public ApiResponse<AuthDtos.UserView> changePhone(
+            HttpServletRequest request,
+            @Valid @RequestBody ProfileDtos.ChangePhoneRequest body
+    ) {
+        userService.changePhone(CurrentUser.id(request), body);
+        return ApiResponse.success("手机号修改成功", userService.getProfile(CurrentUser.id(request)));
+    }
+
+    /**
      * 上传并更新当前用户头像。
      */
     @PostMapping("/avatar")

@@ -48,6 +48,16 @@ public interface UserService extends IService<User> {
     ProfileDtos.AvatarResult uploadAvatar(String userId, MultipartFile file);
 
     /**
+     * 修改当前用户密码。
+     */
+    void changePassword(String userId, ProfileDtos.ChangePasswordRequest request);
+
+    /**
+     * 修改当前用户手机号。
+     */
+    void changePhone(String userId, ProfileDtos.ChangePhoneRequest request);
+
+    /**
      * 获取状态正常的用户实体。
      */
     User requireActiveUser(String userId);

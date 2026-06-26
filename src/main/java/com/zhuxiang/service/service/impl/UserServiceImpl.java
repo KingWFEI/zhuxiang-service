@@ -229,6 +229,42 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     /**
+     * 修改当前用户密码。
+     */
+    @Override
+    @Transactional
+    public void changePassword(String userId, ProfileDtos.ChangePasswordRequest request) {
+        User user = requireActiveUser(userId);
+        if (user.getPasswordHash() == null
+                || !passwordEncoder.matches(request.oldPassword(), user.getPasswordHash())) {
+            throw BusinessException.badRequest("旧密码错误");
+        }
+        if (request.oldPassword().equals(request.newPassword())) {
+            throw BusinessException.badRequest("新密码不能与旧密码相同");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setUpdatedAt(LocalDateTime.now());
+        updateById(user);
+    }
+
+    /**
+     * 修改当前用户手机号。
+     */
+    @Override
+    @Transactional
+    public void changePhone(String userId, ProfileDtos.ChangePhoneRequest request) {
+        User existing = findByPhone(request.newPhone());
+        if (existing != null) {
+            throw BusinessException.conflict("该手机号已被使用");
+        }
+        smsCodeService.consumeSmsCode(request.newPhone(), "login", request.code());
+        User user = requireActiveUser(userId);
+        user.setPhone(request.newPhone());
+        user.setUpdatedAt(LocalDateTime.now());
+        updateById(user);
+    }
+
+    /**
      * 查询并校验状态正常的用户。
      */
     @Override
