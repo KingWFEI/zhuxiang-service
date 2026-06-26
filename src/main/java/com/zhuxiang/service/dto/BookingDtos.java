@@ -1,8 +1,6 @@
 package com.zhuxiang.service.dto;
 
 import jakarta.validation.constraints.FutureOrPresent;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -31,19 +29,6 @@ public final class BookingDtos {
     }
 
     public record AppointmentResult(String id, String houseId, String status) {
-    }
-
-    public record RentalApplicationRequest(
-            @NotBlank(message = "houseId 不能为空") String houseId,
-            @NotNull(message = "起租日期不能为空")
-            @FutureOrPresent(message = "起租日期不能早于今天") LocalDate leaseStartDate,
-            @Min(value = 1, message = "租期不能少于 1 个月")
-            @Max(value = 120, message = "租期不能超过 120 个月") Integer leaseMonths,
-            @Size(max = 500, message = "备注不能超过 500 字") String remark
-    ) {
-    }
-
-    public record RentalApplicationResult(String id, String status) {
     }
 
     public record ConversationRequest(

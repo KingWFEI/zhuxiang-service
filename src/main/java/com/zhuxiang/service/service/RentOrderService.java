@@ -20,5 +20,7 @@ public interface RentOrderService extends IService<RentOrder> {
 
     RentOrderResponse pay(String userId, String orderId, PayRequest request);
 
+    void confirmPayment(String recordId, String channelTradeNo);
+
     RentOrderResponse sign(String userId, String orderId);
 }
