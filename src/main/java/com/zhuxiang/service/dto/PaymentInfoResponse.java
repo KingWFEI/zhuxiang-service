@@ -7,6 +7,7 @@ public record PaymentInfoResponse(
         Integer deposit,
         Integer serviceFee,
         Integer firstPaymentAmount,
-        String paymentMethod
+        String paymentMethod,
+        Integer paymentMonths
 ) {
 }

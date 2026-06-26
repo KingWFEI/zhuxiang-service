@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
@@ -23,24 +24,34 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
 
     private static final int SERVICE_FEE = 20000;
 
+    private static final Map<String, Integer> PAYMENT_MONTHS_MAP = Map.of(
+            "monthly", 1,
+            "quarterly", 3,
+            "semi_annual", 6,
+            "annual", 12
+    );
+
     private final HouseService houseService;
     private final RentContractMapper rentContractMapper;
     private final LeaseService leaseService;
     private final LockDeviceService lockDeviceService;
     private final LockPermissionService lockPermissionService;
+    private final FileRecordService fileRecordService;
 
     public RentOrderServiceImpl(
             HouseService houseService,
             RentContractMapper rentContractMapper,
             LeaseService leaseService,
             LockDeviceService lockDeviceService,
-            LockPermissionService lockPermissionService
+            LockPermissionService lockPermissionService,
+            FileRecordService fileRecordService
     ) {
         this.houseService = houseService;
         this.rentContractMapper = rentContractMapper;
         this.leaseService = leaseService;
         this.lockDeviceService = lockDeviceService;
         this.lockPermissionService = lockPermissionService;
+        this.fileRecordService = fileRecordService;
     }
 
     @Override
@@ -63,11 +74,20 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             throw BusinessException.conflict("该房源已有进行中的订单");
         }
 
+        String paymentMethod = request.paymentMethod();
+        Integer paymentMonths = PAYMENT_MONTHS_MAP.get(paymentMethod);
+        if (paymentMonths == null) {
+            throw BusinessException.badRequest("不支持的付款方式");
+        }
+        if (paymentMonths > request.leaseMonths()) {
+            throw BusinessException.badRequest("付款周期不能超过租期");
+        }
+
         LocalDate endDate = request.startDate().plusMonths(request.leaseMonths()).minusDays(1);
         int monthlyRent = house.getPrice();
         int deposit = house.getDeposit();
         int serviceFee = SERVICE_FEE;
-        int firstPaymentAmount = monthlyRent + deposit + serviceFee;
+        int firstPaymentAmount = monthlyRent * paymentMonths + deposit + serviceFee;
         int totalAmount = monthlyRent * request.leaseMonths() + deposit + serviceFee;
 
         RentOrder order = new RentOrder();
@@ -78,7 +98,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         order.setStartDate(request.startDate());
         order.setEndDate(endDate);
         order.setLeaseMonths(request.leaseMonths());
-        order.setPaymentMethod(request.paymentMethod());
+        order.setPaymentMethod(paymentMethod);
+        order.setPaymentMonths(paymentMonths);
         order.setTenantCount(request.tenantCount());
         order.setMonthlyRent(monthlyRent);
         order.setDeposit(deposit);
@@ -108,6 +129,9 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             throw BusinessException.badRequest("当前订单状态不允许提交实名认证");
         }
 
+        fileRecordService.validateFileOwnership(userId, request.idCardFrontUrl(), "id_card_front");
+        fileRecordService.validateFileOwnership(userId, request.idCardBackUrl(), "id_card_back");
+
         order.setTenantName(request.tenantName());
         order.setTenantPhone(request.tenantPhone());
         order.setTenantIdCard(request.tenantIdCard());
@@ -129,12 +153,16 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         contract.setTenantName(request.tenantName());
         contract.setTenantPhone(request.tenantPhone());
         contract.setTenantIdCard(request.tenantIdCard());
+        contract.setIdCardFrontUrl(request.idCardFrontUrl());
+        contract.setIdCardBackUrl(request.idCardBackUrl());
         contract.setStartDate(order.getStartDate());
         contract.setEndDate(order.getEndDate());
         contract.setLeaseMonths(order.getLeaseMonths());
         contract.setMonthlyRent(order.getMonthlyRent());
         contract.setDeposit(order.getDeposit());
         contract.setServiceFee(order.getServiceFee());
+        contract.setPaymentMonths(order.getPaymentMonths());
+        contract.setFirstPaymentAmount(order.getFirstPaymentAmount());
         contract.setHouseName(house.getTitle());
         contract.setRoomName(formatRoomName(house));
         contract.setHouseAddress(house.getAddress());
@@ -172,7 +200,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
                 contract.getMonthlyRent(),
                 contract.getDeposit(),
                 contract.getServiceFee(),
-                order.getFirstPaymentAmount()
+                contract.getFirstPaymentAmount(),
+                contract.getPaymentMonths()
         );
     }
 
@@ -205,7 +234,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
                 order.getDeposit(),
                 order.getServiceFee(),
                 order.getFirstPaymentAmount(),
-                order.getPaymentMethod()
+                order.getPaymentMethod(),
+                order.getPaymentMonths()
         );
     }
 
@@ -321,7 +351,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
                 order.getId(), order.getUserId(), order.getHouseId(),
                 order.getStatus(),
                 order.getStartDate(), order.getEndDate(),
-                order.getLeaseMonths(), order.getPaymentMethod(),
+                order.getLeaseMonths(), order.getPaymentMethod(), order.getPaymentMonths(),
                 order.getTenantCount(),
                 order.getMonthlyRent(), order.getDeposit(),
                 order.getServiceFee(), order.getFirstPaymentAmount(),

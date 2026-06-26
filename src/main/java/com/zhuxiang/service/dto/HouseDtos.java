@@ -29,7 +29,8 @@ public final class HouseDtos {
             boolean isFavorite,
             String metro,
             String decoration,
-            LocalDate availableDate
+            LocalDate availableDate,
+            String status
     ) {
     }
 
@@ -62,7 +63,8 @@ public final class HouseDtos {
             boolean isVerified,
             BigDecimal rating,
             Integer rentedCount,
-            String responseDescription
+            String responseDescription,
+            String status
     ) {
     }
 

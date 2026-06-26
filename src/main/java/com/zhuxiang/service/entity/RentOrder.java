@@ -30,6 +30,8 @@ public class RentOrder implements Serializable {
 
     private String paymentMethod;
 
+    private Integer paymentMonths;
+
     private Integer tenantCount;
 
     private String tenantName;

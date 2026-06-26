@@ -176,7 +176,16 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     @Override
     @Transactional
     public HouseDtos.HouseDetail getHouseDetail(String houseId, String userId) {
-        House house = requireAvailableHouse(houseId);
+        House house = getById(houseId);
+        if (house == null) {
+            throw BusinessException.notFound("房源不存在");
+        }
+        if ("rented".equals(house.getStatus())) {
+            throw BusinessException.conflict("该房源已出租");
+        }
+        if (!"available".equals(house.getStatus())) {
+            throw BusinessException.notFound("房源不存在或已下架");
+        }
         house.setViewCount((house.getViewCount() == null ? 0 : house.getViewCount()) + 1);
         updateById(house);
         Community community = communityService.getById(house.getCommunityId());
@@ -217,7 +226,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 landlord != null && integerBoolean(landlord.getIsVerified()),
                 landlord == null ? BigDecimal.ZERO : landlord.getRating(),
                 landlord == null ? 0 : landlord.getRentedCount(),
-                landlord == null ? "" : landlord.getResponseDescription()
+                landlord == null ? "" : landlord.getResponseDescription(),
+                house.getStatus()
         );
     }
 
@@ -308,7 +318,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 isFavorite(userId, house.getId()),
                 house.getMetro(),
                 house.getDecoration(),
-                house.getAvailableDate()
+                house.getAvailableDate(),
+                house.getStatus()
         );
     }
 
