@@ -6,7 +6,23 @@
       "Bash(mysql *)",
       "Bash(mvn test *)",
       "Bash(mvn clean *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(curl -s http://localhost:8000/api/houses?page=1\\\\&pageSize=50)",
+      "Bash(curl -s \"http://localhost:8000/api/home/data?pageSize=20\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/login -H 'Content-Type: application/json' -d '{\"phone\":\"13213592847\",\"code\":\"123456\"}')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\('data',{}\\).get\\('accessToken',''\\)\\)\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/login -H \"Content-Type: application/json\" -d '{\"phone\":\"13213592847\",\"code\":\"123456\"}')",
+      "Bash(sort -t_ -k1,1V)",
+      "Bash(mvn flyway:repair -Dflyway.configFile=src/main/resources/application.yml)",
+      "Bash(mvn flyway:repair -Dflyway.url='jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai' -Dflyway.user='root' -Dflyway.password='132135')",
+      "Bash(mvn spring-boot:run)",
+      "Bash(netstat -ano)",
+      "Bash(awk '{print $5}')",
+      "Bash(kill -9 25744)",
+      "Bash(taskkill *)",
+      "Bash(curl *)",
+      "Bash(python3 -m json.tool)"
     ]
   }
 }

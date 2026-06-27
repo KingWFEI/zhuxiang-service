@@ -30,7 +30,11 @@ public final class HouseDtos {
             String metro,
             String decoration,
             LocalDate availableDate,
-            String status
+            String status,
+            boolean isRented,
+            String rentAvailability,
+            String activeOrderId,
+            boolean activeOrderBelongsToMe
     ) {
     }
 
@@ -64,7 +68,11 @@ public final class HouseDtos {
             BigDecimal rating,
             Integer rentedCount,
             String responseDescription,
-            String status
+            String status,
+            boolean isRented,
+            String rentAvailability,
+            String activeOrderId,
+            boolean activeOrderBelongsToMe
     ) {
     }
 

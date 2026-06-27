@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhuxiang.service.common.BusinessException;
+import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.*;
 import com.zhuxiang.service.entity.*;
 import com.zhuxiang.service.mapper.RentContractMapper;
@@ -34,6 +35,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
     private final HouseService houseService;
     private final RentContractMapper rentContractMapper;
     private final LeaseService leaseService;
+    private final LandlordService landlordService;
     private final LockDeviceService lockDeviceService;
     private final LockPermissionService lockPermissionService;
     private final FileRecordService fileRecordService;
@@ -45,6 +47,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             HouseService houseService,
             RentContractMapper rentContractMapper,
             LeaseService leaseService,
+            LandlordService landlordService,
             LockDeviceService lockDeviceService,
             LockPermissionService lockPermissionService,
             FileRecordService fileRecordService,
@@ -55,6 +58,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         this.houseService = houseService;
         this.rentContractMapper = rentContractMapper;
         this.leaseService = leaseService;
+        this.landlordService = landlordService;
         this.lockDeviceService = lockDeviceService;
         this.lockPermissionService = lockPermissionService;
         this.fileRecordService = fileRecordService;
@@ -66,15 +70,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
     @Override
     @Transactional
     public RentOrderResponse createOrder(String userId, CreateRentOrderRequest request) {
-        House house = houseService.requireAvailableHouse(request.houseId());
-
-        long activeLeaseCount = leaseService.count(Wrappers.<Lease>lambdaQuery()
-                .eq(Lease::getHouseId, request.houseId())
-                .eq(Lease::getStatus, "active"));
-        if (activeLeaseCount > 0) {
-            throw BusinessException.conflict("该房源已被租出");
-        }
-
+        // 用户对该房源没有进行中的订单
         long pendingCount = count(Wrappers.<RentOrder>lambdaQuery()
                 .eq(RentOrder::getUserId, userId)
                 .eq(RentOrder::getHouseId, request.houseId())
@@ -90,6 +86,45 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         }
         if (paymentMonths > request.leaseMonths()) {
             throw BusinessException.badRequest("付款周期不能超过租期");
+        }
+
+        // 原子锁房：只有 status = available 时才能成功更新为 reserved
+        LocalDateTime now = LocalDateTime.now();
+        House house = houseService.getById(request.houseId());
+        if (house == null) throw BusinessException.notFound("房源不存在");
+
+        // 其他用户有进行中订单
+        long otherPendingCount = count(Wrappers.<RentOrder>lambdaQuery()
+                .eq(RentOrder::getHouseId, request.houseId())
+                .ne(RentOrder::getUserId, userId)
+                .in(RentOrder::getStatus, "pendingRealName", "pendingContract", "pendingPayment", "pendingSign"));
+        if (otherPendingCount > 0) {
+            throw BusinessException.conflict("该房源已有租客办理中，暂时无法发起新的租赁申请");
+        }
+
+        boolean locked = houseService.lambdaUpdate()
+                .eq(House::getId, request.houseId())
+                .eq(House::getStatus, "available")
+                .set(House::getStatus, "reserved")
+                .set(House::getUpdatedAt, now)
+                .update();
+        if (!locked) {
+            throw BusinessException.conflict("该房源已被预定或已出租");
+        }
+
+        house.setStatus("reserved");
+
+        // 安全性检查：确认没有活跃租约
+        long activeLeaseCount = leaseService.count(Wrappers.<Lease>lambdaQuery()
+                .eq(Lease::getHouseId, request.houseId())
+                .eq(Lease::getStatus, "active"));
+        if (activeLeaseCount > 0) {
+            houseService.lambdaUpdate()
+                    .eq(House::getId, request.houseId())
+                    .set(House::getStatus, "available")
+                    .set(House::getUpdatedAt, now)
+                    .update();
+            throw BusinessException.conflict("该房源已被租出");
         }
 
         LocalDate endDate = request.startDate().plusMonths(request.leaseMonths()).minusDays(1);
@@ -115,11 +150,29 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         order.setServiceFee(serviceFee);
         order.setFirstPaymentAmount(firstPaymentAmount);
         order.setTotalAmount(totalAmount);
-        order.setCreatedAt(LocalDateTime.now());
-        order.setUpdatedAt(LocalDateTime.now());
+        order.setCreatedAt(now);
+        order.setUpdatedAt(now);
         save(order);
 
         return toResponse(order, house);
+    }
+
+    @Override
+    public PageData<RentOrderResponse> listMyOrders(String userId, long page, long pageSize) {
+        var result = page(
+                new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>(page, pageSize),
+                Wrappers.<RentOrder>lambdaQuery()
+                        .eq(RentOrder::getUserId, userId)
+                        .eq(RentOrder::getUserHidden, 0)
+                        .orderByDesc(RentOrder::getCreatedAt)
+        );
+        List<RentOrderResponse> items = result.getRecords().stream()
+                .map(order -> {
+                    House house = order.getHouseId() != null ? houseService.getById(order.getHouseId()) : null;
+                    return toResponse(order, house);
+                })
+                .toList();
+        return PageData.of(items, page, pageSize, result.getTotal());
     }
 
     @Override
@@ -194,7 +247,22 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         if (contract == null) {
             throw BusinessException.notFound("合同尚未生成");
         }
+
+        // 获取房东名称
+        String landlordName = "";
+        House house = houseService.getById(contract.getHouseId());
+        if (house != null && house.getLandlordId() != null) {
+            Landlord landlord = landlordService.getById(house.getLandlordId());
+            if (landlord != null) {
+                landlordName = landlord.getName();
+            }
+        }
+
+        // 生成合同条款
+        List<String> clauses = buildContractClauses(contract);
+
         return new ContractPreviewResponse(
+                orderId,
                 contract.getContractNo(),
                 contract.getStatus(),
                 contract.getTenantName(),
@@ -203,14 +271,16 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
                 contract.getHouseName(),
                 contract.getRoomName(),
                 contract.getHouseAddress(),
+                landlordName,
                 contract.getStartDate(),
                 contract.getEndDate(),
                 contract.getLeaseMonths(),
                 contract.getMonthlyRent(),
                 contract.getDeposit(),
                 contract.getServiceFee(),
-                contract.getFirstPaymentAmount(),
-                contract.getPaymentMonths()
+                order.getPaymentMethod(),
+                contract.getPaymentMonths(),
+                clauses
         );
     }
 
@@ -238,13 +308,11 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
 
         return new PaymentInfoResponse(
                 order.getId(),
-                order.getStatus(),
+                order.getFirstPaymentAmount(),
                 order.getMonthlyRent(),
                 order.getDeposit(),
                 order.getServiceFee(),
-                order.getFirstPaymentAmount(),
-                order.getPaymentMethod(),
-                order.getPaymentMonths()
+                List.of("mock", "wechat", "alipay")
         );
     }
 
@@ -399,6 +467,48 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         return toResponse(order, house);
     }
 
+    @Override
+    @Transactional
+    public RentOrderResponse cancelOrder(String userId, String orderId) {
+        RentOrder order = getOwnedOrder(userId, orderId);
+
+        if ("completed".equals(order.getStatus()) || "cancelled".equals(order.getStatus())) {
+            throw BusinessException.badRequest("已完成或已取消的订单无法取消");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        order.setStatus("cancelled");
+        order.setCancelledAt(now);
+        order.setUpdatedAt(now);
+        updateById(order);
+
+        // 释放房源（仅当状态仍是 reserved 时回退为 available）
+        houseService.lambdaUpdate()
+                .eq(House::getId, order.getHouseId())
+                .eq(House::getStatus, "reserved")
+                .set(House::getStatus, "available")
+                .set(House::getUpdatedAt, now)
+                .update();
+
+        House house = houseService.getById(order.getHouseId());
+        return toResponse(order, house);
+    }
+
+    @Override
+    public void hideOrder(String userId, String orderId) {
+        RentOrder order = getOwnedOrder(userId, orderId);
+
+        if (!"cancelled".equals(order.getStatus())) {
+            throw BusinessException.badRequest("只有已取消订单可以删除记录");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        order.setUserHidden(1);
+        order.setHiddenAt(now);
+        order.setUpdatedAt(now);
+        updateById(order);
+    }
+
     private void generateRentBills(Lease lease, RentOrder order) {
         LocalDate billStartDate = order.getStartDate();
         int leaseMonths = order.getLeaseMonths();
@@ -424,6 +534,29 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             bill.setUpdatedAt(now);
             rentBillService.save(bill);
         }
+    }
+
+    private List<String> buildContractClauses(RentContract contract) {
+        String months = contract.getLeaseMonths() + "";
+        String monthlyRent = String.format("%.2f", contract.getMonthlyRent() / 100.0);
+        String deposit = String.format("%.2f", contract.getDeposit() / 100.0);
+
+        return List.of(
+                "甲乙双方确认房源信息：甲方（出租方）将位于" + contract.getHouseAddress() + "的" + contract.getHouseName()
+                        + "（" + contract.getRoomName() + "）出租给乙方（承租方）" + contract.getTenantName() + "使用。",
+                "租赁期限：自" + formatLocalDate(contract.getStartDate()) + "起至" + formatLocalDate(contract.getEndDate())
+                        + "止，共计" + months + "个月。",
+                "租金及支付方式：房屋月租金为人民币" + monthlyRent + "元，押金为人民币" + deposit + "元。"
+                        + "乙方应按合同约定及时支付租金。",
+                "房屋用途：乙方承诺该房屋仅作为居住使用，不得擅自改变房屋用途或转租给第三方。",
+                "维修责任：房屋及其设施设备的自然损耗由甲方负责维修。因乙方使用不当造成的损坏，由乙方负责维修或赔偿。",
+                "合同解除：任何一方提前解除合同，应提前30日书面通知对方，并按合同约定承担违约责任。",
+                "其他约定：双方确认本合同内容真实有效，未尽事宜另行协商解决。本合同一式两份，甲乙双方各执一份，具有同等法律效力。"
+        );
+    }
+
+    private static String formatLocalDate(LocalDate date) {
+        return date.format(java.time.format.DateTimeFormatter.ofPattern("yyyy年MM月dd日"));
     }
 
     private String buildFeeBreakdown(int rentAmount, int depositAmount, int serviceFeeAmount, int paymentMonths) {
@@ -456,7 +589,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
 
         return new RentOrderResponse(
                 order.getId(), order.getUserId(), order.getHouseId(),
-                order.getStatus(),
+                order.getStatus(), house != null ? house.getStatus() : null,
                 order.getStartDate(), order.getEndDate(),
                 order.getLeaseMonths(), order.getPaymentMethod(), order.getPaymentMonths(),
                 order.getTenantCount(),
