@@ -20,8 +20,10 @@ import com.zhuxiang.service.entity.HouseTagRelation;
 import com.zhuxiang.service.entity.Landlord;
 import com.zhuxiang.service.entity.Region;
 import com.zhuxiang.service.entity.SmartLock;
+import com.zhuxiang.service.entity.RentOrder;
 import com.zhuxiang.service.entity.UserFavoriteHouse;
 import com.zhuxiang.service.mapper.SmartLockMapper;
+import com.zhuxiang.service.mapper.RentOrderMapper;
 import com.zhuxiang.service.mapper.UserFavoriteHouseMapper;
 import com.zhuxiang.service.service.AdvertisementService;
 import com.zhuxiang.service.service.CommunityService;
@@ -74,6 +76,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     private final RegionService regionService;
     private final SmartLockMapper smartLockMapper;
     private final UserFavoriteHouseMapper favoriteHouseMapper;
+    private final RentOrderMapper rentOrderMapper;
 
     public HouseServiceImpl(
             CommunityService communityService,
@@ -86,7 +89,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             AdvertisementService advertisementService,
             RegionService regionService,
             SmartLockMapper smartLockMapper,
-            UserFavoriteHouseMapper favoriteHouseMapper
+            UserFavoriteHouseMapper favoriteHouseMapper,
+            RentOrderMapper rentOrderMapper
     ) {
         this.communityService = communityService;
         this.imageService = imageService;
@@ -99,6 +103,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         this.regionService = regionService;
         this.smartLockMapper = smartLockMapper;
         this.favoriteHouseMapper = favoriteHouseMapper;
+        this.rentOrderMapper = rentOrderMapper;
     }
 
     /**
@@ -183,11 +188,13 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         if ("rented".equals(house.getStatus())) {
             throw BusinessException.conflict("该房源已出租");
         }
-        if (!"available".equals(house.getStatus())) {
+        if (!"available".equals(house.getStatus()) && !"reserved".equals(house.getStatus())) {
             throw BusinessException.notFound("房源不存在或已下架");
         }
-        house.setViewCount((house.getViewCount() == null ? 0 : house.getViewCount()) + 1);
-        updateById(house);
+        if ("available".equals(house.getStatus())) {
+            house.setViewCount((house.getViewCount() == null ? 0 : house.getViewCount()) + 1);
+            updateById(house);
+        }
         Community community = communityService.getById(house.getCommunityId());
         Landlord landlord = landlordService.getById(house.getLandlordId());
         List<String> images = imageService.list(
@@ -197,6 +204,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 ).stream()
                 .map(HouseImage::getImageUrl)
                 .toList();
+        RentAvailabilityData rent = loadRentAvailability(house, userId);
         return new HouseDtos.HouseDetail(
                 house.getId(),
                 house.getTitle(),
@@ -227,7 +235,11 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 landlord == null ? BigDecimal.ZERO : landlord.getRating(),
                 landlord == null ? 0 : landlord.getRentedCount(),
                 landlord == null ? "" : landlord.getResponseDescription(),
-                house.getStatus()
+                house.getStatus(),
+                "rented".equals(house.getStatus()),
+                rent.rentAvailability(),
+                rent.activeOrderId(),
+                rent.activeOrderBelongsToMe()
         );
     }
 
@@ -295,11 +307,42 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     }
 
     /**
+     * 查询房源的出租可用状态。available/rented 不额外查库，reserved 查订单表。
+     */
+    private RentAvailabilityData loadRentAvailability(House house, String userId) {
+        if ("rented".equals(house.getStatus())) {
+            return new RentAvailabilityData("rented", null, false);
+        }
+        if (!"reserved".equals(house.getStatus())) {
+            return new RentAvailabilityData("available", null, false);
+        }
+        RentOrder activeOrder = rentOrderMapper.selectOne(
+                Wrappers.<RentOrder>lambdaQuery()
+                        .eq(RentOrder::getHouseId, house.getId())
+                        .in(RentOrder::getStatus, "pendingRealName", "pendingContract", "pendingPayment", "pendingSign")
+                        .last("LIMIT 1")
+        );
+        if (activeOrder != null) {
+            boolean belongsToMe = userId != null && userId.equals(activeOrder.getUserId());
+            return new RentAvailabilityData(
+                    "locked",
+                    belongsToMe ? activeOrder.getId() : null,
+                    belongsToMe
+            );
+        }
+        return new RentAvailabilityData("available", null, false);
+    }
+
+    private record RentAvailabilityData(String rentAvailability, String activeOrderId, boolean activeOrderBelongsToMe) {
+    }
+
+    /**
      * 将房源实体转换为列表展示数据。
      */
     @Override
     public HouseDtos.HouseView toHouseView(House house, String userId) {
         Community community = communityService.getById(house.getCommunityId());
+        RentAvailabilityData rent = loadRentAvailability(house, userId);
         return new HouseDtos.HouseView(
                 house.getId(),
                 house.getTitle(),
@@ -319,7 +362,11 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getMetro(),
                 house.getDecoration(),
                 house.getAvailableDate(),
-                house.getStatus()
+                house.getStatus(),
+                "rented".equals(house.getStatus()),
+                rent.rentAvailability(),
+                rent.activeOrderId(),
+                rent.activeOrderBelongsToMe()
         );
     }
 
@@ -356,6 +403,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
 
         LambdaQueryWrapper<House> wrapper = Wrappers.<House>lambdaQuery()
                 .eq(House::getStatus, "available")
+                .apply("NOT EXISTS (SELECT 1 FROM lease WHERE lease.house_id = house.id AND lease.status = 'active')")
                 .eq(StringUtils.hasText(category), House::getRentType, category)
                 .ge(minPrice != null, House::getPrice, minPrice)
                 .le(maxPrice != null, House::getPrice, maxPrice)

@@ -124,7 +124,7 @@ public class House implements Serializable {
     private String rentType;
 
     /**
-     * 房源状态：draft草稿，available可租，rented已租，offline下架
+     * 房源状态：draft草稿，available可租，reserved已被预定，rented已租，offline下架
      */
     private String status;
 

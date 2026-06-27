@@ -1,13 +1,13 @@
 package com.zhuxiang.service.dto;
 
+import java.util.List;
+
 public record PaymentInfoResponse(
         String orderId,
-        String status,
+        Integer amount,
         Integer monthlyRent,
         Integer deposit,
         Integer serviceFee,
-        Integer firstPaymentAmount,
-        String paymentMethod,
-        Integer paymentMonths
+        List<String> paymentMethods
 ) {
 }

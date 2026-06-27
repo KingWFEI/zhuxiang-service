@@ -8,6 +8,7 @@ public record RentOrderResponse(
         String userId,
         String houseId,
         String status,
+        String houseStatus,
         LocalDate startDate,
         LocalDate endDate,
         Integer leaseMonths,

@@ -3,6 +3,7 @@ package com.zhuxiang.service.controller;
 import com.zhuxiang.service.auth.CurrentUser;
 import com.zhuxiang.service.auth.RequireAuth;
 import com.zhuxiang.service.common.ApiResponse;
+import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.*;
 import com.zhuxiang.service.service.RentOrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +12,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RequireAuth
@@ -34,6 +38,17 @@ public class RentOrderController {
         return ApiResponse.success(
                 "订单创建成功",
                 rentOrderService.createOrder(CurrentUser.id(request), body)
+        );
+    }
+
+    @GetMapping("/rent-orders/my")
+    public ApiResponse<PageData<RentOrderResponse>> listMyOrders(
+            HttpServletRequest request,
+            @RequestParam(defaultValue = "1") @Min(1) long page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize
+    ) {
+        return ApiResponse.success(
+                rentOrderService.listMyOrders(CurrentUser.id(request), page, pageSize)
         );
     }
 
@@ -118,5 +133,25 @@ public class RentOrderController {
                 "签约完成",
                 rentOrderService.sign(CurrentUser.id(request), orderId)
         );
+    }
+
+    @PostMapping("/rent-orders/{orderId}/cancel")
+    public ApiResponse<RentOrderResponse> cancelOrder(
+            HttpServletRequest request,
+            @PathVariable String orderId
+    ) {
+        return ApiResponse.success(
+                "订单已取消",
+                rentOrderService.cancelOrder(CurrentUser.id(request), orderId)
+        );
+    }
+
+    @PostMapping("/rent-orders/{orderId}/hide")
+    public ApiResponse<Object> hideOrder(
+            HttpServletRequest request,
+            @PathVariable String orderId
+    ) {
+        rentOrderService.hideOrder(CurrentUser.id(request), orderId);
+        return ApiResponse.success("删除成功", null);
     }
 }

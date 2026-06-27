@@ -104,6 +104,16 @@
 					</excludes>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<version>11.7.2</version>
+				<configuration>
+					<url>jdbc:mysql://localhost:3306/zhuxiang_app</url>
+					<user>root</user>
+					<password>wf010931</password>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
