@@ -10,4 +10,8 @@ import com.baomidou.mybatisplus.extension.service.IService;
 */
 public interface LockPermissionService extends IService<LockPermission> {
 
+    /**
+     * 租约生效后为租客下发TTLock eKey；重复调用不会重复下发ACTIVE权限。
+     */
+    LockPermission grantTenantEKeyForLease(String leaseId);
 }

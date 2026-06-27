@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 @RequireAuth
@@ -41,5 +42,17 @@ public class LeaseController {
     @Operation(summary = "获取我的租约门锁", description = "返回当前有效租约关联的门锁及开锁权限摘要。")
     public ApiResponse<ProfileDtos.LockInfo> getMyLockInfo(HttpServletRequest request) {
         return ApiResponse.success(leaseService.getLockInfo(CurrentUser.id(request)));
+    }
+
+    /**
+     * 获取指定租约的门锁开锁数据。
+     */
+    @GetMapping("/leases/{leaseId}/lock/unlock-data")
+    @Operation(summary = "获取租约门锁开锁数据", description = "返回租约关联门锁的蓝牙开锁数据（lockData）。")
+    public ApiResponse<LeaseDtos.UnlockDataResponse> getUnlockData(
+            @PathVariable String leaseId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(leaseService.getUnlockData(leaseId));
     }
 }
