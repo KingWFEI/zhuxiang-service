@@ -26,4 +26,9 @@ public interface LeaseService extends IService<Lease> {
      * 获取用户全部租约，按当前生效和历史分类。
      */
     LeaseDtos.LeaseListResponse getUserLeases(String userId);
+
+    /**
+     * 获取租约关联的门锁开锁数据（lockData）。
+     */
+    LeaseDtos.UnlockDataResponse getUnlockData(String leaseId);
 }

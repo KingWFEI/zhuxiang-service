@@ -8,10 +8,11 @@ import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.*;
 import com.zhuxiang.service.entity.*;
+import com.zhuxiang.service.event.LeaseActivatedEvent;
 import com.zhuxiang.service.mapper.RentContractMapper;
 import com.zhuxiang.service.mapper.RentOrderMapper;
-import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.service.*;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,9 +37,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
     private final HouseService houseService;
     private final RentContractMapper rentContractMapper;
     private final LeaseService leaseService;
-    private final SmartLockMapper smartLockMapper;
     private final LandlordService landlordService;
-    private final LockPermissionService lockPermissionService;
+    private final ApplicationEventPublisher eventPublisher;
     private final FileRecordService fileRecordService;
     private final PaymentRecordService paymentRecordService;
     private final RentBillService rentBillService;
@@ -48,9 +48,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             HouseService houseService,
             RentContractMapper rentContractMapper,
             LeaseService leaseService,
-            SmartLockMapper smartLockMapper,
             LandlordService landlordService,
-            LockPermissionService lockPermissionService,
+            ApplicationEventPublisher eventPublisher,
             FileRecordService fileRecordService,
             PaymentRecordService paymentRecordService,
             RentBillService rentBillService,
@@ -59,8 +58,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         this.houseService = houseService;
         this.rentContractMapper = rentContractMapper;
         this.leaseService = leaseService;
-        this.smartLockMapper = smartLockMapper;
-        this.lockPermissionService = lockPermissionService;
+        this.eventPublisher = eventPublisher;
         this.fileRecordService = fileRecordService;
         this.paymentRecordService = paymentRecordService;
         this.rentBillService = rentBillService;
@@ -423,22 +421,6 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         // 批量生成租金账单
         generateRentBills(lease, order);
 
-        // 门锁授权（保持不变）
-        SmartLock smartLock = smartLockMapper.selectLatestByHouseId(order.getHouseId());
-        if (smartLock != null) {
-            LockPermission permission = new LockPermission();
-            permission.setId(UUID.randomUUID().toString());
-            permission.setUserId(userId);
-            permission.setLeaseId(lease.getId());
-            permission.setLockId(smartLock.getId());
-            permission.setStatus("active");
-            permission.setValidFrom(order.getStartDate().atStartOfDay());
-            permission.setValidTo(order.getEndDate().atTime(23, 59, 59));
-            permission.setCreatedAt(now);
-            permission.setUpdatedAt(now);
-            lockPermissionService.save(permission);
-        }
-
         // 合同签署
         if (contract != null) {
             contract.setStatus("signed");
@@ -460,6 +442,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             house.setUpdatedAt(now);
             houseService.updateById(house);
         }
+        // 租约事务提交后自动下发TTLock eKey，平台失败不会回滚租约。
+        eventPublisher.publishEvent(new LeaseActivatedEvent(lease.getId()));
         return toResponse(order, house);
     }
 
