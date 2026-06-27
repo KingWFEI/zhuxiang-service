@@ -7,6 +7,7 @@ import com.zhuxiang.service.dto.ProfileDtos;
 import com.zhuxiang.service.entity.*;
 import com.zhuxiang.service.mapper.LeaseMapper;
 import com.zhuxiang.service.mapper.RentContractMapper;
+import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.service.*;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +24,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
 
     private final HouseService houseService;
     private final CommunityService communityService;
-    private final LockDeviceService lockDeviceService;
+    private final SmartLockMapper smartLockMapper;
     private final LockPermissionService lockPermissionService;
     private final RentContractMapper rentContractMapper;
     private final LandlordService landlordService;
@@ -31,14 +32,14 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
     public LeaseServiceImpl(
             HouseService houseService,
             CommunityService communityService,
-            LockDeviceService lockDeviceService,
+            SmartLockMapper smartLockMapper,
             LockPermissionService lockPermissionService,
             RentContractMapper rentContractMapper,
             LandlordService landlordService
     ) {
         this.houseService = houseService;
         this.communityService = communityService;
-        this.lockDeviceService = lockDeviceService;
+        this.smartLockMapper = smartLockMapper;
         this.lockPermissionService = lockPermissionService;
         this.rentContractMapper = rentContractMapper;
         this.landlordService = landlordService;
@@ -65,12 +66,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             return null;
         }
         Community community = communityService.getById(house.getCommunityId());
-        LockDevice lock = lockDeviceService.getOne(
-                Wrappers.<LockDevice>lambdaQuery()
-                        .eq(LockDevice::getHouseId, house.getId())
-                        .last("LIMIT 1"),
-                false
-        );
+        SmartLock lock = smartLockMapper.selectLatestByHouseId(house.getId());
         return new ProfileDtos.CurrentHome(
                 house.getId(),
                 community == null ? "" : community.getName(),
@@ -97,12 +93,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         if (lease == null) {
             return null;
         }
-        LockDevice lock = lockDeviceService.getOne(
-                Wrappers.<LockDevice>lambdaQuery()
-                        .eq(LockDevice::getHouseId, lease.getHouseId())
-                        .last("LIMIT 1"),
-                false
-        );
+        SmartLock lock = smartLockMapper.selectLatestByHouseId(lease.getHouseId());
         if (lock == null) {
             return null;
         }
@@ -117,9 +108,9 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         return new ProfileDtos.LockInfo(
                 lock.getId(),
                 lock.getLockName(),
-                lock.getLockBrand(),
+                "TTLock",
                 lock.getStatus(),
-                lock.getBatteryLevel(),
+                lock.getBattery(),
                 lease.getId(),
                 lease.getStatus(),
                 lease.getStartDate() == null ? null : lease.getStartDate().toString(),
@@ -188,12 +179,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             }
         }
 
-        LockDevice lock = lockDeviceService.getOne(
-                Wrappers.<LockDevice>lambdaQuery()
-                        .eq(LockDevice::getHouseId, lease.getHouseId())
-                        .last("LIMIT 1"),
-                false
-        );
+        SmartLock lock = smartLockMapper.selectLatestByHouseId(lease.getHouseId());
         String lockId = lock != null ? lock.getId() : null;
 
         String lockPermissionStatus = null;

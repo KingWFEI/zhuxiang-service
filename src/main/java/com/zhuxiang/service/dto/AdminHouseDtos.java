@@ -1,5 +1,6 @@
 package com.zhuxiang.service.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,30 +15,38 @@ public final class AdminHouseDtos {
     private AdminHouseDtos() {
     }
 
+    @Schema(description = "管理端房源创建请求")
     public record CreateHouseRequest(
-            @NotBlank(message = "房源标题不能为空") String title,
-            @NotBlank(message = "封面图不能为空") String coverImage,
-            @NotBlank(message = "位置不能为空") String location,
-            @NotBlank(message = "小区ID不能为空") String communityId,
-            String address,
-            String building,
-            String unit,
-            String room,
-            @NotNull(message = "月租金不能为空") @Min(0) Integer price,
-            @Min(0) Integer deposit,
-            String paymentMethod,
-            String roomType,
-            BigDecimal area,
-            String floor,
-            String orientation,
-            String decoration,
-            LocalDate availableDate,
-            String metro,
-            String description,
-            @NotBlank(message = "租赁类型不能为空") String rentType,
-            @NotBlank(message = "房东ID不能为空") String landlordId,
-            Boolean isSmartLockSupported,
-            Boolean isSelfViewingSupported
+            @NotBlank(message = "房源标题不能为空")
+            @Schema(description = "房源标题", example = "高新区精装一居室") String title,
+            @NotBlank(message = "封面图不能为空")
+            @Schema(description = "房源封面图 URL") String coverImage,
+            @NotBlank(message = "位置不能为空")
+            @Schema(description = "区域或商圈展示位置", example = "高新区金融城") String location,
+            @NotBlank(message = "小区ID不能为空")
+            @Schema(description = "小区 ID", example = "community_001") String communityId,
+            @Schema(description = "详细地址", example = "天府大道中段 1 号") String address,
+            @Schema(description = "楼栋", example = "2栋") String building,
+            @Schema(description = "单元", example = "1单元") String unit,
+            @Schema(description = "房号", example = "1801") String room,
+            @NotNull(message = "月租金不能为空") @Min(0)
+            @Schema(description = "月租金，单位元", example = "2800") Integer price,
+            @Min(0) @Schema(description = "押金，单位元", example = "2800") Integer deposit,
+            @Schema(description = "付款方式", example = "押一付三") String paymentMethod,
+            @Schema(description = "户型", example = "1室1厅1卫") String roomType,
+            @Schema(description = "建筑面积，单位平方米", example = "45.5") BigDecimal area,
+            @Schema(description = "楼层描述", example = "18/32层") String floor,
+            @Schema(description = "朝向", example = "南") String orientation,
+            @Schema(description = "装修情况", example = "精装") String decoration,
+            @Schema(description = "最早可入住日期", example = "2026-07-01") LocalDate availableDate,
+            @Schema(description = "地铁信息", example = "距1号线金融城站500米") String metro,
+            @Schema(description = "房源详细介绍") String description,
+            @NotBlank(message = "租赁类型不能为空")
+            @Schema(description = "租赁类型，如整租或合租", example = "整租") String rentType,
+            @NotBlank(message = "房东ID不能为空")
+            @Schema(description = "房东用户 ID", example = "user_001") String landlordId,
+            @Schema(description = "是否支持智能门锁", example = "true") Boolean isSmartLockSupported,
+            @Schema(description = "是否支持自助看房", example = "true") Boolean isSelfViewingSupported
     ) {
     }
 

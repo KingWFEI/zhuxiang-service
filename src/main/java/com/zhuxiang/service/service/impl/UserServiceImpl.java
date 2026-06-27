@@ -248,6 +248,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     /**
+     * 为验证码注册且尚未设置密码的用户首次设置密码。
+     */
+    @Override
+    @Transactional
+    public void setPassword(String userId, ProfileDtos.SetPasswordRequest request) {
+        User user = requireActiveUser(userId);
+        if (StringUtils.hasText(user.getPasswordHash())) {
+            throw BusinessException.conflict("当前账号已设置密码，请使用修改密码功能");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setUpdatedAt(LocalDateTime.now());
+        updateById(user);
+    }
+
+    /**
      * 修改当前用户手机号。
      */
     @Override
@@ -346,7 +361,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
                 user.getNickname(),
                 user.getAvatarUrl(),
                 user.getRole(),
-                Integer.valueOf(1).equals(user.getIsVerified())
+                Integer.valueOf(1).equals(user.getIsVerified()),
+                StringUtils.hasText(user.getPasswordHash())
         );
     }
 }
