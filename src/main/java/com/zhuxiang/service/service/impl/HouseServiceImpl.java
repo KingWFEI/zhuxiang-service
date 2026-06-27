@@ -19,9 +19,10 @@ import com.zhuxiang.service.entity.HouseTag;
 import com.zhuxiang.service.entity.HouseTagRelation;
 import com.zhuxiang.service.entity.Landlord;
 import com.zhuxiang.service.entity.Region;
-import com.zhuxiang.service.entity.LockDevice;
+import com.zhuxiang.service.entity.SmartLock;
 import com.zhuxiang.service.entity.RentOrder;
 import com.zhuxiang.service.entity.UserFavoriteHouse;
+import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.mapper.RentOrderMapper;
 import com.zhuxiang.service.mapper.UserFavoriteHouseMapper;
 import com.zhuxiang.service.service.AdvertisementService;
@@ -33,7 +34,6 @@ import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.HouseTagRelationService;
 import com.zhuxiang.service.service.HouseTagService;
 import com.zhuxiang.service.service.LandlordService;
-import com.zhuxiang.service.service.LockDeviceService;
 import com.zhuxiang.service.service.RegionService;
 import com.zhuxiang.service.mapper.HouseMapper;
 import org.springframework.stereotype.Service;
@@ -74,7 +74,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     private final LandlordService landlordService;
     private final AdvertisementService advertisementService;
     private final RegionService regionService;
-    private final LockDeviceService lockDeviceService;
+    private final SmartLockMapper smartLockMapper;
     private final UserFavoriteHouseMapper favoriteHouseMapper;
     private final RentOrderMapper rentOrderMapper;
 
@@ -88,7 +88,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             LandlordService landlordService,
             AdvertisementService advertisementService,
             RegionService regionService,
-            LockDeviceService lockDeviceService,
+            SmartLockMapper smartLockMapper,
             UserFavoriteHouseMapper favoriteHouseMapper,
             RentOrderMapper rentOrderMapper
     ) {
@@ -101,7 +101,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         this.landlordService = landlordService;
         this.advertisementService = advertisementService;
         this.regionService = regionService;
-        this.lockDeviceService = lockDeviceService;
+        this.smartLockMapper = smartLockMapper;
         this.favoriteHouseMapper = favoriteHouseMapper;
         this.rentOrderMapper = rentOrderMapper;
     }
@@ -637,33 +637,31 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     public List<AdminHouseDtos.AdminHouseView> getAllHousesWithLockInfo() {
         List<House> houses = list(Wrappers.<House>lambdaQuery().orderByDesc(House::getCreatedAt));
         List<String> houseIds = houses.stream().map(House::getId).toList();
-        Map<String, LockDevice> lockDeviceMap = houseIds.isEmpty()
-                ? Map.of()
-                : lockDeviceService.list(
-                        Wrappers.<LockDevice>lambdaQuery().in(LockDevice::getHouseId, houseIds)
-                ).stream().collect(Collectors.toMap(LockDevice::getHouseId, d -> d, (a, b) -> a));
+        Map<String, SmartLock> smartLockMap = smartLockMapper.selectLatestByHouseIds(houseIds)
+                .stream()
+                .collect(Collectors.toMap(SmartLock::getHouseId, lock -> lock, (latest, ignored) -> latest));
         return houses.stream()
-                .map(house -> toAdminHouseView(house, lockDeviceMap.get(house.getId())))
+                .map(house -> toAdminHouseView(house, smartLockMap.get(house.getId())))
                 .toList();
     }
 
     /**
      * 将房源实体及门锁信息转换为管理端视图。
      */
-    private AdminHouseDtos.AdminHouseView toAdminHouseView(House house, LockDevice lockDevice) {
+    private AdminHouseDtos.AdminHouseView toAdminHouseView(House house, SmartLock smartLock) {
         AdminHouseDtos.LockDeviceView lockDeviceView = null;
         boolean smartLockBound = StringUtils.hasText(house.getSmartLockId())
                 || (StringUtils.hasText(house.getLockBindStatus())
                 && !"UNBOUND".equals(house.getLockBindStatus()));
-        if (lockDevice != null) {
+        if (smartLock != null) {
             smartLockBound = true;
             lockDeviceView = new AdminHouseDtos.LockDeviceView(
-                    lockDevice.getId(),
-                    lockDevice.getLockName(),
-                    lockDevice.getLockBrand(),
-                    lockDevice.getLockSn(),
-                    lockDevice.getStatus(),
-                    lockDevice.getBatteryLevel()
+                    smartLock.getId(),
+                    smartLock.getLockName(),
+                    "TTLock",
+                    smartLock.getLockMac(),
+                    smartLock.getStatus(),
+                    smartLock.getBattery()
             );
         }
         return new AdminHouseDtos.AdminHouseView(

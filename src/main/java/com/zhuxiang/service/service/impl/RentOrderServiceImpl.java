@@ -10,6 +10,7 @@ import com.zhuxiang.service.dto.*;
 import com.zhuxiang.service.entity.*;
 import com.zhuxiang.service.mapper.RentContractMapper;
 import com.zhuxiang.service.mapper.RentOrderMapper;
+import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.service.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,8 +36,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
     private final HouseService houseService;
     private final RentContractMapper rentContractMapper;
     private final LeaseService leaseService;
+    private final SmartLockMapper smartLockMapper;
     private final LandlordService landlordService;
-    private final LockDeviceService lockDeviceService;
     private final LockPermissionService lockPermissionService;
     private final FileRecordService fileRecordService;
     private final PaymentRecordService paymentRecordService;
@@ -47,8 +48,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             HouseService houseService,
             RentContractMapper rentContractMapper,
             LeaseService leaseService,
+            SmartLockMapper smartLockMapper,
             LandlordService landlordService,
-            LockDeviceService lockDeviceService,
             LockPermissionService lockPermissionService,
             FileRecordService fileRecordService,
             PaymentRecordService paymentRecordService,
@@ -58,13 +59,13 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         this.houseService = houseService;
         this.rentContractMapper = rentContractMapper;
         this.leaseService = leaseService;
-        this.landlordService = landlordService;
-        this.lockDeviceService = lockDeviceService;
+        this.smartLockMapper = smartLockMapper;
         this.lockPermissionService = lockPermissionService;
         this.fileRecordService = fileRecordService;
         this.paymentRecordService = paymentRecordService;
         this.rentBillService = rentBillService;
         this.objectMapper = objectMapper;
+        this.landlordService=landlordService;
     }
 
     @Override
@@ -423,18 +424,13 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         generateRentBills(lease, order);
 
         // 门锁授权（保持不变）
-        LockDevice lockDevice = lockDeviceService.getOne(
-                Wrappers.<LockDevice>lambdaQuery()
-                        .eq(LockDevice::getHouseId, order.getHouseId())
-                        .last("LIMIT 1"),
-                false
-        );
-        if (lockDevice != null) {
+        SmartLock smartLock = smartLockMapper.selectLatestByHouseId(order.getHouseId());
+        if (smartLock != null) {
             LockPermission permission = new LockPermission();
             permission.setId(UUID.randomUUID().toString());
             permission.setUserId(userId);
             permission.setLeaseId(lease.getId());
-            permission.setLockId(lockDevice.getId());
+            permission.setLockId(smartLock.getId());
             permission.setStatus("active");
             permission.setValidFrom(order.getStartDate().atStartOfDay());
             permission.setValidTo(order.getEndDate().atTime(23, 59, 59));

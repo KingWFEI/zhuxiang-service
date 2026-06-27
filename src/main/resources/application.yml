@@ -5,7 +5,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username:   ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:132135}
+    password: ${DB_PASSWORD:wf010931}
 #    url: ${DB_URL:jdbc:mysql://10.143.183.201:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
 #    username: ${DB_USERNAME:zhuxiang_app_user}
 #    password: ${DB_PASSWORD:Jq4rh84PWntGJ6VRc26k!3gu}
@@ -21,6 +21,21 @@ server:
   port: ${SERVER_PORT:8000}
   servlet:
     context-path: ${API_PREFIX:/api}
+
+springdoc:
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    display-request-duration: true
+    operations-sorter: method
+    tags-sorter: alpha
+  packages-to-scan: com.zhuxiang.service.controller
+  writer-with-order-by-keys: true
 
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

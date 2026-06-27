@@ -1,0 +1,5707 @@
+openapi: 3.1.0
+info:
+  contact:
+    name: 筑享开发团队
+  description: 筑享移动端和管理端后端接口。除明确标注为公开接口外，受保护接口需在 Authorization 请求头中携带 Bearer 访问令牌。
+  license:
+    name: 内部使用
+  title: 筑享租房平台接口文档
+  version: v1
+servers:
+- description: Generated server url
+  url: http://localhost:18080/api
+tags:
+- description: 当前用户站内消息查询、已读和删除操作
+  name: 消息
+- description: 当前用户租约及关联门锁查询
+  name: 租约
+- description: 公开房东资料查询
+  name: 房东
+- description: 房源流、条件搜索、详情和收藏
+  name: 房源
+- description: 管理端创建和查询房源
+  name: 管理端房源
+- description: 租房订单创建、实名、合同确认、支付和签约流程
+  name: 租房订单
+- description: 移动端首页聚合数据
+  name: 首页
+- description: 当前用户资料、安全设置、头像、住所、门锁和收藏
+  name: 个人中心
+- description: 用户预约看房和创建房源咨询会话
+  name: 预约与咨询
+- description: 租房订单支付回调
+  name: 支付
+- description: 管理端用户登录、注册、令牌刷新和退出登录
+  name: 管理端认证
+- description: 移动端短信验证码、登录、注册、令牌刷新和退出登录
+  name: 用户认证
+- description: 智能门锁录入、绑定、平台同步、状态查询和蓝牙开锁数据
+  name: 管理端门锁
+- description: 业务文件上传
+  name: 文件
+paths:
+  /admin/auth/login:
+    post:
+      description: 使用手机号和密码登录，仅允许管理员、管家或房东角色。
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordLoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 管理端登录
+      tags:
+      - 管理端认证
+  /admin/auth/logout:
+    post:
+      description: 注销当前用户提交的刷新令牌。
+      operationId: logout_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoolean"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 管理端退出登录
+      tags:
+      - 管理端认证
+  /admin/auth/refresh:
+    post:
+      description: 使用有效的刷新令牌换取新的访问令牌和刷新令牌。
+      operationId: refresh_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseTokenResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 刷新管理端访问令牌
+      tags:
+      - 管理端认证
+  /admin/auth/register:
+    post:
+      description: 创建管理员、管家或房东账号，并返回访问令牌和刷新令牌。
+      operationId: register_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminRegisterRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 注册管理端用户
+      tags:
+      - 管理端认证
+  /admin/houses:
+    get:
+      description: 返回所有房源详情以及每套房源当前绑定的智能锁信息。
+      operationId: getAllHouses
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseListAdminHouseView"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 查询全部房源
+      tags:
+      - 管理端房源
+    post:
+      description: 创建一条房源记录，包含租金、地址、租赁类型和智能锁能力等信息。
+      operationId: createHouse
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateHouseRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminHouseView"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 新增房源
+      tags:
+      - 管理端房源
+  /admin/locks/by-mac:
+    get:
+      description: 根据蓝牙门锁 MAC 地址查询本地门锁及房源绑定摘要。
+      operationId: getByLockMac
+      parameters:
+      - description: 门锁 MAC 地址
+        example: AA:BB:CC:DD:EE:FF
+        in: query
+        name: lockMac
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseSmartLockByMacResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 按 MAC 查询门锁
+      tags:
+      - 管理端门锁
+  /admin/locks/local-initialized:
+    post:
+      description: 保存 App 通过蓝牙 SDK 初始化成功后返回的门锁数据，暂不绑定房源。
+      operationId: saveLocalInitializedLock
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocalInitializedLockRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseLocalInitializedLockResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 保存本地初始化门锁
+      tags:
+      - 管理端门锁
+  /admin/locks/{smartLockId}/bind-room:
+    delete:
+      description: 删除门锁与房源或房间的本地绑定关系，主要用于平台同步失败后的回退。
+      operationId: deleteRoomBinding
+      parameters:
+      - description: 智能门锁本地记录 ID
+        example: lock_001
+        in: path
+        name: smartLockId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseInitializeLockResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 解除门锁房源绑定
+      tags:
+      - 管理端门锁
+    post:
+      description: 把已录入的智能门锁绑定到指定房源；roomId 可选。
+      operationId: bindRoom
+      parameters:
+      - description: 智能门锁本地记录 ID
+        example: lock_001
+        in: path
+        name: smartLockId
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BindRoomRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseInitializeLockResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 绑定门锁到房源
+      tags:
+      - 管理端门锁
+  /admin/locks/{smartLockId}/ble-status:
+    post:
+      description: 使用 App 蓝牙扫描结果更新门锁电量、RSSI 和最后同步时间。
+      operationId: updateBleStatus
+      parameters:
+      - description: 智能门锁本地记录 ID
+        example: lock_001
+        in: path
+        name: smartLockId
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BleStatusRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseSmartLockDetailResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 更新门锁蓝牙状态
+      tags:
+      - 管理端门锁
+  /admin/locks/{smartLockId}/detail:
+    get:
+      description: 查询门锁平台信息、房源绑定、电量、信号和最近同步时间。
+      operationId: getDetail
+      parameters:
+      - description: 智能门锁本地记录 ID
+        example: lock_001
+        in: path
+        name: smartLockId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseSmartLockDetailResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 查询门锁详情
+      tags:
+      - 管理端门锁
+  /admin/locks/{smartLockId}/sync-platform:
+    post:
+      description: 将本地保存的初始化数据同步到通通锁开放平台，并保存平台门锁 ID 和钥匙 ID。
+      operationId: syncPlatform
+      parameters:
+      - description: 智能门锁本地记录 ID
+        example: lock_001
+        in: path
+        name: smartLockId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseInitializeLockResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 同步门锁到开放平台
+      tags:
+      - 管理端门锁
+  /admin/locks/{smartLockId}/unlock-data:
+    get:
+      description: 返回管理端通过蓝牙执行开锁所需的门锁初始化数据；结果包含敏感字段，应避免记录日志。
+      operationId: getUnlockData
+      parameters:
+      - description: 智能门锁本地记录 ID
+        example: lock_001
+        in: path
+        name: smartLockId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseSmartLockUnlockDataResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 获取蓝牙开锁数据
+      tags:
+      - 管理端门锁
+  /appointments:
+    post:
+      description: 为指定房源提交预约日期、时间段和联系人信息。
+      operationId: createAppointment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAppointmentResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 预约看房
+      tags:
+      - 预约与咨询
+  /auth/login/code:
+    post:
+      description: 使用手机号和有效短信验证码登录移动端。
+      operationId: loginByCode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CodeLoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 验证码登录
+      tags:
+      - 用户认证
+  /auth/login/password:
+    post:
+      description: 使用手机号和密码登录移动端。
+      operationId: loginByPassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordLoginRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 密码登录
+      tags:
+      - 用户认证
+  /auth/logout:
+    post:
+      description: 注销当前用户提交的刷新令牌。
+      operationId: logout
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogoutRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoolean"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 退出登录
+      tags:
+      - 用户认证
+  /auth/refresh:
+    post:
+      description: 使用有效的刷新令牌换取新的访问令牌和刷新令牌。
+      operationId: refresh
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseTokenResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 刷新访问令牌
+      tags:
+      - 用户认证
+  /auth/register:
+    post:
+      description: 校验注册验证码后创建租客账号，并返回访问令牌和刷新令牌。
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAuthResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 注册移动端用户
+      tags:
+      - 用户认证
+  /auth/sms-code:
+    post:
+      description: 按指定业务场景发送 6 位短信验证码；开发环境可能返回固定验证码。
+      operationId: sendSmsCode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SmsCodeRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseSmsCodeResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 发送短信验证码
+      tags:
+      - 用户认证
+  /conversations:
+    post:
+      description: 按房源详情、个人中心或客服入口创建咨询会话。
+      operationId: createConversation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseConversationResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 创建咨询会话
+      tags:
+      - 预约与咨询
+  /files/upload:
+    post:
+      description: 上传不超过 5MB 的身份证人像面或国徽面图片，返回可访问 URL 和文件 ID。
+      operationId: upload
+      parameters:
+      - description: 业务类型：id_card_front-身份证人像面，id_card_back-身份证国徽面
+        example: id_card_front
+        in: query
+        name: bizType
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 待上传的图片文件，最大 5MB
+              required:
+              - file
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseFileUploadResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 上传实名认证图片
+      tags:
+      - 文件
+  /home/data:
+    get:
+      description: 一次返回城市标题、未读数、服务入口、房源标签页、房源流和广告；携带令牌时会返回用户相关状态。
+      operationId: getHomeData
+      parameters:
+      - description: 城市行政区划代码
+        example: 510100
+        in: query
+        name: cityCode
+        required: false
+        schema:
+          type: string
+      - description: 区域名称
+        example: 高新区
+        in: query
+        name: region
+        required: false
+        schema:
+          type: string
+      - description: 当前位置纬度，需与 longitude 同时传入
+        example: 30.5728
+        in: query
+        name: latitude
+        required: false
+        schema:
+          type: number
+          format: double
+      - description: 当前位置经度，需与 latitude 同时传入
+        example: 104.0668
+        in: query
+        name: longitude
+        required: false
+        schema:
+          type: number
+          format: double
+      - description: 每个房源分组返回数量，范围 1-100
+        example: 10
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 10
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseHomeData"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 获取首页聚合数据
+      tags:
+      - 首页
+  /houses:
+    get:
+      description: 按关键字、分类、区域、价格、户型、面积和设施组合筛选房源，并支持排序和分页。
+      operationId: search
+      parameters:
+      - description: 标题、位置或小区关键字
+        in: query
+        name: keyword
+        required: false
+        schema:
+          type: string
+      - description: 房源分类键
+        in: query
+        name: category
+        required: false
+        schema:
+          type: string
+      - description: 区域名称
+        in: query
+        name: region
+        required: false
+        schema:
+          type: string
+      - description: 最低月租金，单位元
+        example: 1000
+        in: query
+        name: minPrice
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+      - description: 最高月租金，单位元
+        example: 5000
+        in: query
+        name: maxPrice
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+      - description: 户型
+        in: query
+        name: roomType
+        required: false
+        schema:
+          type: string
+      - description: 最小面积，单位平方米
+        example: 20
+        in: query
+        name: minArea
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+      - description: 最大面积，单位平方米
+        example: 120
+        in: query
+        name: maxArea
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+      - description: 设施值，多个值使用英文逗号分隔
+        example: "wifi,air_conditioner"
+        in: query
+        name: facilities
+        required: false
+        schema:
+          type: string
+      - description: 排序值，以筛选选项接口返回值为准
+        example: default
+        in: query
+        name: sort
+        required: false
+        schema:
+          type: string
+          default: default
+      - description: 页码，从 1 开始
+        example: 1
+        in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - description: 每页条数，范围 1-100
+        example: 20
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePageDataHouseView"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 搜索房源
+      tags:
+      - 房源
+  /houses/feed:
+    get:
+      description: 按首页分类分页获取房源和插入广告；携带令牌时返回收藏状态。
+      operationId: feed
+      parameters:
+      - description: 首页分类键，以首页 tabs 返回值为准
+        example: recommend
+        in: query
+        name: category
+        required: true
+        schema:
+          type: string
+      - description: 页码，从 1 开始
+        example: 1
+        in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - description: 每页条数，范围 1-100
+        example: 20
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseFeedData"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 获取房源流
+      tags:
+      - 房源
+  /houses/filter-options:
+    get:
+      description: 返回区域、价格区间、户型、设施和排序选项。
+      operationId: filterOptions
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseFilterOptions"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 获取筛选选项
+      tags:
+      - 房源
+  /houses/{houseId}:
+    get:
+      description: 返回房源图片、价格、地址、配套、房东资料和出租状态；携带令牌时返回收藏状态。
+      operationId: detail_1
+      parameters:
+      - description: 房源 ID
+        example: house_001
+        in: path
+        name: houseId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseHouseDetail"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 获取房源详情
+      tags:
+      - 房源
+  /houses/{houseId}/favorite:
+    delete:
+      description: 从当前用户收藏中移除指定房源。
+      operationId: unfavorite
+      parameters:
+      - description: 房源 ID
+        example: house_001
+        in: path
+        name: houseId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseFavoriteResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 取消收藏房源
+      tags:
+      - 房源
+    post:
+      description: 将指定房源加入当前用户收藏。
+      operationId: favorite
+      parameters:
+      - description: 房源 ID
+        example: house_001
+        in: path
+        name: houseId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseFavoriteResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 收藏房源
+      tags:
+      - 房源
+  /landlords/{landlordId}:
+    get:
+      description: 返回指定房东的公开资料、认证状态、评分和出租统计。
+      operationId: detail
+      parameters:
+      - description: 房东用户 ID
+        example: user_001
+        in: path
+        name: landlordId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseLandlordView"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      summary: 获取房东资料
+      tags:
+      - 房东
+  /leases/my:
+    get:
+      description: 分别返回当前生效租约和历史租约，包含合同、账单、门锁权限和管家信息。
+      operationId: getMyLeases
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseLeaseListResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 获取我的租约
+      tags:
+      - 租约
+  /leases/my/lock:
+    get:
+      description: 返回当前有效租约关联的门锁及开锁权限摘要。
+      operationId: getMyLockInfo
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseLockInfo"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 获取我的租约门锁
+      tags:
+      - 租约
+  /messages:
+    get:
+      description: 按消息分类和已读状态筛选当前用户的站内消息。
+      operationId: list
+      parameters:
+      - description: 消息分类：system、lease、lock、bill、appointment 或 repair
+        in: query
+        name: category
+        required: false
+        schema:
+          type: string
+      - description: 是否已读；不传则查询全部
+        in: query
+        name: isRead
+        required: false
+        schema:
+          type: boolean
+      - description: 页码，从 1 开始
+        example: 1
+        in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - description: 每页条数，范围 1-100
+        example: 20
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePageDataMessageView"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 分页查询消息
+      tags:
+      - 消息
+  /messages/read:
+    delete:
+      description: 删除当前用户的全部已读消息，未读消息不受影响。
+      operationId: clearRead
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoolean"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 清空已读消息
+      tags:
+      - 消息
+  /messages/read-all:
+    put:
+      description: 将当前用户的全部消息标记为已读。
+      operationId: markAllRead
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoolean"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 全部标记已读
+      tags:
+      - 消息
+  /messages/unread-counts:
+    get:
+      description: 返回全部未读数以及各消息分类的未读数。
+      operationId: unreadCounts
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseUnreadCounts"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 获取未读消息数
+      tags:
+      - 消息
+  /messages/{id}:
+    delete:
+      description: 删除当前用户的指定消息。
+      operationId: delete
+      parameters:
+      - description: 消息 ID
+        example: message_001
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoolean"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 删除消息
+      tags:
+      - 消息
+  /messages/{id}/read:
+    put:
+      description: 将当前用户的指定消息标记为已读。
+      operationId: markRead
+      parameters:
+      - description: 消息 ID
+        example: message_001
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseBoolean"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 标记单条消息已读
+      tags:
+      - 消息
+  /payment-records/{recordId}/mock-callback:
+    post:
+      description: 仅供开发和测试环境模拟支付网关回调，按支付记录 ID 确认付款。生产环境应由支付网关异步通知替代。
+      operationId: mockCallback
+      parameters:
+      - description: 支付记录 ID
+        example: payment_001
+        in: path
+        name: recordId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 模拟支付回调
+      tags:
+      - 支付
+  /profile:
+    get:
+      description: 返回当前登录用户的手机号、昵称、头像、角色、实名认证状态和密码设置状态。
+      operationId: getProfile
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseUserView"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 获取个人资料
+      tags:
+      - 个人中心
+    put:
+      description: 按需更新当前用户昵称和头像 URL；未传字段保持不变。
+      operationId: updateProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseUserView"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 更新个人资料
+      tags:
+      - 个人中心
+  /profile/avatar:
+    post:
+      description: 上传不超过 5MB 的头像文件，并更新当前用户头像地址。
+      operationId: uploadAvatar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 头像文件，最大 5MB
+              required:
+              - file
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAvatarResult"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 上传头像
+      tags:
+      - 个人中心
+  /profile/current-home:
+    get:
+      description: 返回当前生效租约对应的房源、房间和门锁摘要；无生效租约时数据可能为空。
+      operationId: currentHome
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseCurrentHome"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 获取当前住所
+      tags:
+      - 个人中心
+  /profile/favorite-houses:
+    get:
+      description: 分页返回当前用户收藏的房源。
+      operationId: favoriteHouses
+      parameters:
+      - description: 页码，从 1 开始
+        example: 1
+        in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 1
+          minimum: 1
+      - description: 每页条数，范围 1-100
+        example: 20
+        in: query
+        name: pageSize
+        required: false
+        schema:
+          type: integer
+          format: int64
+          default: 20
+          maximum: 100
+          minimum: 1
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePageDataHouseView"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 获取收藏房源
+      tags:
+      - 个人中心
+  /profile/lock:
+    get:
+      description: 返回当前生效租约关联的门锁状态和开锁权限有效期。
+      operationId: lockInfo
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseLockInfo"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 获取当前门锁
+      tags:
+      - 个人中心
+  /profile/password:
+    put:
+      description: 校验旧密码后设置新密码，新密码长度为 6-32 位。
+      operationId: changePassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 修改密码
+      tags:
+      - 个人中心
+  /profile/password/set:
+    put:
+      description: 当前账号尚无登录密码时直接设置新密码；已设置密码的账号需使用修改密码接口。
+      operationId: setPassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPasswordRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 首次设置密码
+      tags:
+      - 个人中心
+  /profile/phone:
+    put:
+      description: 使用新手机号收到的短信验证码完成换绑。
+      operationId: changePhone
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePhoneRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseUserView"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 修改手机号
+      tags:
+      - 个人中心
+  /rent-orders:
+    post:
+      description: 按房源、起租日期、租期、付款方式和入住人数创建订单并锁定初始费用。
+      operationId: createOrder
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRentOrderRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRentOrderResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 创建租房订单
+      tags:
+      - 租房订单
+  /rent-orders/{orderId}:
+    get:
+      description: 查询当前用户的租房订单、费用、实名、合同和支付状态。
+      operationId: getOrderDetail
+      parameters:
+      - description: 租房订单 ID
+        example: order_001
+        in: path
+        name: orderId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRentOrderResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 获取订单详情
+      tags:
+      - 租房订单
+  /rent-orders/{orderId}/confirm-contract:
+    post:
+      description: 确认当前订单的合同内容，确认后进入待支付阶段。
+      operationId: confirmContract
+      parameters:
+      - description: 租房订单 ID
+        example: order_001
+        in: path
+        name: orderId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRentOrderResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 确认租赁合同
+      tags:
+      - 租房订单
+  /rent-orders/{orderId}/contract-preview:
+    get:
+      description: 根据订单和实名认证信息生成合同预览数据。
+      operationId: getContractPreview
+      parameters:
+      - description: 租房订单 ID
+        example: order_001
+        in: path
+        name: orderId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseContractPreviewResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 预览租赁合同
+      tags:
+      - 租房订单
+  /rent-orders/{orderId}/pay:
+    post:
+      description: 按支付方式和支付渠道发起付款；当前实现可使用 mock 渠道。
+      operationId: pay
+      parameters:
+      - description: 租房订单 ID
+        example: order_001
+        in: path
+        name: orderId
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRentOrderResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 支付租房订单
+      tags:
+      - 租房订单
+  /rent-orders/{orderId}/payment-info:
+    get:
+      description: 返回订单首期应付金额、租金、押金、服务费和付款周期。
+      operationId: getPaymentInfo
+      parameters:
+      - description: 租房订单 ID
+        example: order_001
+        in: path
+        name: orderId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePaymentInfoResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 获取支付信息
+      tags:
+      - 租房订单
+  /rent-orders/{orderId}/real-name:
+    post:
+      description: 为订单提交租客姓名、手机号、身份证号以及身份证正反面图片地址。
+      operationId: submitRealName
+      parameters:
+      - description: 租房订单 ID
+        example: order_001
+        in: path
+        name: orderId
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RealNameRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRentOrderResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 提交实名认证
+      tags:
+      - 租房订单
+  /rent-orders/{orderId}/sign:
+    post:
+      description: 在合同确认并支付后完成签约，生成后续租约数据。
+      operationId: sign
+      parameters:
+      - description: 租房订单 ID
+        example: order_001
+        in: path
+        name: orderId
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseRentOrderResponse"
+          description: 请求成功
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求参数错误或业务校验失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 未登录、访问令牌缺失或已失效
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 当前用户无权执行该操作
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 请求的业务资源不存在
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 资源状态冲突，无法完成当前操作
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+          description: 服务器内部错误
+      security:
+      - bearerAuth: []
+      summary: 完成订单签约
+      tags:
+      - 租房订单
+components:
+  schemas:
+    AdminHouseView:
+      type: object
+      description: 管理端房源详情
+      properties:
+        address:
+          type: string
+          description: 详细地址
+        area:
+          type: number
+          description: 建筑面积，单位平方米
+        availableDate:
+          type: string
+          format: date
+          description: 最早可入住日期
+        building:
+          type: string
+          description: 楼栋
+        communityId:
+          type: string
+          description: 小区 ID
+        coverImage:
+          type: string
+          description: 封面图片 URL
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        decoration:
+          type: string
+          description: 装修情况
+        deposit:
+          type: integer
+          format: int32
+          description: 押金，单位元
+        description:
+          type: string
+          description: 详细说明
+        favoriteCount:
+          type: integer
+          format: int32
+          description: 收藏次数
+        floor:
+          type: string
+          description: 楼层描述
+        id:
+          type: string
+          description: 记录 ID
+        isSelfViewingSupported:
+          type: boolean
+          description: 是否支持自助看房
+        isSmartLockSupported:
+          type: boolean
+          description: 是否支持智能门锁
+        landlordId:
+          type: string
+          description: 房东用户 ID
+        location:
+          type: string
+          description: 区域或商圈位置
+        lockDevice:
+          $ref: "#/components/schemas/LockDeviceView"
+          description: 绑定的智能门锁；未绑定时为空
+        metro:
+          type: string
+          description: 附近地铁信息
+        orientation:
+          type: string
+          description: 房屋朝向
+        paymentMethod:
+          type: string
+          description: 租金付款方式
+        price:
+          type: integer
+          format: int32
+          description: 月租金，单位元
+        rentType:
+          type: string
+          description: 租赁类型
+        room:
+          type: string
+          description: 房号
+        roomType:
+          type: string
+          description: 户型
+        smartLockBound:
+          type: boolean
+          description: 是否已绑定智能门锁
+        status:
+          type: string
+          description: 业务状态
+        title:
+          type: string
+          description: 标题
+        unit:
+          type: string
+          description: 单元
+        updatedAt:
+          type: string
+          format: date-time
+          description: 最后更新时间
+        viewCount:
+          type: integer
+          format: int32
+          description: 浏览次数
+    AdminRegisterRequest:
+      type: object
+      description: 管理端用户注册请求
+      properties:
+        nickname:
+          type: string
+          description: 用户昵称，长度 1-30 位
+          example: 张管家
+          maxLength: 30
+          minLength: 1
+        password:
+          type: string
+          description: 登录密码，长度 6-32 位
+          example: Example123
+          maxLength: 32
+          minLength: 6
+        phone:
+          type: string
+          description: 登录手机号
+          example: "13800138000"
+          minLength: 1
+          pattern: "^1\\d{10}$"
+        role:
+          type: string
+          description: 管理端角色
+          enum:
+          - ADMIN
+          - HOUSEKEEPER
+          - LANDLORD
+          example: HOUSEKEEPER
+          minLength: 1
+          pattern: ADMIN|HOUSEKEEPER|LANDLORD
+      required:
+      - nickname
+      - password
+      - phone
+      - role
+    Advertisement:
+      type: object
+      description: 首页广告
+      properties:
+        description:
+          type: string
+          description: 详细说明
+        id:
+          type: string
+          description: 记录 ID
+        imageUrl:
+          type: string
+          description: 图片 URL
+        position:
+          type: string
+          description: 广告展示位置
+        targetType:
+          type: string
+          description: 跳转目标类型
+        targetValue:
+          type: string
+          description: 跳转目标值
+        title:
+          type: string
+          description: 标题
+    AdvertisementView:
+      type: object
+      description: 房源流广告
+      properties:
+        description:
+          type: string
+          description: 详细说明
+        id:
+          type: string
+          description: 记录 ID
+        imageUrl:
+          type: string
+          description: 图片 URL
+        targetType:
+          type: string
+          description: 跳转目标类型
+        targetValue:
+          type: string
+          description: 跳转目标值
+        title:
+          type: string
+          description: 标题
+    ApiResponseAdminHouseView:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/AdminHouseView"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseAppointmentResult:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/AppointmentResult"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseAuthResult:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/AuthResult"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseAvatarResult:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/AvatarResult"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseBoolean:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          type: boolean
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseContractPreviewResponse:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/ContractPreviewResponse"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseConversationResult:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/ConversationResult"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseCurrentHome:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/CurrentHome"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseFavoriteResult:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/FavoriteResult"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseFeedData:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/FeedData"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseFileUploadResponse:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/FileUploadResponse"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseFilterOptions:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/FilterOptions"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseHomeData:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/HomeData"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseHouseDetail:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/HouseDetail"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseInitializeLockResponse:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/InitializeLockResponse"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseLandlordView:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/LandlordView"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseLeaseListResponse:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/LeaseListResponse"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseListAdminHouseView:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          type: array
+          description: 响应数据；无返回数据时为 null
+          items:
+            $ref: "#/components/schemas/AdminHouseView"
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseLocalInitializedLockResponse:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/LocalInitializedLockResponse"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseLockInfo:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/LockInfo"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponsePageDataHouseView:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/PageDataHouseView"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponsePageDataMessageView:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/PageDataMessageView"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponsePaymentInfoResponse:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/PaymentInfoResponse"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseRentOrderResponse:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/RentOrderResponse"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseSmartLockByMacResponse:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/SmartLockByMacResponse"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseSmartLockDetailResponse:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/SmartLockDetailResponse"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseSmartLockUnlockDataResponse:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/SmartLockUnlockDataResponse"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseSmsCodeResult:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/SmsCodeResult"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseTokenResult:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/TokenResult"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseUnreadCounts:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/UnreadCounts"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseUserView:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          $ref: "#/components/schemas/UserView"
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    ApiResponseVoid:
+      type: object
+      description: 统一接口响应
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: 业务状态码，与 HTTP 状态码保持一致
+          example: 200
+        data:
+          description: 响应数据；无返回数据时为 null
+        message:
+          type: string
+          description: 处理结果说明
+          example: success
+    AppointmentRequest:
+      type: object
+      description: 预约看房请求
+      properties:
+        appointmentDate:
+          type: string
+          format: date
+          description: 预约日期，不能早于今天
+          example: 2026-07-01
+        contactName:
+          type: string
+          description: 联系人姓名
+          example: 张三
+          maxLength: 30
+          minLength: 1
+        contactPhone:
+          type: string
+          description: 联系人手机号
+          example: "13800138000"
+          minLength: 1
+          pattern: "^1\\d{10}$"
+        houseId:
+          type: string
+          description: 预约房源 ID
+          example: house_001
+          minLength: 1
+        remark:
+          type: string
+          description: 预约备注，最多 500 字
+          example: 希望提前电话联系
+          maxLength: 500
+          minLength: 0
+        timeSlot:
+          type: string
+          description: 预约时间段，格式 HH:mm-HH:mm
+          example: 09:00-11:00
+          minLength: 1
+          pattern: "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$"
+      required:
+      - appointmentDate
+      - contactName
+      - contactPhone
+      - houseId
+      - timeSlot
+    AppointmentResult:
+      type: object
+      description: 预约看房提交结果
+      properties:
+        houseId:
+          type: string
+          description: 房源 ID
+        id:
+          type: string
+          description: 记录 ID
+        status:
+          type: string
+          description: 业务状态
+    AuthResult:
+      type: object
+      description: 登录或注册结果
+      properties:
+        accessToken:
+          type: string
+          description: 访问令牌
+        expiresIn:
+          type: integer
+          format: int64
+          description: 有效期，单位秒
+        refreshToken:
+          type: string
+          description: 刷新令牌
+        user:
+          $ref: "#/components/schemas/UserView"
+          description: 用户资料
+    AvatarResult:
+      type: object
+      description: 头像上传结果
+      properties:
+        avatarUrl:
+          type: string
+          description: 头像图片 URL
+    BindRoomRequest:
+      type: object
+      description: 门锁绑定房源请求
+      properties:
+        houseId:
+          type: string
+          description: 房源 ID
+          example: house_001
+          minLength: 1
+        roomId:
+          type: string
+          description: 房间 ID；整套房源绑定时可不传
+          example: room_001
+      required:
+      - houseId
+    BleStatusRequest:
+      type: object
+      description: 门锁蓝牙扫描状态更新请求
+      properties:
+        battery:
+          type: integer
+          format: int32
+          description: 门锁电量百分比，范围 0-100
+          example: 86
+          maximum: 100
+          minimum: 0
+        rssi:
+          type: integer
+          format: int32
+          description: 蓝牙信号强度 RSSI，单位 dBm
+          example: -58
+      required:
+      - battery
+      - rssi
+    ChangePasswordRequest:
+      type: object
+      description: 密码修改请求
+      properties:
+        newPassword:
+          type: string
+          description: 新密码，长度 6-32 位
+          example: NewExample123
+          maxLength: 32
+          minLength: 6
+        oldPassword:
+          type: string
+          description: 当前密码
+          minLength: 1
+      required:
+      - newPassword
+      - oldPassword
+    ChangePhoneRequest:
+      type: object
+      description: 手机号换绑请求
+      properties:
+        code:
+          type: string
+          description: 新手机号收到的 6 位验证码
+          example: "123456"
+          minLength: 1
+          pattern: "^\\d{6}$"
+        newPhone:
+          type: string
+          description: 新手机号
+          example: "13900139000"
+          minLength: 1
+          pattern: "^1\\d{10}$"
+      required:
+      - code
+      - newPhone
+    CodeLoginRequest:
+      type: object
+      description: 短信验证码登录请求
+      properties:
+        code:
+          type: string
+          description: 6 位短信验证码
+          example: "123456"
+          minLength: 1
+          pattern: "^\\d{6}$"
+        phone:
+          type: string
+          description: 登录手机号
+          example: "13800138000"
+          minLength: 1
+          pattern: "^1\\d{10}$"
+      required:
+      - code
+      - phone
+    ContractPreviewResponse:
+      type: object
+      description: 租赁合同预览
+      properties:
+        contractNo:
+          type: string
+          description: 合同编号
+        deposit:
+          type: integer
+          format: int32
+          description: 押金，单位元
+        endDate:
+          type: string
+          format: date
+          description: 结束日期
+        firstPaymentAmount:
+          type: integer
+          format: int32
+          description: 首期应付金额，单位元
+        houseAddress:
+          type: string
+          description: 房源详细地址
+        houseName:
+          type: string
+          description: 房源名称
+        leaseMonths:
+          type: integer
+          format: int32
+          description: 租期月数
+        monthlyRent:
+          type: integer
+          format: int32
+          description: 月租金，单位元
+        paymentMonths:
+          type: integer
+          format: int32
+          description: 每期支付月数
+        roomName:
+          type: string
+          description: 房间名称
+        serviceFee:
+          type: integer
+          format: int32
+          description: 服务费，单位元
+        startDate:
+          type: string
+          format: date
+          description: 开始日期
+        status:
+          type: string
+          description: 业务状态
+        tenantIdCard:
+          type: string
+          description: 租客身份证号
+        tenantName:
+          type: string
+          description: 租客姓名
+        tenantPhone:
+          type: string
+          description: 租客联系电话
+    ConversationRequest:
+      type: object
+      description: 咨询会话创建请求
+      properties:
+        houseId:
+          type: string
+          description: 关联房源 ID；从房源详情发起时填写
+          example: house_001
+        landlordId:
+          type: string
+          description: 关联房东 ID；咨询房东时填写
+          example: user_001
+        source:
+          type: string
+          description: 会话来源
+          enum:
+          - house_detail
+          - profile
+          - customer_service
+          example: house_detail
+          minLength: 1
+          pattern: house_detail|profile|customer_service
+      required:
+      - source
+    ConversationResult:
+      type: object
+      description: 咨询会话创建结果
+      properties:
+        conversationId:
+          type: string
+          description: 咨询会话 ID
+    CreateHouseRequest:
+      type: object
+      description: 管理端房源创建请求
+      properties:
+        address:
+          type: string
+          description: 详细地址
+          example: 天府大道中段 1 号
+        area:
+          type: number
+          description: 建筑面积，单位平方米
+          example: 45.5
+        availableDate:
+          type: string
+          format: date
+          description: 最早可入住日期
+          example: 2026-07-01
+        building:
+          type: string
+          description: 楼栋
+          example: 2栋
+        communityId:
+          type: string
+          description: 小区 ID
+          example: community_001
+          minLength: 1
+        coverImage:
+          type: string
+          description: 房源封面图 URL
+          minLength: 1
+        decoration:
+          type: string
+          description: 装修情况
+          example: 精装
+        deposit:
+          type: integer
+          format: int32
+          description: 押金，单位元
+          example: 2800
+          minimum: 0
+        description:
+          type: string
+          description: 房源详细介绍
+        floor:
+          type: string
+          description: 楼层描述
+          example: 18/32层
+        isSelfViewingSupported:
+          type: boolean
+          description: 是否支持自助看房
+          example: true
+        isSmartLockSupported:
+          type: boolean
+          description: 是否支持智能门锁
+          example: true
+        landlordId:
+          type: string
+          description: 房东用户 ID
+          example: user_001
+          minLength: 1
+        location:
+          type: string
+          description: 区域或商圈展示位置
+          example: 高新区金融城
+          minLength: 1
+        metro:
+          type: string
+          description: 地铁信息
+          example: 距1号线金融城站500米
+        orientation:
+          type: string
+          description: 朝向
+          example: 南
+        paymentMethod:
+          type: string
+          description: 付款方式
+          example: 押一付三
+        price:
+          type: integer
+          format: int32
+          description: 月租金，单位元
+          example: 2800
+          minimum: 0
+        rentType:
+          type: string
+          description: 租赁类型，如整租或合租
+          example: 整租
+          minLength: 1
+        room:
+          type: string
+          description: 房号
+          example: "1801"
+        roomType:
+          type: string
+          description: 户型
+          example: 1室1厅1卫
+        title:
+          type: string
+          description: 房源标题
+          example: 高新区精装一居室
+          minLength: 1
+        unit:
+          type: string
+          description: 单元
+          example: 1单元
+      required:
+      - communityId
+      - coverImage
+      - landlordId
+      - location
+      - price
+      - rentType
+      - title
+    CreateRentOrderRequest:
+      type: object
+      description: 租房订单创建请求
+      properties:
+        houseId:
+          type: string
+          description: 房源 ID
+          example: house_001
+          minLength: 1
+        leaseMonths:
+          type: integer
+          format: int32
+          description: 租期月数，范围 1-120
+          example: 12
+          maximum: 120
+          minimum: 1
+        paymentMethod:
+          type: string
+          description: 租金付款方式，如押一付一、押一付三
+          example: 押一付三
+          minLength: 1
+        startDate:
+          type: string
+          format: date
+          description: 起租日期，不能早于今天
+          example: 2026-07-01
+        tenantCount:
+          type: integer
+          format: int32
+          description: 租住人数，范围 1-20
+          example: 2
+          maximum: 20
+          minimum: 1
+      required:
+      - houseId
+      - leaseMonths
+      - paymentMethod
+      - startDate
+      - tenantCount
+    CurrentHome:
+      type: object
+      description: 当前住所摘要
+      properties:
+        building:
+          type: string
+          description: 楼栋
+        community:
+          type: string
+          description: 小区名称
+        houseId:
+          type: string
+          description: 房源 ID
+        leaseId:
+          type: string
+          description: 租约 ID
+        leaseStatus:
+          type: string
+          description: 租约状态
+        lockId:
+          type: string
+          description: 门锁 ID
+        lockStatus:
+          type: string
+          description: 门锁状态
+        room:
+          type: string
+          description: 房号
+        unit:
+          type: string
+          description: 单元
+    FavoriteResult:
+      type: object
+      description: 房源收藏操作结果
+      properties:
+        houseId:
+          type: string
+          description: 房源 ID
+        isFavorite:
+          type: boolean
+          description: 当前用户是否已收藏
+    FeedData:
+      type: object
+      description: 房源流分页数据
+      properties:
+        hasMore:
+          type: boolean
+          description: 是否还有下一页
+        items:
+          type: array
+          description: 当前页条目
+          items:
+            $ref: "#/components/schemas/FeedItem"
+        page:
+          type: integer
+          format: int64
+          description: 当前页码，从 1 开始
+        pageSize:
+          type: integer
+          format: int64
+          description: 每页条数
+    FeedItem:
+      type: object
+      description: 房源流条目，可为房源或广告
+      properties:
+        advertisement:
+          $ref: "#/components/schemas/AdvertisementView"
+          description: 广告数据；条目为房源时为空
+        house:
+          $ref: "#/components/schemas/HouseView"
+          description: 房源数据；条目为广告时为空
+        type:
+          type: string
+          description: 条目类型
+    FileUploadResponse:
+      type: object
+      description: 文件上传结果
+      properties:
+        fileId:
+          type: string
+          description: 文件记录 ID
+        url:
+          type: string
+          description: 文件访问 URL
+    FilterOptions:
+      type: object
+      description: 房源搜索筛选选项
+      properties:
+        facilities:
+          type: array
+          description: 配套设施
+          items:
+            $ref: "#/components/schemas/Option"
+        priceRanges:
+          type: array
+          description: 租金区间选项
+          items:
+            $ref: "#/components/schemas/PriceRange"
+        regions:
+          type: array
+          description: 区域选项
+          items:
+            $ref: "#/components/schemas/Option"
+        roomTypes:
+          type: array
+          description: 户型选项
+          items:
+            $ref: "#/components/schemas/Option"
+        sortOptions:
+          type: array
+          description: 排序选项
+          items:
+            $ref: "#/components/schemas/Option"
+    Header:
+      type: object
+      description: 首页头部信息
+      properties:
+        backgroundImageUrl:
+          type: string
+          description: 背景图片 URL
+        cityName:
+          type: string
+          description: 城市名称
+        greeting:
+          type: string
+          description: 首页问候语
+        searchPlaceholder:
+          type: string
+          description: 搜索框提示文字
+        subtitle:
+          type: string
+          description: 副标题
+    HomeData:
+      type: object
+      description: 首页聚合数据
+      properties:
+        advertisements:
+          type: array
+          description: 广告列表
+          items:
+            $ref: "#/components/schemas/Advertisement"
+        header:
+          $ref: "#/components/schemas/Header"
+          description: 首页头部信息
+        houseGroups:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/FeedData"
+          description: 按标签页键分组的房源流
+        serviceEntries:
+          type: array
+          description: 服务入口列表
+          items:
+            $ref: "#/components/schemas/ServiceEntry"
+        tabs:
+          type: array
+          description: 首页房源标签页
+          items:
+            $ref: "#/components/schemas/Tab"
+        unreadMessageCount:
+          type: integer
+          format: int64
+          description: 当前用户未读消息总数
+    HouseDetail:
+      type: object
+      description: 房源完整详情
+      properties:
+        address:
+          type: string
+          description: 详细地址
+        area:
+          type: integer
+          format: int32
+          description: 建筑面积，单位平方米
+        availableDate:
+          type: string
+          format: date
+          description: 最早可入住日期
+        avatarUrl:
+          type: string
+          description: 头像图片 URL
+        community:
+          type: string
+          description: 小区名称
+        coverImage:
+          type: string
+          description: 封面图片 URL
+        decoration:
+          type: string
+          description: 装修情况
+        deposit:
+          type: integer
+          format: int32
+          description: 押金，单位元
+        description:
+          type: string
+          description: 详细说明
+        facilities:
+          type: array
+          description: 配套设施
+          items:
+            type: string
+        floor:
+          type: string
+          description: 楼层描述
+        id:
+          type: string
+          description: 记录 ID
+        images:
+          type: array
+          description: 房源图片列表
+          items:
+            type: string
+        isFavorite:
+          type: boolean
+          description: 当前用户是否已收藏
+        isSmartLockSupported:
+          type: boolean
+          description: 是否支持智能门锁
+        isVerified:
+          type: boolean
+          description: 是否已认证
+        landlordId:
+          type: string
+          description: 房东用户 ID
+        landlordName:
+          type: string
+          description: 房东姓名
+        location:
+          type: string
+          description: 区域或商圈位置
+        metro:
+          type: string
+          description: 附近地铁信息
+        orientation:
+          type: string
+          description: 房屋朝向
+        paymentMethod:
+          type: string
+          description: 租金付款方式
+        price:
+          type: integer
+          format: int32
+          description: 月租金，单位元
+        rating:
+          type: number
+          description: 综合评分
+        rentedCount:
+          type: integer
+          format: int32
+          description: 累计出租次数
+        responseDescription:
+          type: string
+          description: 响应速度说明
+        roomType:
+          type: string
+          description: 户型
+        status:
+          type: string
+          description: 业务状态
+        tags:
+          type: array
+          description: 房源标签
+          items:
+            type: string
+        title:
+          type: string
+          description: 标题
+    HouseView:
+      type: object
+      description: 房源列表摘要
+      properties:
+        area:
+          type: integer
+          format: int32
+          description: 建筑面积，单位平方米
+        availableDate:
+          type: string
+          format: date
+          description: 最早可入住日期
+        community:
+          type: string
+          description: 小区名称
+        coverImage:
+          type: string
+          description: 封面图片 URL
+        decoration:
+          type: string
+          description: 装修情况
+        description:
+          type: string
+          description: 详细说明
+        facilities:
+          type: array
+          description: 配套设施
+          items:
+            type: string
+        floor:
+          type: string
+          description: 楼层描述
+        id:
+          type: string
+          description: 记录 ID
+        isFavorite:
+          type: boolean
+          description: 当前用户是否已收藏
+        isSmartLockSupported:
+          type: boolean
+          description: 是否支持智能门锁
+        location:
+          type: string
+          description: 区域或商圈位置
+        metro:
+          type: string
+          description: 附近地铁信息
+        orientation:
+          type: string
+          description: 房屋朝向
+        price:
+          type: integer
+          format: int32
+          description: 月租金，单位元
+        roomType:
+          type: string
+          description: 户型
+        status:
+          type: string
+          description: 业务状态
+        tags:
+          type: array
+          description: 房源标签
+          items:
+            type: string
+        title:
+          type: string
+          description: 标题
+    InitializeLockResponse:
+      type: object
+      description: 门锁绑定或平台同步结果
+      properties:
+        houseId:
+          type: string
+          description: 房源 ID
+        id:
+          type: string
+          description: 记录 ID
+        keyId:
+          type: integer
+          format: int64
+          description: 开放平台电子钥匙 ID
+        lockId:
+          type: integer
+          format: int64
+          description: 门锁 ID
+        lockMac:
+          type: string
+          description: 门锁 MAC 地址
+        lockName:
+          type: string
+          description: 门锁名称
+        platformErrorCode:
+          type: string
+          description: 开放平台错误码
+        platformErrorMessage:
+          type: string
+          description: 开放平台错误信息
+        roomId:
+          type: string
+          description: 房间 ID
+        status:
+          type: string
+          description: 业务状态
+    LandlordView:
+      type: object
+      description: 房东公开资料
+      properties:
+        avatarUrl:
+          type: string
+          description: 头像图片 URL
+        id:
+          type: string
+          description: 记录 ID
+        isVerified:
+          type: boolean
+          description: 是否已认证
+        name:
+          type: string
+          description: 名称
+        rating:
+          type: number
+          description: 综合评分
+        rentedCount:
+          type: integer
+          format: int32
+          description: 累计出租次数
+        responseDescription:
+          type: string
+          description: 响应速度说明
+    LeaseItem:
+      type: object
+      description: 租约详情
+      properties:
+        billStatus:
+          type: string
+          description: 账单状态
+        contractStatus:
+          type: string
+          description: 合同状态
+        deposit:
+          type: integer
+          format: int32
+          description: 押金，单位元
+        endDate:
+          type: string
+          format: date
+          description: 结束日期
+        houseAddress:
+          type: string
+          description: 房源详细地址
+        houseId:
+          type: string
+          description: 房源 ID
+        houseImageUrl:
+          type: string
+          description: 房源图片 URL
+        houseName:
+          type: string
+          description: 房源名称
+        houseSummary:
+          type: string
+          description: 房源摘要
+        keeperName:
+          type: string
+          description: 管家姓名
+        keeperPhone:
+          type: string
+          description: 管家联系电话
+        leaseId:
+          type: string
+          description: 租约 ID
+        leaseStatus:
+          type: string
+          description: 租约状态
+        lockId:
+          type: string
+          description: 门锁 ID
+        lockPermissionStatus:
+          type: string
+          description: 门锁权限状态
+        monthlyRent:
+          type: integer
+          format: int32
+          description: 月租金，单位元
+        paymentDay:
+          type: integer
+          format: int32
+          description: 每月付款日
+        paymentMethod:
+          type: string
+          description: 租金付款方式
+        startDate:
+          type: string
+          format: date
+          description: 开始日期
+    LeaseListResponse:
+      type: object
+      description: 当前及历史租约列表
+      properties:
+        currentLeases:
+          type: array
+          description: 当前生效租约
+          items:
+            $ref: "#/components/schemas/LeaseItem"
+        historyLeases:
+          type: array
+          description: 历史租约
+          items:
+            $ref: "#/components/schemas/LeaseItem"
+    LocalInitializedLockRequest:
+      type: object
+      description: App 蓝牙 SDK 初始化门锁后的数据
+      properties:
+        battery:
+          type: integer
+          format: int32
+          description: 初始化时门锁电量百分比
+          example: 86
+        lockData:
+          type: string
+          description: SDK 返回的门锁初始化数据，属于敏感数据
+          minLength: 1
+        lockMac:
+          type: string
+          description: 门锁 MAC 地址
+          example: AA:BB:CC:DD:EE:FF
+          minLength: 1
+        lockName:
+          type: string
+          description: 门锁名称
+          example: 客厅门锁
+        rssi:
+          type: integer
+          format: int32
+          description: 初始化时蓝牙信号强度 RSSI，单位 dBm
+          example: -58
+      required:
+      - lockData
+      - lockMac
+    LocalInitializedLockResponse:
+      type: object
+      description: 本地初始化门锁保存结果
+      properties:
+        lockMac:
+          type: string
+          description: 门锁 MAC 地址
+        lockName:
+          type: string
+          description: 门锁名称
+        smartLockId:
+          type: string
+          description: 智能门锁本地记录 ID
+        status:
+          type: string
+          description: 业务状态
+    LockDeviceView:
+      type: object
+      description: 房源绑定的门锁摘要
+      properties:
+        batteryLevel:
+          type: integer
+          format: int32
+          description: 门锁电量百分比
+        lockBrand:
+          type: string
+          description: 门锁品牌
+        lockId:
+          type: string
+          description: 门锁 ID
+        lockName:
+          type: string
+          description: 门锁名称
+        lockSn:
+          type: string
+          description: 门锁序列号
+        lockStatus:
+          type: string
+          description: 门锁状态
+    LockInfo:
+      type: object
+      description: 租约关联门锁和权限摘要
+      properties:
+        batteryLevel:
+          type: integer
+          format: int32
+          description: 门锁电量百分比
+        endDate:
+          type: string
+          description: 结束日期
+        leaseId:
+          type: string
+          description: 租约 ID
+        leaseStatus:
+          type: string
+          description: 租约状态
+        lockBrand:
+          type: string
+          description: 门锁品牌
+        lockId:
+          type: string
+          description: 门锁 ID
+        lockName:
+          type: string
+          description: 门锁名称
+        lockStatus:
+          type: string
+          description: 门锁状态
+        permissionStatus:
+          type: string
+          description: 开锁权限状态
+        startDate:
+          type: string
+          description: 开始日期
+        validFrom:
+          type: string
+          description: 权限生效时间
+        validTo:
+          type: string
+          description: 权限失效时间
+    LogoutRequest:
+      type: object
+      description: 退出登录请求
+      properties:
+        refreshToken:
+          type: string
+          description: 需要注销的刷新令牌
+          minLength: 1
+      required:
+      - refreshToken
+    MessageView:
+      type: object
+      description: 站内消息
+      properties:
+        actionTarget:
+          type: string
+          description: 点击操作目标
+        actionType:
+          type: string
+          description: 点击操作类型
+        category:
+          type: string
+          description: 分类标识
+        content:
+          type: string
+          description: 消息正文
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        iconKey:
+          type: string
+          description: 前端图标键
+        id:
+          type: string
+          description: 记录 ID
+        isRead:
+          type: boolean
+          description: 是否已读
+        title:
+          type: string
+          description: 标题
+    Option:
+      type: object
+      description: 通用筛选选项
+      properties:
+        label:
+          type: string
+          description: 选项显示名称
+        value:
+          type: string
+          description: 选项提交值
+    PageDataHouseView:
+      type: object
+      description: 分页数据
+      properties:
+        hasMore:
+          type: boolean
+          description: 是否还有下一页
+          example: true
+        items:
+          type: array
+          description: 当前页数据
+          items:
+            $ref: "#/components/schemas/HouseView"
+        page:
+          type: integer
+          format: int64
+          description: 当前页码，从 1 开始
+          example: 1
+        pageSize:
+          type: integer
+          format: int64
+          description: 每页条数
+          example: 20
+        total:
+          type: integer
+          format: int64
+          description: 总记录数
+          example: 42
+    PageDataMessageView:
+      type: object
+      description: 分页数据
+      properties:
+        hasMore:
+          type: boolean
+          description: 是否还有下一页
+          example: true
+        items:
+          type: array
+          description: 当前页数据
+          items:
+            $ref: "#/components/schemas/MessageView"
+        page:
+          type: integer
+          format: int64
+          description: 当前页码，从 1 开始
+          example: 1
+        pageSize:
+          type: integer
+          format: int64
+          description: 每页条数
+          example: 20
+        total:
+          type: integer
+          format: int64
+          description: 总记录数
+          example: 42
+    PasswordLoginRequest:
+      type: object
+      description: 账号密码登录请求
+      properties:
+        password:
+          type: string
+          description: 登录密码
+          example: Example123
+          minLength: 1
+        phone:
+          type: string
+          description: 登录手机号
+          example: "13800138000"
+          minLength: 1
+          pattern: "^1\\d{10}$"
+      required:
+      - password
+      - phone
+    PayRequest:
+      type: object
+      description: 租房订单支付请求
+      properties:
+        paymentChannel:
+          type: string
+          description: 支付渠道；不传时默认为 mock
+          example: mock
+        paymentMethod:
+          type: string
+          description: 订单付款方式，需与订单约定一致
+          example: 押一付三
+          minLength: 1
+      required:
+      - paymentMethod
+    PaymentInfoResponse:
+      type: object
+      description: 订单支付信息
+      properties:
+        deposit:
+          type: integer
+          format: int32
+          description: 押金，单位元
+        firstPaymentAmount:
+          type: integer
+          format: int32
+          description: 首期应付金额，单位元
+        monthlyRent:
+          type: integer
+          format: int32
+          description: 月租金，单位元
+        orderId:
+          type: string
+          description: 租房订单 ID
+        paymentMethod:
+          type: string
+          description: 租金付款方式
+        paymentMonths:
+          type: integer
+          format: int32
+          description: 每期支付月数
+        serviceFee:
+          type: integer
+          format: int32
+          description: 服务费，单位元
+        status:
+          type: string
+          description: 业务状态
+    PriceRange:
+      type: object
+      description: 租金筛选区间
+      properties:
+        label:
+          type: string
+          description: 选项显示名称
+        maxPrice:
+          type: integer
+          format: int32
+          description: 最高月租金，单位元
+        minPrice:
+          type: integer
+          format: int32
+          description: 最低月租金，单位元
+    RealNameRequest:
+      type: object
+      description: 订单实名认证请求
+      properties:
+        idCardBackUrl:
+          type: string
+          description: 身份证国徽面图片 URL
+          example: /api/uploads/id-card-back.jpg
+          minLength: 1
+        idCardFrontUrl:
+          type: string
+          description: 身份证人像面图片 URL
+          example: /api/uploads/id-card-front.jpg
+          minLength: 1
+        tenantIdCard:
+          type: string
+          description: 18 位居民身份证号
+          example: "510100199001011234"
+          minLength: 1
+          pattern: "^\\d{17}[\\dXx]$"
+        tenantName:
+          type: string
+          description: 租客真实姓名
+          example: 张三
+          maxLength: 30
+          minLength: 1
+        tenantPhone:
+          type: string
+          description: 租客联系电话
+          example: "13800138000"
+          minLength: 1
+          pattern: "^1\\d{10}$"
+      required:
+      - idCardBackUrl
+      - idCardFrontUrl
+      - tenantIdCard
+      - tenantName
+      - tenantPhone
+    RefreshRequest:
+      type: object
+      description: 令牌刷新请求
+      properties:
+        refreshToken:
+          type: string
+          description: 登录或上次刷新时签发的刷新令牌
+          minLength: 1
+      required:
+      - refreshToken
+    RegisterRequest:
+      type: object
+      description: 移动端用户注册请求
+      properties:
+        code:
+          type: string
+          description: 注册场景的 6 位短信验证码
+          example: "123456"
+          minLength: 1
+          pattern: "^\\d{6}$"
+        nickname:
+          type: string
+          description: 用户昵称，长度 1-30 位
+          example: 小筑
+          maxLength: 30
+          minLength: 1
+        password:
+          type: string
+          description: 登录密码，长度 6-32 位
+          example: Example123
+          maxLength: 32
+          minLength: 6
+        phone:
+          type: string
+          description: 注册手机号
+          example: "13800138000"
+          minLength: 1
+          pattern: "^1\\d{10}$"
+      required:
+      - code
+      - nickname
+      - password
+      - phone
+    RentOrderResponse:
+      type: object
+      description: 租房订单详情
+      properties:
+        address:
+          type: string
+          description: 详细地址
+        cancelledAt:
+          type: string
+          format: date-time
+          description: 订单取消时间
+        contractConfirmedAt:
+          type: string
+          format: date-time
+          description: 合同确认时间
+        createdAt:
+          type: string
+          format: date-time
+          description: 创建时间
+        deposit:
+          type: integer
+          format: int32
+          description: 押金，单位元
+        endDate:
+          type: string
+          format: date
+          description: 结束日期
+        firstPaymentAmount:
+          type: integer
+          format: int32
+          description: 首期应付金额，单位元
+        houseId:
+          type: string
+          description: 房源 ID
+        houseName:
+          type: string
+          description: 房源名称
+        id:
+          type: string
+          description: 记录 ID
+        leaseMonths:
+          type: integer
+          format: int32
+          description: 租期月数
+        monthlyRent:
+          type: integer
+          format: int32
+          description: 月租金，单位元
+        paidAt:
+          type: string
+          format: date-time
+          description: 付款完成时间
+        paymentMethod:
+          type: string
+          description: 租金付款方式
+        paymentMonths:
+          type: integer
+          format: int32
+          description: 每期支付月数
+        realNameAt:
+          type: string
+          format: date-time
+          description: 实名认证提交时间
+        roomName:
+          type: string
+          description: 房间名称
+        serviceFee:
+          type: integer
+          format: int32
+          description: 服务费，单位元
+        signedAt:
+          type: string
+          format: date-time
+          description: 签约完成时间
+        startDate:
+          type: string
+          format: date
+          description: 开始日期
+        status:
+          type: string
+          description: 业务状态
+        tenantCount:
+          type: integer
+          format: int32
+          description: 租住人数
+        tenantIdCard:
+          type: string
+          description: 租客身份证号
+        tenantName:
+          type: string
+          description: 租客姓名
+        tenantPhone:
+          type: string
+          description: 租客联系电话
+        totalAmount:
+          type: integer
+          format: int32
+          description: 订单总金额，单位元
+        updatedAt:
+          type: string
+          format: date-time
+          description: 最后更新时间
+        userId:
+          type: string
+          description: 用户 ID
+    ServiceEntry:
+      type: object
+      description: 首页服务入口
+      properties:
+        enabled:
+          type: boolean
+          description: 是否启用
+        iconKey:
+          type: string
+          description: 前端图标键
+        key:
+          type: string
+          description: 前端业务键
+        requiresLogin:
+          type: boolean
+          description: 入口是否要求登录
+        targetType:
+          type: string
+          description: 跳转目标类型
+        targetValue:
+          type: string
+          description: 跳转目标值
+        title:
+          type: string
+          description: 标题
+    SetPasswordRequest:
+      type: object
+      description: 首次设置登录密码请求
+      properties:
+        newPassword:
+          type: string
+          description: 首次设置的登录密码，长度 6-32 位
+          example: Example123
+          maxLength: 32
+          minLength: 6
+      required:
+      - newPassword
+    SmartLockByMacResponse:
+      type: object
+      description: 按 MAC 查询的门锁摘要
+      properties:
+        houseId:
+          type: string
+          description: 房源 ID
+        houseName:
+          type: string
+          description: 房源名称
+        lockMac:
+          type: string
+          description: 门锁 MAC 地址
+        lockName:
+          type: string
+          description: 门锁名称
+        roomId:
+          type: string
+          description: 房间 ID
+        roomName:
+          type: string
+          description: 房间名称
+        smartLockId:
+          type: string
+          description: 智能门锁本地记录 ID
+        status:
+          type: string
+          description: 业务状态
+    SmartLockDetailResponse:
+      type: object
+      description: 智能门锁管理详情
+      properties:
+        battery:
+          type: integer
+          format: int32
+          description: 门锁电量百分比
+        batterySource:
+          type: string
+          description: 电量数据来源
+        houseId:
+          type: string
+          description: 房源 ID
+        houseName:
+          type: string
+          description: 房源名称
+        keyId:
+          type: integer
+          format: int64
+          description: 开放平台电子钥匙 ID
+        lastBleSyncTime:
+          type: string
+          format: date-time
+          description: 最近一次蓝牙同步时间
+        lastPlatformSyncTime:
+          type: string
+          format: date-time
+          description: 最近一次开放平台同步时间
+        lockId:
+          type: integer
+          format: int64
+          description: 门锁 ID
+        lockMac:
+          type: string
+          description: 门锁 MAC 地址
+        lockName:
+          type: string
+          description: 门锁名称
+        platformErrorMessage:
+          type: string
+          description: 开放平台错误信息
+        roomId:
+          type: string
+          description: 房间 ID
+        roomName:
+          type: string
+          description: 房间名称
+        rssi:
+          type: integer
+          format: int32
+          description: 蓝牙信号强度，单位 dBm
+        smartLockId:
+          type: string
+          description: 智能门锁本地记录 ID
+        status:
+          type: string
+          description: 业务状态
+    SmartLockUnlockDataResponse:
+      type: object
+      description: 管理端蓝牙开锁数据
+      properties:
+        lockData:
+          type: string
+          description: 蓝牙 SDK 门锁初始化数据，敏感字段
+        lockMac:
+          type: string
+          description: 门锁 MAC 地址
+        lockName:
+          type: string
+          description: 门锁名称
+        roomName:
+          type: string
+          description: 房间名称
+        smartLockId:
+          type: string
+          description: 智能门锁本地记录 ID
+        status:
+          type: string
+          description: 业务状态
+    SmsCodeRequest:
+      type: object
+      description: 短信验证码发送请求
+      properties:
+        phone:
+          type: string
+          description: 接收验证码的手机号
+          example: "13800138000"
+          minLength: 1
+          pattern: "^1\\d{10}$"
+        scene:
+          type: string
+          description: 验证码用途
+          enum:
+          - login
+          - register
+          - reset_password
+          - real_name
+          example: login
+          minLength: 1
+          pattern: login|register|reset_password|real_name
+      required:
+      - phone
+      - scene
+    SmsCodeResult:
+      type: object
+      description: 短信验证码发送结果
+      properties:
+        expiresIn:
+          type: integer
+          format: int64
+          description: 有效期，单位秒
+    Tab:
+      type: object
+      description: 首页房源标签页
+      properties:
+        enabled:
+          type: boolean
+          description: 是否启用
+        key:
+          type: string
+          description: 前端业务键
+        sort:
+          type: integer
+          format: int32
+          description: 排序序号
+        title:
+          type: string
+          description: 标题
+    TokenResult:
+      type: object
+      description: 令牌刷新结果
+      properties:
+        accessToken:
+          type: string
+          description: 访问令牌
+        expiresIn:
+          type: integer
+          format: int64
+          description: 有效期，单位秒
+        refreshToken:
+          type: string
+          description: 刷新令牌
+    UnreadCounts:
+      type: object
+      description: 各分类未读消息数量
+      properties:
+        appointment:
+          type: integer
+          format: int64
+          description: 预约类未读消息数
+        bill:
+          type: integer
+          format: int64
+          description: 账单类未读消息数
+        lease:
+          type: integer
+          format: int64
+          description: 租约类未读消息数
+        lock:
+          type: integer
+          format: int64
+          description: 门锁类未读消息数
+        repair:
+          type: integer
+          format: int64
+          description: 报修类未读消息数
+        system:
+          type: integer
+          format: int64
+          description: 系统类未读消息数
+        total:
+          type: integer
+          format: int64
+          description: 总记录数或合计数量
+    UpdateProfileRequest:
+      type: object
+      description: 个人资料更新请求，字段均可选
+      properties:
+        avatarUrl:
+          type: string
+          description: 新头像 URL
+          example: /api/uploads/avatar.jpg
+          maxLength: 500
+          minLength: 0
+        nickname:
+          type: string
+          description: 新昵称，长度 1-30 位
+          example: 小筑
+          maxLength: 30
+          minLength: 1
+    UserView:
+      type: object
+      description: 用户公开及账户资料
+      properties:
+        avatarUrl:
+          type: string
+          description: 头像图片 URL
+        hasPassword:
+          type: boolean
+          description: 当前用户是否已设置登录密码
+        id:
+          type: string
+          description: 记录 ID
+        isVerified:
+          type: boolean
+          description: 是否已认证
+        nickname:
+          type: string
+          description: 用户昵称
+        phone:
+          type: string
+          description: 手机号
+        role:
+          type: string
+          description: 用户角色
+  securitySchemes:
+    bearerAuth:
+      bearerFormat: JWT
+      description: "访问令牌，格式：Bearer {accessToken}"
+      name: Authorization
+      scheme: bearer
+      type: http

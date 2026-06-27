@@ -53,6 +53,11 @@ public interface UserService extends IService<User> {
     void changePassword(String userId, ProfileDtos.ChangePasswordRequest request);
 
     /**
+     * 为验证码注册且尚未设置密码的用户首次设置密码。
+     */
+    void setPassword(String userId, ProfileDtos.SetPasswordRequest request);
+
+    /**
      * 修改当前用户手机号。
      */
     void changePhone(String userId, ProfileDtos.ChangePhoneRequest request);
