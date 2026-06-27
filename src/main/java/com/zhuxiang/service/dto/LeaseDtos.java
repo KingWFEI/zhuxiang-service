@@ -8,6 +8,21 @@ public final class LeaseDtos {
     private LeaseDtos() {
     }
 
+    public record UnlockDataResponse(
+            String leaseId,
+            String smartLockId,
+            String roomName,
+            String houseName,
+            String lockName,
+            String lockMac,
+            String lockData,
+            Long ttlockKeyId,
+            String startTime,
+            String endTime,
+            String permissionStatus
+    ) {
+    }
+
     public record LeaseListResponse(
             List<LeaseItem> currentLeases,
             List<LeaseItem> historyLeases

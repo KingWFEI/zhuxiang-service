@@ -99,9 +99,9 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         }
         LockPermission permission = lockPermissionService.getOne(
                 Wrappers.<LockPermission>lambdaQuery()
-                        .eq(LockPermission::getUserId, userId)
+                        .eq(LockPermission::getTenantId, userId)
                         .eq(LockPermission::getLeaseId, lease.getId())
-                        .eq(LockPermission::getLockId, lock.getId())
+                        .eq(LockPermission::getSmartLockId, lock.getId())
                         .last("LIMIT 1"),
                 false
         );
@@ -116,8 +116,8 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 lease.getStartDate() == null ? null : lease.getStartDate().toString(),
                 lease.getEndDate() == null ? null : lease.getEndDate().toString(),
                 permission == null ? null : permission.getStatus(),
-                permission == null || permission.getValidFrom() == null ? null : permission.getValidFrom().toString(),
-                permission == null || permission.getValidTo() == null ? null : permission.getValidTo().toString()
+                permission == null || permission.getStartTime() == null ? null : permission.getStartTime().toString(),
+                permission == null || permission.getEndTime() == null ? null : permission.getEndTime().toString()
         );
     }
 
@@ -137,6 +137,45 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 .map(this::toLeaseItem)
                 .toList();
         return new LeaseDtos.LeaseListResponse(currentLeases, historyLeases);
+    }
+
+    @Override
+    public LeaseDtos.UnlockDataResponse getUnlockData(String leaseId) {
+        Lease lease = getById(leaseId);
+        if (lease == null) {
+            return null;
+        }
+        House house = houseService.getById(lease.getHouseId());
+        if (house == null) {
+            return null;
+        }
+        SmartLock smartLock = smartLockMapper.selectLatestByHouseId(house.getId());
+        if (smartLock == null) {
+            return null;
+        }
+        LockPermission permission = lockPermissionService.getOne(
+                Wrappers.<LockPermission>lambdaQuery()
+                        .eq(LockPermission::getLeaseId, leaseId)
+                        .eq(LockPermission::getSmartLockId, smartLock.getId())
+                        .last("LIMIT 1"),
+                false
+        );
+        String roomName = (house.getBuilding() != null ? house.getBuilding() : "")
+                + (house.getUnit() != null ? house.getUnit() : "")
+                + (house.getRoom() != null ? house.getRoom() : "");
+        return new LeaseDtos.UnlockDataResponse(
+                lease.getId(),
+                smartLock.getId(),
+                roomName,
+                house.getTitle(),
+                smartLock.getLockName(),
+                smartLock.getLockMac(),
+                smartLock.getLockData(),
+                permission != null ? permission.getTtlockKeyId() : null,
+                permission != null && permission.getStartTime() != null ? permission.getStartTime().toString() : null,
+                permission != null && permission.getEndTime() != null ? permission.getEndTime().toString() : null,
+                permission != null ? permission.getStatus() : null
+        );
     }
 
     private LeaseDtos.LeaseItem toLeaseItem(Lease lease) {
@@ -186,9 +225,9 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         if (lock != null) {
             LockPermission permission = lockPermissionService.getOne(
                     Wrappers.<LockPermission>lambdaQuery()
-                            .eq(LockPermission::getUserId, lease.getUserId())
+                            .eq(LockPermission::getTenantId, lease.getUserId())
                             .eq(LockPermission::getLeaseId, lease.getId())
-                            .eq(LockPermission::getLockId, lock.getId())
+                            .eq(LockPermission::getSmartLockId, lock.getId())
                             .last("LIMIT 1"),
                     false
             );
