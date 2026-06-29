@@ -7,15 +7,15 @@ import com.zhuxiang.service.dto.FileUploadResponse;
 import com.zhuxiang.service.entity.FileRecord;
 import com.zhuxiang.service.mapper.FileRecordMapper;
 import com.zhuxiang.service.service.FileRecordService;
-import org.springframework.beans.factory.annotation.Value;
+import com.zhuxiang.service.service.ObjectStorageService;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.io.InputStream;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.UUID;
 
@@ -31,19 +31,32 @@ public class FileRecordServiceImpl extends ServiceImpl<FileRecordMapper, FileRec
 
     private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-    private final Path uploadDirectory;
-    private final String contextPath;
+    private static final DateTimeFormatter PATH_DATE = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+    private final ObjectStorageService objectStorageService;
 
-    public FileRecordServiceImpl(
-            @Value("${app.upload.directory}") String uploadDirectory,
-            @Value("${server.servlet.context-path:/api}") String contextPath
-    ) {
-        this.uploadDirectory = Path.of(uploadDirectory).toAbsolutePath().normalize();
-        this.contextPath = contextPath;
+    public FileRecordServiceImpl(ObjectStorageService objectStorageService) {
+        this.objectStorageService = objectStorageService;
     }
 
+    /** 校验图片并保存到当前环境配置的对象存储。 */
     @Override
     public FileUploadResponse upload(String userId, MultipartFile file, String bizType) {
+        return uploadImage(userId, file, bizType, "id-card");
+    }
+
+    /** 上传管理端房源图片到独立对象目录。 */
+    @Override
+    public FileUploadResponse uploadHouseImage(String operatorId, MultipartFile file) {
+        return uploadImage(operatorId, file, "house_image", "house-images");
+    }
+
+    /** 执行通用图片校验、对象存储上传和文件记录保存。 */
+    private FileUploadResponse uploadImage(
+            String userId,
+            MultipartFile file,
+            String bizType,
+            String objectDirectory
+    ) {
         if (file == null || file.isEmpty()) {
             throw BusinessException.badRequest("文件不能为空");
         }
@@ -54,16 +67,12 @@ public class FileRecordServiceImpl extends ServiceImpl<FileRecordMapper, FileRec
         if (extension == null) {
             throw BusinessException.badRequest("仅支持 JPG、PNG、WebP 格式");
         }
-        try {
-            Path bizDirectory = uploadDirectory.resolve("id-card");
-            Files.createDirectories(bizDirectory);
-            String filename = UUID.randomUUID().toString() + extension;
-            Path target = bizDirectory.resolve(filename).normalize();
-            if (!target.startsWith(bizDirectory)) {
-                throw BusinessException.badRequest("文件名无效");
-            }
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
-            String url = contextPath + "/uploads/id-card/" + filename;
+        String objectKey = objectDirectory + "/" + LocalDate.now().format(PATH_DATE)
+                + "/" + UUID.randomUUID() + extension;
+        try (InputStream input = file.getInputStream()) {
+            String url = objectStorageService.store(
+                    objectKey, input, file.getSize(), file.getContentType()
+            );
 
             FileRecord record = new FileRecord();
             record.setId(UUID.randomUUID().toString());
@@ -79,6 +88,7 @@ public class FileRecordServiceImpl extends ServiceImpl<FileRecordMapper, FileRec
         }
     }
 
+    /** 校验图片记录属于当前用户和指定业务类型。 */
     @Override
     public void validateFileOwnership(String userId, String url, String bizType) {
         long count = count(Wrappers.<FileRecord>lambdaQuery()
@@ -86,7 +96,7 @@ public class FileRecordServiceImpl extends ServiceImpl<FileRecordMapper, FileRec
                 .eq(FileRecord::getUrl, url)
                 .eq(FileRecord::getBizType, bizType));
         if (count == 0) {
-            throw BusinessException.badRequest("身份证图片无效或不属于当前用户");
+            throw BusinessException.badRequest("图片无效或不属于当前用户");
         }
     }
 }

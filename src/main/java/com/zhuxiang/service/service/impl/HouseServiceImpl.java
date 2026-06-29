@@ -22,6 +22,7 @@ import com.zhuxiang.service.entity.Region;
 import com.zhuxiang.service.entity.SmartLock;
 import com.zhuxiang.service.entity.RentOrder;
 import com.zhuxiang.service.entity.UserFavoriteHouse;
+import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.mapper.RentOrderMapper;
 import com.zhuxiang.service.mapper.UserFavoriteHouseMapper;
@@ -30,11 +31,13 @@ import com.zhuxiang.service.service.CommunityService;
 import com.zhuxiang.service.service.HouseFacilityRelationService;
 import com.zhuxiang.service.service.HouseFacilityService;
 import com.zhuxiang.service.service.HouseImageService;
+import com.zhuxiang.service.service.FileRecordService;
 import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.HouseTagRelationService;
 import com.zhuxiang.service.service.HouseTagService;
 import com.zhuxiang.service.service.LandlordService;
 import com.zhuxiang.service.service.RegionService;
+import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.mapper.HouseMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -64,6 +68,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             Set.of("recommended", "short_rent", "homestay", "long_rent");
     private static final Set<String> SORTS =
             Set.of("default", "price_asc", "price_desc", "latest", "distance");
+    private static final Set<String> ADMIN_ROLES =
+            Set.of("ADMIN", "HOUSEKEEPER", "LANDLORD");
 
     private final CommunityService communityService;
     private final HouseImageService imageService;
@@ -77,6 +83,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     private final SmartLockMapper smartLockMapper;
     private final UserFavoriteHouseMapper favoriteHouseMapper;
     private final RentOrderMapper rentOrderMapper;
+    private final UserService userService;
+    private final FileRecordService fileRecordService;
 
     public HouseServiceImpl(
             CommunityService communityService,
@@ -90,7 +98,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             RegionService regionService,
             SmartLockMapper smartLockMapper,
             UserFavoriteHouseMapper favoriteHouseMapper,
-            RentOrderMapper rentOrderMapper
+            RentOrderMapper rentOrderMapper,
+            UserService userService,
+            FileRecordService fileRecordService
     ) {
         this.communityService = communityService;
         this.imageService = imageService;
@@ -104,6 +114,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         this.smartLockMapper = smartLockMapper;
         this.favoriteHouseMapper = favoriteHouseMapper;
         this.rentOrderMapper = rentOrderMapper;
+        this.userService = userService;
+        this.fileRecordService = fileRecordService;
     }
 
     /**
@@ -592,12 +604,18 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
      */
     @Override
     @Transactional
-    public AdminHouseDtos.AdminHouseView createHouse(AdminHouseDtos.CreateHouseRequest request) {
+    public AdminHouseDtos.AdminHouseView createHouse(
+            AdminHouseDtos.CreateHouseRequest request,
+            String operatorId
+    ) {
+        requireAdminRole(operatorId);
+        List<String> imageUrls = normalizeAndValidateHouseImages(request, operatorId);
+        String coverImage = imageUrls.getFirst();
         LocalDateTime now = LocalDateTime.now();
         House house = new House();
         house.setId(UUID.randomUUID().toString());
         house.setTitle(request.title());
-        house.setCoverImage(request.coverImage());
+        house.setCoverImage(coverImage);
         house.setLocation(request.location());
         house.setCommunityId(request.communityId());
         house.setAddress(request.address());
@@ -627,7 +645,67 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setCreatedAt(now);
         house.setUpdatedAt(now);
         save(house);
+        saveHouseImages(house.getId(), coverImage, imageUrls, now);
         return toAdminHouseView(house, null);
+    }
+
+    /** 校验管理端角色。 */
+    private void requireAdminRole(String operatorId) {
+        User operator = userService.requireActiveUser(operatorId);
+        if (operator.getRole() == null
+                || !ADMIN_ROLES.contains(operator.getRole().toUpperCase(Locale.ROOT))) {
+            throw BusinessException.forbidden("当前账号无权创建房源");
+        }
+    }
+
+    /** 合并封面和图片列表，并校验均属于当前操作者的房源图片上传记录。 */
+    private List<String> normalizeAndValidateHouseImages(
+            AdminHouseDtos.CreateHouseRequest request,
+            String operatorId
+    ) {
+        if (!StringUtils.hasText(request.coverImage())) {
+            throw BusinessException.badRequest("封面图不能为空");
+        }
+        if (request.imageUrls() == null || request.imageUrls().isEmpty()) {
+            throw BusinessException.badRequest("房源图片不能为空");
+        }
+        LinkedHashSet<String> urls = new LinkedHashSet<>();
+        urls.add(request.coverImage().trim());
+        request.imageUrls().stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .forEach(urls::add);
+        if (urls.size() > 20) {
+            throw BusinessException.badRequest("房源图片不能超过20张");
+        }
+        urls.forEach(url -> fileRecordService.validateFileOwnership(
+                operatorId, url, "house_image"
+        ));
+        return List.copyOf(urls);
+    }
+
+    /** 在房源创建事务中保存封面和普通图片记录。 */
+    private void saveHouseImages(
+            String houseId,
+            String coverImage,
+            List<String> imageUrls,
+            LocalDateTime createdAt
+    ) {
+        List<HouseImage> images = new ArrayList<>();
+        for (int index = 0; index < imageUrls.size(); index++) {
+            String imageUrl = imageUrls.get(index);
+            HouseImage image = new HouseImage();
+            image.setId(UUID.randomUUID().toString());
+            image.setHouseId(houseId);
+            image.setImageUrl(imageUrl);
+            image.setImageType(imageUrl.equals(coverImage) ? "cover" : "normal");
+            image.setSortOrder(index);
+            image.setCreatedAt(createdAt);
+            images.add(image);
+        }
+        if (!imageService.saveBatch(images)) {
+            throw new IllegalStateException("房源图片保存失败");
+        }
     }
 
     /**
@@ -668,6 +746,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getId(),
                 house.getTitle(),
                 house.getCoverImage(),
+                getHouseImageUrls(house.getId()),
                 house.getLocation(),
                 house.getCommunityId(),
                 house.getAddress(),
@@ -697,6 +776,17 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getCreatedAt(),
                 house.getUpdatedAt()
         );
+    }
+
+    /** 按展示顺序查询房源图片 URL。 */
+    private List<String> getHouseImageUrls(String houseId) {
+        return imageService.list(
+                        Wrappers.<HouseImage>lambdaQuery()
+                                .eq(HouseImage::getHouseId, houseId)
+                                .orderByAsc(HouseImage::getSortOrder)
+                ).stream()
+                .map(HouseImage::getImageUrl)
+                .toList();
     }
 
     /**
