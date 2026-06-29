@@ -184,7 +184,7 @@ public class LeaseTerminationServiceImpl
         LeaseTerminationApplication app = getOne(Wrappers.<LeaseTerminationApplication>lambdaQuery()
                 .eq(LeaseTerminationApplication::getContractId, contractId)
                 .in(LeaseTerminationApplication::getStatus, IN_PROGRESS_STATUSES)
-                .eq(LeaseTerminationApplication::getDeletedAt, (Object) null)
+                .isNull(LeaseTerminationApplication::getDeletedAt)
                 .orderByDesc(LeaseTerminationApplication::getCreatedAt)
                 .last("LIMIT 1"), false);
         if (app == null) return null;
@@ -267,6 +267,8 @@ public class LeaseTerminationServiceImpl
         app.setAuditTime(now);
         app.setUpdatedAt(now);
         updateById(app);
+
+        terminateLeaseAndHouse(app, now);
 
         writeLog(applicationId, "approved", "pending_review", "inspection_pending", adminId, adminName, null);
         createMessage(app.getTenantId(), "退租申请已通过",
@@ -456,7 +458,7 @@ public class LeaseTerminationServiceImpl
         return count(Wrappers.<LeaseTerminationApplication>lambdaQuery()
                 .eq(LeaseTerminationApplication::getContractId, contractId)
                 .in(LeaseTerminationApplication::getStatus, IN_PROGRESS_STATUSES)
-                .eq(LeaseTerminationApplication::getDeletedAt, (Object) null)) > 0;
+                .isNull(LeaseTerminationApplication::getDeletedAt)) > 0;
     }
 
     private LeaseTerminationApplication getOwnedApplication(String userId, String applicationId) {

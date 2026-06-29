@@ -304,6 +304,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
 
         return new LeaseDtos.LeaseItem(
                 lease.getId(),
+                lease.getContractId(),
                 house != null ? house.getId() : null,
                 houseName,
                 houseAddress,

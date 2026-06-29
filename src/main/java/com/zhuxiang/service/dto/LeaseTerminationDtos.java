@@ -120,4 +120,12 @@ public final class LeaseTerminationDtos {
             @Schema(description = "补充材料要求") @NotBlank @Size(max = 1000) String supplementReason
     ) {
     }
+
+    @Schema(description = "确认退租结算请求")
+    public record SettlementConfirmRequest(
+            @Schema(description = "结算扣款金额(分)") Integer settlementAmount,
+            @Schema(description = "应退金额(分)") Integer refundAmount,
+            @Schema(description = "结算备注") @Size(max = 1000) String remark
+    ) {
+    }
 }

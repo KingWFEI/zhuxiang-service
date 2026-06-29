@@ -35,6 +35,7 @@ public final class LeaseDtos {
 
     public record LeaseItem(
             String leaseId,
+            String contractId,
             String houseId,
             String houseName,
             String houseAddress,
