@@ -1,4 +1,6 @@
 spring:
+  config:
+    import: "optional:file:.env[.properties]"
   application:
     name: zhuxiang-service
   datasource:
@@ -54,6 +56,16 @@ app:
     fixed-sms-code: ${FIXED_SMS_CODE:123456}
   upload:
     directory: ${UPLOAD_DIRECTORY:./uploads}
+  storage:
+    type: ${STORAGE_TYPE:local}
+    cos:
+      secret-id: ${TENCENT_COS_SECRET_ID:}
+      secret-key: ${TENCENT_COS_SECRET_KEY:}
+      session-token: ${TENCENT_COS_SESSION_TOKEN:}
+      region: ${TENCENT_COS_REGION:}
+      bucket: ${TENCENT_COS_BUCKET:}
+      public-base-url: ${TENCENT_COS_PUBLIC_BASE_URL:}
+      key-prefix: ${TENCENT_COS_KEY_PREFIX:zhuxiang}
   lock-passcode:
     encryption-key: ${LOCK_PASSCODE_ENCRYPTION_KEY:}
     key-version: ${LOCK_PASSCODE_KEY_VERSION:1}

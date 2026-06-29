@@ -9,5 +9,8 @@ public interface FileRecordService extends IService<FileRecord> {
 
     FileUploadResponse upload(String userId, MultipartFile file, String bizType);
 
+    /** 上传管理端房源图片并记录文件归属。 */
+    FileUploadResponse uploadHouseImage(String operatorId, MultipartFile file);
+
     void validateFileOwnership(String userId, String url, String bizType);
 }

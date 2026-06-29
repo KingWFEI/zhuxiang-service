@@ -54,10 +54,42 @@ CREATE DATABASE zhuxiang_app
 | API 前缀 | `API_PREFIX` | `/api` |
 | Token 密钥 | `TOKEN_SECRET` | 本地开发默认值 |
 | 固定验证码 | `FIXED_SMS_CODE` | `123456` |
+| 图片存储类型 | `STORAGE_TYPE` | `local` |
 | 上传目录 | `UPLOAD_DIRECTORY` | `./uploads` |
+| COS SecretId | `TENCENT_COS_SECRET_ID` | 空 |
+| COS SecretKey | `TENCENT_COS_SECRET_KEY` | 空 |
+| COS 临时 Token | `TENCENT_COS_SESSION_TOKEN` | 空 |
+| COS 地域 | `TENCENT_COS_REGION` | 空 |
+| COS 存储桶 | `TENCENT_COS_BUCKET` | 空 |
+| COS 访问域名 | `TENCENT_COS_PUBLIC_BASE_URL` | COS 默认域名 |
+| COS 对象前缀 | `TENCENT_COS_KEY_PREFIX` | `zhuxiang` |
 
 当前阶段尚未对接短信供应商，本地验证码默认固定为 `123456`。部署到非开发
 环境时必须设置安全的 `TOKEN_SECRET`，并在接入短信服务后移除固定验证码。
+
+### 使用 `.env` 配置 COS
+
+复制 `.env.example` 为项目根目录下的 `.env`，填写腾讯云 COS 参数并设置：
+
+```properties
+STORAGE_TYPE=cos
+TENCENT_COS_SECRET_ID=your-secret-id
+TENCENT_COS_SECRET_KEY=your-secret-key
+TENCENT_COS_REGION=ap-guangzhou
+TENCENT_COS_BUCKET=example-1250000000
+TENCENT_COS_PUBLIC_BASE_URL=https://example-1250000000.cos.ap-guangzhou.myqcloud.com
+TENCENT_COS_KEY_PREFIX=zhuxiang
+```
+
+`.env` 已加入 Git 忽略列表。生产环境建议直接设置系统环境变量；系统环境变量
+优先级高于 `.env`，无需修改或重新打包后端。COS 密钥应使用仅具备目标路径上传
+权限的 CAM 子账号密钥。当前上传接口返回稳定对象 URL，因此对应 COS 域名需要具备
+合适的读取策略；身份证图片等敏感资源不应配置为全网公开读。
+
+文件上传接口：
+
+- `POST /api/files/upload`：租客实名认证图片，仅支持 `id_card_front`、`id_card_back`。
+- `POST /api/admin/files/house-images/upload`：管理端房源图片，仅允许管理员、管家或房东。
 
 ## 运行
 
