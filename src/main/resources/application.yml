@@ -54,11 +54,16 @@ app:
     fixed-sms-code: ${FIXED_SMS_CODE:123456}
   upload:
     directory: ${UPLOAD_DIRECTORY:./uploads}
+  lock-passcode:
+    encryption-key: ${LOCK_PASSCODE_ENCRYPTION_KEY:}
+    key-version: ${LOCK_PASSCODE_KEY_VERSION:1}
+    query-limit-per-minute: ${LOCK_PASSCODE_QUERY_LIMIT_PER_MINUTE:10}
+    expiration-scan-ms: ${LOCK_PASSCODE_EXPIRATION_SCAN_MS:300000}
 
 ttlock:
-  client-id: ${TTLOCK_CLIENT_ID:cb5534587e624eb59a9244cc14b8e281}
-  client-secret: ${TTLOCK_CLIENT_SECRET:b73051c1d61c6c3aa7a5bb4917a495e8}
-  username: ${TTLOCK_USERNAME:15282398801}
-  password: ${TTLOCK_PASSWORD:wf010931}
+  client-id: ${TTLOCK_CLIENT_ID:}
+  client-secret: ${TTLOCK_CLIENT_SECRET:}
+  username: ${TTLOCK_USERNAME:}
+  password: ${TTLOCK_PASSWORD:}
   access-token: ${TTLOCK_ACCESS_TOKEN:}
   base-url: ${TTLOCK_BASE_URL:https://api.sciener.com}

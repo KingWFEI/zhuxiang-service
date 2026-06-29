@@ -4,9 +4,11 @@ import com.zhuxiang.service.auth.CurrentUser;
 import com.zhuxiang.service.auth.RequireAuth;
 import com.zhuxiang.service.common.ApiResponse;
 import com.zhuxiang.service.dto.LeaseDtos;
+import com.zhuxiang.service.dto.LeaseLockPasscodeResponse;
 import com.zhuxiang.service.dto.ProfileDtos;
 import com.zhuxiang.service.service.LeaseService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -45,14 +47,29 @@ public class LeaseController {
     }
 
     /**
-     * 获取指定租约的门锁开锁数据。
+     * 获取指定租约的门锁权限摘要。
      */
     @GetMapping("/leases/{leaseId}/lock/unlock-data")
-    @Operation(summary = "获取租约门锁开锁数据", description = "返回租约关联门锁的蓝牙开锁数据（lockData）。")
+    @Operation(summary = "获取租约门锁开锁摘要", description = "返回蓝牙和期限密码可用性，不返回管理员 lockData 或明文密码。")
     public ApiResponse<LeaseDtos.UnlockDataResponse> getUnlockData(
-            @PathVariable String leaseId,
+            @Parameter(description = "租约 ID") @PathVariable String leaseId,
             HttpServletRequest request
     ) {
-        return ApiResponse.success(leaseService.getUnlockData(leaseId));
+        return ApiResponse.success(leaseService.getUnlockData(leaseId, CurrentUser.id(request)));
+    }
+
+    /**
+     * 获取当前租客的租约期限密码。
+     */
+    @GetMapping("/leases/{leaseId}/lock/passcode")
+    @Operation(
+            summary = "获取租约期限密码",
+            description = "仅限租约本人在有效期内查看。请在密码生效后的24小时内至少使用一次，否则密码可能失效。"
+    )
+    public ApiResponse<LeaseLockPasscodeResponse> getPasscode(
+            @Parameter(description = "租约 ID") @PathVariable String leaseId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(leaseService.getLockPasscode(leaseId, CurrentUser.id(request)));
     }
 }

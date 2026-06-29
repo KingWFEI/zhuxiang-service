@@ -44,6 +44,16 @@ public class SmartLock implements Serializable {
     private Long keyId;
 
     /**
+     * TTLock 键盘密码版本，生成期限密码前从平台详情同步。
+     */
+    private Integer keyboardPwdVersion;
+
+    /**
+     * 门锁时区相对 UTC 的毫秒偏移量。
+     */
+    private Long timezoneRawOffset;
+
+    /**
      * 门锁名称。
      */
     private String lockName;
