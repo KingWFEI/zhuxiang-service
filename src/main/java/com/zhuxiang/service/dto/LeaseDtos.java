@@ -15,11 +15,15 @@ public final class LeaseDtos {
             String houseName,
             String lockName,
             String lockMac,
-            String lockData,
             Long ttlockKeyId,
             String startTime,
             String endTime,
-            String permissionStatus
+            String permissionStatus,
+            boolean bluetoothUnlockAvailable,
+            boolean passcodeAvailable,
+            String passcodeStatus,
+            String passcodeStartTime,
+            String passcodeEndTime
     ) {
     }
 

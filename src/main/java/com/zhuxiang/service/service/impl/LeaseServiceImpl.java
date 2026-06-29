@@ -2,6 +2,8 @@ package com.zhuxiang.service.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.zhuxiang.service.common.BusinessException;
+import com.zhuxiang.service.dto.LeaseLockPasscodeResponse;
 import com.zhuxiang.service.dto.LeaseDtos;
 import com.zhuxiang.service.dto.ProfileDtos;
 import com.zhuxiang.service.entity.*;
@@ -11,6 +13,11 @@ import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.service.*;
 import org.springframework.stereotype.Service;
 
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -26,6 +33,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
     private final CommunityService communityService;
     private final SmartLockMapper smartLockMapper;
     private final LockPermissionService lockPermissionService;
+    private final LockPasscodePermissionService lockPasscodePermissionService;
     private final RentContractMapper rentContractMapper;
     private final LandlordService landlordService;
 
@@ -34,6 +42,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             CommunityService communityService,
             SmartLockMapper smartLockMapper,
             LockPermissionService lockPermissionService,
+            LockPasscodePermissionService lockPasscodePermissionService,
             RentContractMapper rentContractMapper,
             LandlordService landlordService
     ) {
@@ -41,6 +50,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         this.communityService = communityService;
         this.smartLockMapper = smartLockMapper;
         this.lockPermissionService = lockPermissionService;
+        this.lockPasscodePermissionService = lockPasscodePermissionService;
         this.rentContractMapper = rentContractMapper;
         this.landlordService = landlordService;
     }
@@ -140,26 +150,57 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
     }
 
     @Override
-    public LeaseDtos.UnlockDataResponse getUnlockData(String leaseId) {
+    public LeaseDtos.UnlockDataResponse getUnlockData(String leaseId, String currentUserId) {
         Lease lease = getById(leaseId);
         if (lease == null) {
-            return null;
+            throw BusinessException.notFound("租约不存在");
+        }
+        if (!currentUserId.equals(lease.getUserId())) {
+            throw BusinessException.forbidden("无权查看该租约的门锁权限");
         }
         House house = houseService.getById(lease.getHouseId());
         if (house == null) {
-            return null;
+            throw BusinessException.notFound("租约关联房间不存在");
         }
         SmartLock smartLock = smartLockMapper.selectLatestByHouseId(house.getId());
         if (smartLock == null) {
-            return null;
+            throw BusinessException.notFound("租约关联门锁不存在");
         }
         LockPermission permission = lockPermissionService.getOne(
                 Wrappers.<LockPermission>lambdaQuery()
                         .eq(LockPermission::getLeaseId, leaseId)
+                        .eq(LockPermission::getTenantId, currentUserId)
                         .eq(LockPermission::getSmartLockId, smartLock.getId())
+                        .eq(LockPermission::getPermissionType, "EKEY")
                         .last("LIMIT 1"),
                 false
         );
+        LockPasscodePermission passcodePermission = lockPasscodePermissionService.getOne(
+                Wrappers.<LockPasscodePermission>lambdaQuery()
+                        .eq(LockPasscodePermission::getLeaseId, leaseId)
+                        .eq(LockPasscodePermission::getTenantId, currentUserId)
+                        .eq(LockPasscodePermission::getSmartLockId, smartLock.getId())
+                        .last("LIMIT 1"),
+                false
+        );
+        Instant now = Instant.now();
+        LocalDateTime businessNow = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
+        boolean leaseEffective = "active".equalsIgnoreCase(lease.getStatus())
+                || "effective".equalsIgnoreCase(lease.getStatus());
+        boolean bluetoothAvailable = leaseEffective
+                && permission != null
+                && "ACTIVE".equalsIgnoreCase(permission.getStatus())
+                && permission.getStartTime() != null
+                && permission.getEndTime() != null
+                && !businessNow.isBefore(permission.getStartTime())
+                && !businessNow.isAfter(permission.getEndTime());
+        boolean passcodeAvailable = leaseEffective
+                && passcodePermission != null
+                && "ACTIVE".equalsIgnoreCase(passcodePermission.getStatus())
+                && passcodePermission.getStartTime() != null
+                && passcodePermission.getEndTime() != null
+                && !now.isBefore(passcodePermission.getStartTime())
+                && now.isBefore(passcodePermission.getEndTime());
         String roomName = (house.getBuilding() != null ? house.getBuilding() : "")
                 + (house.getUnit() != null ? house.getUnit() : "")
                 + (house.getRoom() != null ? house.getRoom() : "");
@@ -170,12 +211,39 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 house.getTitle(),
                 smartLock.getLockName(),
                 smartLock.getLockMac(),
-                smartLock.getLockData(),
                 permission != null ? permission.getTtlockKeyId() : null,
                 permission != null && permission.getStartTime() != null ? permission.getStartTime().toString() : null,
                 permission != null && permission.getEndTime() != null ? permission.getEndTime().toString() : null,
-                permission != null ? permission.getStatus() : null
+                permission != null ? permission.getStatus() : null,
+                bluetoothAvailable,
+                passcodeAvailable,
+                passcodePermission != null ? passcodePermission.getStatus() : null,
+                formatPasscodeTime(passcodePermission == null ? null : passcodePermission.getStartTime(), smartLock),
+                formatPasscodeTime(passcodePermission == null ? null : passcodePermission.getEndTime(), smartLock)
         );
+    }
+
+    /** 校验并返回明文期限密码。 */
+    @Override
+    public LeaseLockPasscodeResponse getLockPasscode(String leaseId, String currentUserId) {
+        return lockPasscodePermissionService.getTenantPasscode(leaseId, currentUserId);
+    }
+
+    /** 按门锁时区格式化期限密码时刻。 */
+    private String formatPasscodeTime(Instant instant, SmartLock smartLock) {
+        if (instant == null) {
+            return null;
+        }
+        Long rawOffset = smartLock.getTimezoneRawOffset();
+        if (rawOffset == null || rawOffset % 1000 != 0) {
+            return instant.toString();
+        }
+        try {
+            ZoneOffset offset = ZoneOffset.ofTotalSeconds(Math.toIntExact(rawOffset / 1000));
+            return instant.atOffset(offset).toString();
+        } catch (ArithmeticException | DateTimeException exception) {
+            return instant.toString();
+        }
     }
 
     private LeaseDtos.LeaseItem toLeaseItem(Lease lease) {
