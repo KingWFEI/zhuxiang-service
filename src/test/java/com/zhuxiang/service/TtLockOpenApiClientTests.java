@@ -3,6 +3,8 @@ package com.zhuxiang.service;
 import com.zhuxiang.service.client.TtLockOpenApiClient;
 import com.zhuxiang.service.config.TtLockProperties;
 import com.zhuxiang.service.dto.TtLockSendEKeyResponse;
+import com.zhuxiang.service.dto.TtLockDetailResponse;
+import com.zhuxiang.service.dto.TtLockPeriodPasscodeResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -53,6 +55,64 @@ class TtLockOpenApiClientTests {
 
         assertThat(response.success()).isTrue();
         assertThat(response.getKeyId()).isEqualTo(9876L);
+        server.verify();
+    }
+
+    @Test
+    void readsOnlyRequiredLockCapabilityFields() {
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        TtLockProperties properties = new TtLockProperties();
+        properties.setBaseUrl("https://ttlock.example.com/");
+        TtLockOpenApiClient client = new TtLockOpenApiClient(restTemplate, properties);
+
+        server.expect(requestTo("https://ttlock.example.com/v3/lock/detail"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().string(containsString("clientId=client-id")))
+                .andExpect(content().string(containsString("accessToken=access-token")))
+                .andExpect(content().string(containsString("lockId=12345")))
+                .andRespond(withSuccess("""
+                        {"keyboardPwdVersion":4,"timezoneRawOffset":28800000,
+                         "adminPwd":"must-not-map","noKeyPwd":"must-not-map"}
+                        """, MediaType.APPLICATION_JSON));
+
+        TtLockDetailResponse response = client.getLockDetail("client-id", "access-token", 12345L);
+
+        assertThat(response.success()).isTrue();
+        assertThat(response.getKeyboardPwdVersion()).isEqualTo(4);
+        assertThat(response.getTimezoneRawOffset()).isEqualTo(28_800_000L);
+        server.verify();
+    }
+
+    @Test
+    void getsPeriodPasscodeAsFormWithV4PeriodParameters() {
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        TtLockProperties properties = new TtLockProperties();
+        properties.setBaseUrl("https://ttlock.example.com/");
+        TtLockOpenApiClient client = new TtLockOpenApiClient(restTemplate, properties);
+
+        server.expect(requestTo("https://ttlock.example.com/v3/keyboardPwd/get"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Content-Type", containsString(MediaType.APPLICATION_FORM_URLENCODED_VALUE)))
+                .andExpect(content().string(containsString("keyboardPwdVersion=4")))
+                .andExpect(content().string(containsString("keyboardPwdType=3")))
+                .andExpect(content().string(containsString("keyboardPwdName=lease-1")))
+                .andExpect(content().string(containsString("startDate=1000")))
+                .andExpect(content().string(containsString("endDate=2000")))
+                .andExpect(content().string(containsString("date=")))
+                .andRespond(withSuccess(
+                        "{\"keyboardPwd\":\"839204\",\"keyboardPwdId\":9001}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        TtLockPeriodPasscodeResponse response = client.getPeriodPasscode(
+                "client-id", "access-token", 12345L, 4, 3, "lease-1", 1000L, 2000L
+        );
+
+        assertThat(response.success()).isTrue();
+        assertThat(response.getKeyboardPwd()).isEqualTo("839204");
+        assertThat(response.toString()).doesNotContain("839204");
         server.verify();
     }
 }

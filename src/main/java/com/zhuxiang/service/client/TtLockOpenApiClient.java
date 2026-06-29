@@ -3,6 +3,8 @@ package com.zhuxiang.service.client;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.config.TtLockProperties;
 import com.zhuxiang.service.dto.TtLockInitializeResponse;
+import com.zhuxiang.service.dto.TtLockDetailResponse;
+import com.zhuxiang.service.dto.TtLockPeriodPasscodeResponse;
 import com.zhuxiang.service.dto.TtLockSendEKeyResponse;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -109,6 +111,78 @@ public class TtLockOpenApiClient {
             throw BusinessException.badRequest("TTLock eKey请求超时或网络不可用");
         } catch (RestClientException exception) {
             throw BusinessException.badRequest("TTLock eKey请求失败");
+        }
+    }
+
+    /**
+     * 查询门锁密码版本和门锁时区；响应中的管理员凭证不会被映射。
+     */
+    public TtLockDetailResponse getLockDetail(String clientId, String accessToken, Long lockId) {
+        MultiValueMap<String, String> params = baseLockParams(clientId, accessToken, lockId);
+        return postForm("/v3/lock/detail", params, TtLockDetailResponse.class, "TTLock 门锁详情查询");
+    }
+
+    /**
+     * 生成 V4 期限密码。密码需在生效后的 24 小时内至少使用一次，否则可能失效。
+     */
+    public TtLockPeriodPasscodeResponse getPeriodPasscode(
+            String clientId,
+            String accessToken,
+            Long lockId,
+            int keyboardPwdVersion,
+            int keyboardPwdType,
+            String keyboardPwdName,
+            long startDate,
+            long endDate
+    ) {
+        MultiValueMap<String, String> params = baseLockParams(clientId, accessToken, lockId);
+        params.add("keyboardPwdVersion", String.valueOf(keyboardPwdVersion));
+        params.add("keyboardPwdType", String.valueOf(keyboardPwdType));
+        params.add("keyboardPwdName", keyboardPwdName);
+        params.add("startDate", String.valueOf(startDate));
+        params.add("endDate", String.valueOf(endDate));
+        return postForm(
+                "/v3/keyboardPwd/get",
+                params,
+                TtLockPeriodPasscodeResponse.class,
+                "TTLock 期限密码生成"
+        );
+    }
+
+    /** 构造门锁接口通用表单参数。 */
+    private MultiValueMap<String, String> baseLockParams(String clientId, String accessToken, Long lockId) {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("clientId", clientId);
+        params.add("accessToken", accessToken);
+        params.add("lockId", String.valueOf(lockId));
+        params.add("date", String.valueOf(System.currentTimeMillis()));
+        return params;
+    }
+
+    /** 统一发送表单请求并转换安全响应模型。 */
+    private <T> T postForm(
+            String path,
+            MultiValueMap<String, String> params,
+            Class<T> responseType,
+            String operationName
+    ) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        try {
+            ResponseEntity<T> response = restTemplate.postForEntity(
+                    normalizeBaseUrl() + path,
+                    new HttpEntity<>(params, headers),
+                    responseType
+            );
+            T body = response.getBody();
+            if (!response.getStatusCode().is2xxSuccessful() || body == null) {
+                throw BusinessException.badRequest(operationName + "失败");
+            }
+            return body;
+        } catch (ResourceAccessException exception) {
+            throw BusinessException.badRequest(operationName + "请求超时或网络不可用");
+        } catch (RestClientException exception) {
+            throw BusinessException.badRequest(operationName + "请求失败");
         }
     }
 

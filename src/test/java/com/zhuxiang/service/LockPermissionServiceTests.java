@@ -22,6 +22,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,6 +43,7 @@ class LockPermissionServiceTests {
     private final TtLockTokenService tokenService = mock(TtLockTokenService.class);
     private final TtLockOpenApiClient openApiClient = mock(TtLockOpenApiClient.class);
     private final TtLockProperties properties = new TtLockProperties();
+    private final AtomicReference<LockPermission> storedPermission = new AtomicReference<>();
     private LockPermissionServiceImpl service;
 
     @BeforeEach
@@ -57,6 +59,13 @@ class LockPermissionServiceTests {
                 properties
         );
         ReflectionTestUtils.setField(service, "baseMapper", permissionMapper);
+        storedPermission.set(null);
+        when(permissionMapper.insertIfAbsent(any(LockPermission.class))).thenAnswer(invocation -> {
+            storedPermission.compareAndSet(null, invocation.getArgument(0));
+            return 1;
+        });
+        when(permissionMapper.selectForUpdate(any(String.class), any(String.class), any(String.class)))
+                .thenAnswer(invocation -> storedPermission.get());
     }
 
     @Test
@@ -66,7 +75,6 @@ class LockPermissionServiceTests {
         SmartLock smartLock = boundSmartLock();
         stubGrantContext(lease, tenant, smartLock);
         when(permissionMapper.selectList(any(Wrapper.class))).thenReturn(java.util.List.of());
-        when(permissionMapper.insert(any(LockPermission.class))).thenReturn(1);
         when(permissionMapper.updateById(any(LockPermission.class))).thenReturn(1);
         when(tokenService.getAccessToken()).thenReturn("access-token");
 
@@ -109,7 +117,7 @@ class LockPermissionServiceTests {
                 expectedStart,
                 expectedEnd
         );
-        verify(permissionMapper).insert(permission);
+        verify(permissionMapper).insertIfAbsent(permission);
         verify(permissionMapper).updateById(permission);
     }
 
@@ -118,7 +126,6 @@ class LockPermissionServiceTests {
         Lease lease = activeLease();
         stubGrantContext(lease, tenant(), boundSmartLock());
         when(permissionMapper.selectList(any(Wrapper.class))).thenReturn(java.util.List.of());
-        when(permissionMapper.insert(any(LockPermission.class))).thenReturn(1);
         when(permissionMapper.updateById(any(LockPermission.class))).thenReturn(1);
         when(tokenService.getAccessToken()).thenReturn("access-token");
 
@@ -135,7 +142,7 @@ class LockPermissionServiceTests {
         assertThat(permission.getStatus()).isEqualTo("FAILED");
         assertThat(permission.getTtlockKeyId()).isNull();
         assertThat(permission.getErrorMessage()).contains("-1003").contains("receiver account invalid");
-        verify(permissionMapper).insert(permission);
+        verify(permissionMapper).insertIfAbsent(permission);
         verify(permissionMapper).updateById(permission);
     }
 
@@ -146,7 +153,8 @@ class LockPermissionServiceTests {
         LockPermission existing = new LockPermission();
         existing.setId("permission-1");
         existing.setStatus("ACTIVE");
-        when(permissionMapper.selectOne(any(Wrapper.class), eq(false))).thenReturn(existing);
+        when(permissionMapper.insertIfAbsent(any(LockPermission.class))).thenReturn(0);
+        when(permissionMapper.selectForUpdate("lease-1", "tenant-1", "smart-lock-1")).thenReturn(existing);
 
         LockPermission result = service.grantTenantEKeyForLease(lease.getId());
 
@@ -155,7 +163,7 @@ class LockPermissionServiceTests {
                 any(String.class), any(String.class), any(Long.class), any(String.class),
                 any(String.class), anyLong(), anyLong()
         );
-        verify(permissionMapper, never()).insert(any(LockPermission.class));
+        verify(permissionMapper).insertIfAbsent(any(LockPermission.class));
         verify(permissionMapper, never()).updateById(any(LockPermission.class));
     }
 

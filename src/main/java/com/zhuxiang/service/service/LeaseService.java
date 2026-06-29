@@ -3,6 +3,7 @@ package com.zhuxiang.service.service;
 import com.zhuxiang.service.entity.Lease;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.zhuxiang.service.dto.LeaseDtos;
+import com.zhuxiang.service.dto.LeaseLockPasscodeResponse;
 import com.zhuxiang.service.dto.ProfileDtos;
 
 /**
@@ -28,7 +29,10 @@ public interface LeaseService extends IService<Lease> {
     LeaseDtos.LeaseListResponse getUserLeases(String userId);
 
     /**
-     * 获取租约关联的门锁开锁数据（lockData）。
+     * 获取租约关联的门锁权限摘要，不返回管理员 lockData。
      */
-    LeaseDtos.UnlockDataResponse getUnlockData(String leaseId);
+    LeaseDtos.UnlockDataResponse getUnlockData(String leaseId, String currentUserId);
+
+    /** 校验当前租客后返回租约期限密码。 */
+    LeaseLockPasscodeResponse getLockPasscode(String leaseId, String currentUserId);
 }

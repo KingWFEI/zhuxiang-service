@@ -84,33 +84,25 @@ public class LockPermissionServiceImpl extends ServiceImpl<LockPermissionMapper,
         String receiverUsername = requireReceiverUsername(tenant);
         SmartLock smartLock = requireBoundSmartLock(lease.getHouseId());
 
-        LockPermission permission = getOne(
-                Wrappers.<LockPermission>lambdaQuery()
-                        .eq(LockPermission::getLeaseId, lease.getId())
-                        .eq(LockPermission::getTenantId, tenant.getId())
-                        .eq(LockPermission::getSmartLockId, smartLock.getId())
-                        .eq(LockPermission::getPermissionType, PERMISSION_TYPE_EKEY)
-                        .last("LIMIT 1"),
-                false
+        LockPermission placeholder = new LockPermission();
+        placeholder.setId(UUID.randomUUID().toString());
+        placeholder.setCreatedAt(LocalDateTime.now());
+        populatePermission(placeholder, lease, tenant, smartLock, receiverUsername);
+        placeholder.setStatus(STATUS_FAILED);
+        placeholder.setErrorMessage("TTLock eKey等待下发");
+        placeholder.setUpdatedAt(LocalDateTime.now());
+        baseMapper.insertIfAbsent(placeholder);
+
+        LockPermission permission = baseMapper.selectForUpdate(
+                lease.getId(), tenant.getId(), smartLock.getId()
         );
-        if (permission != null && STATUS_ACTIVE.equalsIgnoreCase(permission.getStatus())) {
+        if (permission == null) {
+            throw new IllegalStateException("eKey权限占位记录创建失败");
+        }
+        if (STATUS_ACTIVE.equalsIgnoreCase(permission.getStatus())) {
             return permission;
         }
-
-        boolean newPermission = permission == null;
-        if (newPermission) {
-            permission = new LockPermission();
-            permission.setId(UUID.randomUUID().toString());
-            permission.setCreatedAt(LocalDateTime.now());
-        }
         populatePermission(permission, lease, tenant, smartLock, receiverUsername);
-
-        if (newPermission) {
-            permission.setStatus(STATUS_FAILED);
-            permission.setErrorMessage("TTLock eKey等待下发");
-            permission.setUpdatedAt(LocalDateTime.now());
-            save(permission);
-        }
 
         try {
             TtLockSendEKeyResponse response = openApiClient.sendEKey(
