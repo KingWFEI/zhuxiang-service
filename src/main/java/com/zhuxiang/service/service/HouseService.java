@@ -67,7 +67,10 @@ public interface HouseService extends IService<House> {
     /**
      * 创建新房源，返回管理端视图。
      */
-    AdminHouseDtos.AdminHouseView createHouse(AdminHouseDtos.CreateHouseRequest request);
+    AdminHouseDtos.AdminHouseView createHouse(
+            AdminHouseDtos.CreateHouseRequest request,
+            String operatorId
+    );
 
     /**
      * 获取所有房源（含智能锁绑定信息）。

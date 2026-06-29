@@ -3,7 +3,9 @@ package com.zhuxiang.service.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -21,6 +23,10 @@ public final class AdminHouseDtos {
             @Schema(description = "房源标题", example = "高新区精装一居室") String title,
             @NotBlank(message = "封面图不能为空")
             @Schema(description = "房源封面图 URL") String coverImage,
+            @NotEmpty(message = "房源图片不能为空")
+            @Size(max = 20, message = "房源图片不能超过20张")
+            @Schema(description = "房源图片 URL 列表，URL 必须来自管理端房源图片上传接口")
+            List<@NotBlank(message = "房源图片URL不能为空") String> imageUrls,
             @NotBlank(message = "位置不能为空")
             @Schema(description = "区域或商圈展示位置", example = "高新区金融城") String location,
             @NotBlank(message = "小区ID不能为空")
@@ -64,6 +70,7 @@ public final class AdminHouseDtos {
             String id,
             String title,
             String coverImage,
+            List<String> imageUrls,
             String location,
             String communityId,
             String address,
