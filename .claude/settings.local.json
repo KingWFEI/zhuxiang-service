@@ -5,8 +5,7 @@
       "Bash(./mvnw compile *)",
       "Bash(mysql *)",
       "Bash(ping *)",
-      "Bash(git config *)"
-      "Bash(mysql *)",
+      "Bash(git config *)",
       "Bash(mvn test *)",
       "Bash(mvn clean *)",
       "Bash(git stash *)",
@@ -25,7 +24,19 @@
       "Bash(kill -9 25744)",
       "Bash(taskkill *)",
       "Bash(curl *)",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m json.tool)",
+      "Bash(python3 *)",
+      "Bash(python *)",
+      "Bash(findstr :8000)",
+      "Bash(findstr LISTEN)",
+      "Bash(mvn spring-boot:run -q)",
+      "Bash(curl -s http://localhost:8000/api/home/data?pageSize=1)",
+      "Bash(kill -9 17632)",
+      "Bash(echo \"Started PID: $!\")",
+      "Bash(echo \"Home: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/home/data?pageSize=1\\)\")",
+      "Bash(echo \"Check: $\\(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/app/contracts/test/termination/check\\)\")",
+      "Bash(echo \"Login\\(code\\): $\\(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8000/api/auth/login/code -H 'Content-Type: application/json' -d '{\"phone\":\"13213592847\",\"code\":\"123456\"}'\\)\")",
+      "Bash(echo \"Login\\(password\\): $\\(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8000/api/auth/login/password -H 'Content-Type: application/json' -d '{\"phone\":\"13213592847\",\"password\":\"123456\"}'\\)\")"
     ]
   }
 }
