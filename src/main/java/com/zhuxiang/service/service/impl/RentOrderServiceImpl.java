@@ -331,14 +331,22 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
 
         String feeBreakdown = buildFeeBreakdown(rentAmount, depositAmount, serviceFeeAmount, order.getPaymentMonths());
 
+        House payHouse = houseService.getById(order.getHouseId());
+        String houseName = payHouse != null ? payHouse.getTitle() : "";
+
         PaymentRecord record = new PaymentRecord();
         record.setId(UUID.randomUUID().toString());
+        record.setPaymentNo(paymentRecordService.generatePaymentNo());
         record.setOrderId(orderId);
         record.setUserId(userId);
+        record.setHouseId(order.getHouseId());
+        record.setHouseName(houseName);
+        record.setType("rent");
         record.setAmount(order.getFirstPaymentAmount());
         record.setPaymentChannel(request.paymentChannel());
         record.setStatus("pending");
         record.setFeeBreakdown(feeBreakdown);
+        record.setRemark(order.getPaymentMonths() + "期租金及押金服务费");
         record.setCreatedAt(LocalDateTime.now());
         record.setUpdatedAt(LocalDateTime.now());
         paymentRecordService.save(record);
@@ -348,8 +356,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             confirmPayment(record.getId(), null);
         }
 
-        House house = houseService.getById(order.getHouseId());
-        return toResponse(order, house);
+        return toResponse(order, payHouse);
     }
 
     @Override

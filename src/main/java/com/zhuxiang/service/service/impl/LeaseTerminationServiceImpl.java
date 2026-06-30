@@ -59,6 +59,8 @@ public class LeaseTerminationServiceImpl
     private final LeaseService leaseService;
     private final RentBillService rentBillService;
     private final HouseService houseService;
+    private final LockPermissionService lockPermissionService;
+    private final LockPasscodePermissionService lockPasscodePermissionService;
     private final MessageService messageService;
     private final UserService userService;
     private final LeaseTerminationLogMapper logMapper;
@@ -69,6 +71,8 @@ public class LeaseTerminationServiceImpl
             LeaseService leaseService,
             RentBillService rentBillService,
             HouseService houseService,
+            LockPermissionService lockPermissionService,
+            LockPasscodePermissionService lockPasscodePermissionService,
             MessageService messageService,
             UserService userService,
             LeaseTerminationLogMapper logMapper,
@@ -78,6 +82,8 @@ public class LeaseTerminationServiceImpl
         this.leaseService = leaseService;
         this.rentBillService = rentBillService;
         this.houseService = houseService;
+        this.lockPermissionService = lockPermissionService;
+        this.lockPasscodePermissionService = lockPasscodePermissionService;
         this.messageService = messageService;
         this.userService = userService;
         this.logMapper = logMapper;
@@ -427,6 +433,8 @@ public class LeaseTerminationServiceImpl
             lease.setStatus("terminated");
             lease.setUpdatedAt(now);
             leaseService.updateById(lease);
+
+            revokeLockPermissions(lease.getId(), now);
         }
 
         House house = houseService.getById(app.getHouseId());
@@ -435,6 +443,21 @@ public class LeaseTerminationServiceImpl
             house.setUpdatedAt(now);
             houseService.updateById(house);
         }
+    }
+
+    private void revokeLockPermissions(String leaseId, LocalDateTime now) {
+        lockPermissionService.lambdaUpdate()
+                .eq(LockPermission::getLeaseId, leaseId)
+                .in(LockPermission::getStatus, "ACTIVE", "FAILED")
+                .set(LockPermission::getStatus, "REVOKED")
+                .set(LockPermission::getUpdatedAt, now)
+                .update();
+        lockPasscodePermissionService.lambdaUpdate()
+                .eq(LockPasscodePermission::getLeaseId, leaseId)
+                .in(LockPasscodePermission::getStatus, "ACTIVE", "FAILED")
+                .set(LockPasscodePermission::getStatus, "REVOKED")
+                .set(LockPasscodePermission::getUpdatedAt, now)
+                .update();
     }
 
     private TerminationCheckResponse buildCheckResponse(

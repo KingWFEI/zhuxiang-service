@@ -8,9 +8,9 @@ spring:
 #    url: ${DB_URL:jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
 #    username:   ${DB_USERNAME:root}
 #    password: ${DB_PASSWORD:wf010931}
-    url: ${DB_URL:jdbc:mysql://10.143.183.201:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    url: ${DB_URL:jdbc:mysql://10.143.183.205:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:zhuxiang_app_user}
-    password: ${DB_PASSWORD:Jq4rh84PWntGJ6VRc26k!3gu}
+    password: ${DB_PASSWORD:Zhuxiang@2026!}
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
     locations: classpath:db/migration

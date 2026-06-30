@@ -1,0 +1,42 @@
+CREATE TABLE repair_record (
+    id VARCHAR(36) NOT NULL COMMENT '主键ID',
+    order_no VARCHAR(32) NOT NULL COMMENT '报修编号',
+    user_id VARCHAR(36) NOT NULL COMMENT '用户ID',
+    house_id VARCHAR(36) NOT NULL COMMENT '房源ID',
+    house_name VARCHAR(255) DEFAULT NULL COMMENT '房源名称',
+    room_name VARCHAR(255) DEFAULT NULL COMMENT '房间名称',
+    repair_type VARCHAR(32) NOT NULL COMMENT '报修类型：plumbing水管维修 electrical电路维修 appliance家电维修 furniture家具维修 door_window门窗维修 other其他',
+    description VARCHAR(1000) NOT NULL COMMENT '问题描述',
+    image_urls JSON DEFAULT NULL COMMENT '图片URL列表',
+    contact_name VARCHAR(100) NOT NULL COMMENT '联系人姓名',
+    contact_phone VARCHAR(20) NOT NULL COMMENT '联系人手机号',
+    expected_visit_time DATETIME DEFAULT NULL COMMENT '期望上门时间',
+    status VARCHAR(32) NOT NULL DEFAULT 'submitted' COMMENT '状态：submitted待受理 accepted已受理 assigned已分派 processing处理中 pendingReview待评价 completed已完成 cancelled已取消',
+    housekeeper_name VARCHAR(100) DEFAULT NULL COMMENT '管家姓名',
+    housekeeper_phone VARCHAR(20) DEFAULT NULL COMMENT '管家电话',
+    repairman_name VARCHAR(100) DEFAULT NULL COMMENT '维修人员姓名',
+    rating INT DEFAULT NULL COMMENT '评价评分 1-5',
+    review_content VARCHAR(1000) DEFAULT NULL COMMENT '评价内容',
+    review_time DATETIME DEFAULT NULL COMMENT '评价时间',
+    cancel_reason VARCHAR(500) DEFAULT NULL COMMENT '取消原因',
+    cancel_time DATETIME DEFAULT NULL COMMENT '取消时间',
+    completed_time DATETIME DEFAULT NULL COMMENT '完成时间',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted_at DATETIME DEFAULT NULL COMMENT '删除时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_repair_order_no (order_no),
+    KEY idx_repair_user (user_id),
+    KEY idx_repair_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='报修记录表';
+
+CREATE TABLE repair_log (
+    id VARCHAR(36) NOT NULL COMMENT '主键ID',
+    repair_id VARCHAR(36) NOT NULL COMMENT '报修记录ID',
+    title VARCHAR(100) NOT NULL COMMENT '操作标题',
+    description VARCHAR(500) DEFAULT NULL COMMENT '操作描述',
+    status VARCHAR(32) NOT NULL COMMENT '操作时的状态',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_repair_log_repair (repair_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='报修操作日志表';
