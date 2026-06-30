@@ -5,6 +5,7 @@ import com.zhuxiang.service.config.TtLockProperties;
 import com.zhuxiang.service.dto.TtLockSendEKeyResponse;
 import com.zhuxiang.service.dto.TtLockDetailResponse;
 import com.zhuxiang.service.dto.TtLockPeriodPasscodeResponse;
+import com.zhuxiang.service.dto.TtLockOperationResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -55,6 +56,29 @@ class TtLockOpenApiClientTests {
 
         assertThat(response.success()).isTrue();
         assertThat(response.getKeyId()).isEqualTo(9876L);
+        server.verify();
+    }
+
+    @Test
+    void deletesEKeyByPlatformKeyId() {
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        TtLockProperties properties = new TtLockProperties();
+        properties.setBaseUrl("https://ttlock.example.com/");
+        TtLockOpenApiClient client = new TtLockOpenApiClient(restTemplate, properties);
+
+        server.expect(requestTo("https://ttlock.example.com/v3/key/delete"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Content-Type", containsString(MediaType.APPLICATION_FORM_URLENCODED_VALUE)))
+                .andExpect(content().string(containsString("clientId=client-id")))
+                .andExpect(content().string(containsString("accessToken=access-token")))
+                .andExpect(content().string(containsString("keyId=9876")))
+                .andExpect(content().string(containsString("date=")))
+                .andRespond(withSuccess("{\"errcode\":0,\"errmsg\":\"none error message\"}", MediaType.APPLICATION_JSON));
+
+        TtLockOperationResponse response = client.deleteEKey("client-id", "access-token", 9876L);
+
+        assertThat(response.success()).isTrue();
         server.verify();
     }
 

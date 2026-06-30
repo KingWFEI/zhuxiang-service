@@ -61,6 +61,8 @@ public class LeaseTerminationServiceImpl
     private final HouseService houseService;
     private final MessageService messageService;
     private final UserService userService;
+    private final LockPermissionService lockPermissionService;
+    private final LockPasscodePermissionService lockPasscodePermissionService;
     private final LeaseTerminationLogMapper logMapper;
     private final ObjectMapper objectMapper;
 
@@ -71,6 +73,8 @@ public class LeaseTerminationServiceImpl
             HouseService houseService,
             MessageService messageService,
             UserService userService,
+            LockPermissionService lockPermissionService,
+            LockPasscodePermissionService lockPasscodePermissionService,
             LeaseTerminationLogMapper logMapper,
             ObjectMapper objectMapper
     ) {
@@ -80,43 +84,34 @@ public class LeaseTerminationServiceImpl
         this.houseService = houseService;
         this.messageService = messageService;
         this.userService = userService;
+        this.lockPermissionService = lockPermissionService;
+        this.lockPasscodePermissionService = lockPasscodePermissionService;
         this.logMapper = logMapper;
         this.objectMapper = objectMapper;
     }
 
     @Override
-    public TerminationCheckResponse checkTermination(String userId, String contractId) {
-        RentContract contract = rentContractMapper.selectById(contractId);
-        if (contract == null) {
-            throw BusinessException.notFound("合同不存在");
-        }
-        if (!userId.equals(contract.getUserId())) {
-            throw BusinessException.forbidden("无权操作该合同");
-        }
-
+    public TerminationCheckResponse checkTermination(String userId, String leaseId) {
+        Lease lease = requireOwnedLease(userId, leaseId);
+        RentContract contract = requireLeaseContract(lease);
         List<String> tips = new ArrayList<>();
         boolean canApply = true;
 
+        if (!"active".equalsIgnoreCase(lease.getStatus())) {
+            canApply = false;
+            tips.add("租约未生效或已结束，无法申请退租");
+            return buildCheckResponse(canApply, false, 0, contract, tips);
+        }
         if (!"signed".equals(contract.getStatus())) {
             canApply = false;
             tips.add("合同未生效，无法申请退租");
             return buildCheckResponse(canApply, false, 0, contract, tips);
         }
 
-        Lease lease = leaseService.getOne(Wrappers.<Lease>lambdaQuery()
-                .eq(Lease::getContractId, contractId)
-                .eq(Lease::getStatus, "active")
-                .last("LIMIT 1"), false);
-        if (lease == null) {
-            canApply = false;
-            tips.add("未找到生效中的租约，无法申请退租");
-            return buildCheckResponse(canApply, false, 0, contract, tips);
-        }
-
-        boolean hasProcessing = hasInProgressApplication(contractId);
+        boolean hasProcessing = hasInProgressApplication(lease);
         if (hasProcessing) {
             canApply = false;
-            tips.add("该合同已有进行中的退租申请");
+            tips.add("该租约已有进行中的退租申请");
         }
 
         int unpaidAmount = calculateUnpaidAmount(lease.getId());
@@ -129,22 +124,16 @@ public class LeaseTerminationServiceImpl
 
     @Override
     @Transactional
-    public ApplyResponse apply(String userId, String contractId, ApplyRequest request) {
-        RentContract contract = rentContractMapper.selectById(contractId);
-        if (contract == null) throw BusinessException.notFound("合同不存在");
-        if (!userId.equals(contract.getUserId())) throw BusinessException.forbidden("无权操作该合同");
+    public ApplyResponse apply(String userId, String leaseId, ApplyRequest request) {
+        Lease lease = requireOwnedLease(userId, leaseId);
+        if (!"active".equalsIgnoreCase(lease.getStatus())) {
+            throw BusinessException.badRequest("租约未生效或已结束，无法申请退租");
+        }
+        RentContract contract = requireLeaseContract(lease);
         if (!"signed".equals(contract.getStatus())) throw BusinessException.badRequest("合同未生效，无法申请退租");
 
-        if (hasInProgressApplication(contractId)) {
-            throw BusinessException.conflict("该合同已有进行中的退租申请");
-        }
-
-        Lease lease = leaseService.getOne(Wrappers.<Lease>lambdaQuery()
-                .eq(Lease::getContractId, contractId)
-                .eq(Lease::getStatus, "active")
-                .last("LIMIT 1"), false);
-        if (lease == null) {
-            throw BusinessException.badRequest("未找到生效中的租约");
+        if (hasInProgressApplication(lease)) {
+            throw BusinessException.conflict("该租约已有进行中的退租申请");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -154,8 +143,9 @@ public class LeaseTerminationServiceImpl
         app.setId(id);
         app.setApplicationNo(generateApplicationNo());
         app.setTenantId(userId);
-        app.setContractId(contractId);
-        app.setHouseId(contract.getHouseId());
+        app.setLeaseId(lease.getId());
+        app.setContractId(lease.getContractId());
+        app.setHouseId(lease.getHouseId());
         app.setReason(request.reason());
         app.setExpectedMoveOutDate(request.expectedMoveOutDate());
         app.setHasMovedOut(request.hasMovedOut());
@@ -174,19 +164,17 @@ public class LeaseTerminationServiceImpl
                 "您的退租申请（编号：" + app.getApplicationNo() + "）已提交，等待后台审核。",
                 id);
 
-        return new ApplyResponse(id, app.getApplicationNo(), "pending_review", STATUS_TEXT.get("pending_review"));
+        return new ApplyResponse(
+                id, app.getApplicationNo(), lease.getId(),
+                "pending_review", STATUS_TEXT.get("pending_review")
+        );
     }
 
     @Override
-    public TerminationDetailResponse getCurrent(String userId, String contractId) {
-        LeaseTerminationApplication app = getOne(Wrappers.<LeaseTerminationApplication>lambdaQuery()
-                .eq(LeaseTerminationApplication::getContractId, contractId)
-                .in(LeaseTerminationApplication::getStatus, IN_PROGRESS_STATUSES)
-                .isNull(LeaseTerminationApplication::getDeletedAt)
-                .orderByDesc(LeaseTerminationApplication::getCreatedAt)
-                .last("LIMIT 1"), false);
+    public TerminationDetailResponse getCurrent(String userId, String leaseId) {
+        Lease lease = requireOwnedLease(userId, leaseId);
+        LeaseTerminationApplication app = findCurrentApplication(lease);
         if (app == null) return null;
-        if (!userId.equals(app.getTenantId())) throw BusinessException.forbidden("无权查看该申请");
         return toDetailResponse(app);
     }
 
@@ -232,13 +220,14 @@ public class LeaseTerminationServiceImpl
         }
 
         LocalDateTime now = LocalDateTime.now();
+        String fromStatus = app.getStatus();
         app.setStatus("cancelled");
         app.setCancelReason(request.cancelReason());
         app.setCancelTime(now);
         app.setUpdatedAt(now);
         updateById(app);
 
-        writeLog(applicationId, "cancelled", app.getStatus(), "cancelled", userId, userId, request.cancelReason());
+        writeLog(applicationId, "cancelled", fromStatus, "cancelled", userId, userId, request.cancelReason());
     }
 
     @Override
@@ -265,8 +254,6 @@ public class LeaseTerminationServiceImpl
         app.setAuditTime(now);
         app.setUpdatedAt(now);
         updateById(app);
-
-        terminateLeaseAndHouse(app, now);
 
         writeLog(applicationId, "approved", "pending_review", "inspection_pending", adminId, adminName, null);
         createMessage(app.getTenantId(), "退租申请已通过",
@@ -417,14 +404,23 @@ public class LeaseTerminationServiceImpl
     }
 
     private void terminateLeaseAndHouse(LeaseTerminationApplication app, LocalDateTime now) {
-        Lease lease = leaseService.getOne(Wrappers.<Lease>lambdaQuery()
-                .eq(Lease::getContractId, app.getContractId())
-                .eq(Lease::getStatus, "active")
-                .last("LIMIT 1"), false);
+        Lease lease = resolveApplicationLease(app);
         if (lease != null) {
             lease.setStatus("terminated");
             lease.setUpdatedAt(now);
             leaseService.updateById(lease);
+
+            lockPermissionService.revokeTenantEKeyForLease(lease.getId());
+            lockPasscodePermissionService.revokePasscodesForLease(lease.getId());
+        }
+
+        if (app.getContractId() != null) {
+            RentContract contract = rentContractMapper.selectById(app.getContractId());
+            if (contract != null && !"terminated".equalsIgnoreCase(contract.getStatus())) {
+                contract.setStatus("terminated");
+                contract.setUpdatedAt(now);
+                rentContractMapper.updateById(contract);
+            }
         }
 
         House house = houseService.getById(app.getHouseId());
@@ -452,11 +448,86 @@ public class LeaseTerminationServiceImpl
         return unpaidBills.stream().mapToInt(b -> Optional.ofNullable(b.getAmountDue()).orElse(0)).sum();
     }
 
-    private boolean hasInProgressApplication(String contractId) {
+    private boolean hasInProgressApplication(Lease lease) {
+        long currentCount = count(Wrappers.<LeaseTerminationApplication>lambdaQuery()
+                .eq(LeaseTerminationApplication::getLeaseId, lease.getId())
+                .in(LeaseTerminationApplication::getStatus, IN_PROGRESS_STATUSES)
+                .isNull(LeaseTerminationApplication::getDeletedAt));
+        if (currentCount > 0 || lease.getContractId() == null) {
+            return currentCount > 0;
+        }
         return count(Wrappers.<LeaseTerminationApplication>lambdaQuery()
-                .eq(LeaseTerminationApplication::getContractId, contractId)
+                .isNull(LeaseTerminationApplication::getLeaseId)
+                .eq(LeaseTerminationApplication::getContractId, lease.getContractId())
                 .in(LeaseTerminationApplication::getStatus, IN_PROGRESS_STATUSES)
                 .isNull(LeaseTerminationApplication::getDeletedAt)) > 0;
+    }
+
+    private LeaseTerminationApplication findCurrentApplication(Lease lease) {
+        LeaseTerminationApplication application = getOne(
+                Wrappers.<LeaseTerminationApplication>lambdaQuery()
+                        .eq(LeaseTerminationApplication::getLeaseId, lease.getId())
+                        .in(LeaseTerminationApplication::getStatus, IN_PROGRESS_STATUSES)
+                        .isNull(LeaseTerminationApplication::getDeletedAt)
+                        .orderByDesc(LeaseTerminationApplication::getCreatedAt)
+                        .last("LIMIT 1"),
+                false
+        );
+        if (application != null || lease.getContractId() == null) {
+            return application;
+        }
+        return getOne(
+                Wrappers.<LeaseTerminationApplication>lambdaQuery()
+                        .isNull(LeaseTerminationApplication::getLeaseId)
+                        .eq(LeaseTerminationApplication::getContractId, lease.getContractId())
+                        .in(LeaseTerminationApplication::getStatus, IN_PROGRESS_STATUSES)
+                        .isNull(LeaseTerminationApplication::getDeletedAt)
+                        .orderByDesc(LeaseTerminationApplication::getCreatedAt)
+                        .last("LIMIT 1"),
+                false
+        );
+    }
+
+    private Lease requireOwnedLease(String userId, String leaseId) {
+        Lease lease = leaseService.getById(leaseId);
+        if (lease == null) {
+            throw BusinessException.notFound("租约不存在");
+        }
+        if (!userId.equals(lease.getUserId())) {
+            throw BusinessException.forbidden("无权操作该租约");
+        }
+        return lease;
+    }
+
+    private RentContract requireLeaseContract(Lease lease) {
+        if (lease.getContractId() == null) {
+            throw BusinessException.notFound("租约未关联合同");
+        }
+        RentContract contract = rentContractMapper.selectById(lease.getContractId());
+        if (contract == null) {
+            throw BusinessException.notFound("租约关联合同不存在");
+        }
+        if (!Objects.equals(lease.getUserId(), contract.getUserId())
+                || !Objects.equals(lease.getHouseId(), contract.getHouseId())) {
+            throw BusinessException.conflict("租约与合同关联信息不一致");
+        }
+        return contract;
+    }
+
+    private Lease resolveApplicationLease(LeaseTerminationApplication application) {
+        if (application.getLeaseId() != null) {
+            return leaseService.getById(application.getLeaseId());
+        }
+        if (application.getContractId() == null) {
+            return null;
+        }
+        return leaseService.getOne(
+                Wrappers.<Lease>lambdaQuery()
+                        .eq(Lease::getContractId, application.getContractId())
+                        .orderByDesc(Lease::getCreatedAt)
+                        .last("LIMIT 1"),
+                false
+        );
     }
 
     private LeaseTerminationApplication getOwnedApplication(String userId, String applicationId) {
@@ -472,7 +543,7 @@ public class LeaseTerminationServiceImpl
         List<TimelineItem> timeline = getTimeline(app.getId());
 
         return new TerminationDetailResponse(
-                app.getId(), app.getApplicationNo(), app.getContractId(),
+                app.getId(), app.getApplicationNo(), app.getLeaseId(), app.getContractId(),
                 app.getHouseId(), houseName,
                 app.getReason(), app.getExpectedMoveOutDate(), app.getHasMovedOut(),
                 app.getContactName(), app.getContactPhone(), app.getRemark(),

@@ -14,4 +14,7 @@ public interface LockPermissionService extends IService<LockPermission> {
      * 租约生效后为租客下发TTLock eKey；重复调用不会重复下发ACTIVE权限。
      */
     LockPermission grantTenantEKeyForLease(String leaseId);
+
+    /** 退租完成后撤销租约对应的 TTLock eKey，并同步本地权限状态。 */
+    void revokeTenantEKeyForLease(String leaseId);
 }

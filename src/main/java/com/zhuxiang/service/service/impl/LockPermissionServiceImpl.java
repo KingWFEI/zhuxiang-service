@@ -6,6 +6,7 @@ import com.zhuxiang.service.client.TtLockOpenApiClient;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.config.TtLockProperties;
 import com.zhuxiang.service.dto.TtLockSendEKeyResponse;
+import com.zhuxiang.service.dto.TtLockOperationResponse;
 import com.zhuxiang.service.entity.House;
 import com.zhuxiang.service.entity.Lease;
 import com.zhuxiang.service.entity.LockPermission;
@@ -39,6 +40,8 @@ public class LockPermissionServiceImpl extends ServiceImpl<LockPermissionMapper,
     private static final String PERMISSION_TYPE_EKEY = "EKEY";
     private static final String STATUS_ACTIVE = "ACTIVE";
     private static final String STATUS_FAILED = "FAILED";
+    private static final String STATUS_REVOKED = "REVOKED";
+    private static final String STATUS_REVOKE_FAILED = "REVOKE_FAILED";
     private static final String SMART_LOCK_STATUS_BOUND = "BOUND";
     private static final Set<String> EFFECTIVE_LEASE_STATUSES = Set.of("ACTIVE", "EFFECTIVE");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1\\d{10}$");
@@ -128,6 +131,45 @@ public class LockPermissionServiceImpl extends ServiceImpl<LockPermissionMapper,
         permission.setUpdatedAt(LocalDateTime.now());
         updateById(permission);
         return permission;
+    }
+
+    /**
+     * 在独立事务中撤销该租约的 eKey。平台失败会落库为 REVOKE_FAILED，避免影响退租主流程。
+     */
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void revokeTenantEKeyForLease(String leaseId) {
+        if (!StringUtils.hasText(leaseId)) {
+            throw BusinessException.badRequest("leaseId不能为空");
+        }
+        list(Wrappers.<LockPermission>lambdaQuery()
+                .eq(LockPermission::getLeaseId, leaseId)
+                .eq(LockPermission::getPermissionType, PERMISSION_TYPE_EKEY)
+                .in(LockPermission::getStatus, STATUS_ACTIVE, STATUS_FAILED, STATUS_REVOKE_FAILED)
+        ).forEach(permission -> {
+            if (permission.getTtlockKeyId() == null || !STATUS_ACTIVE.equalsIgnoreCase(permission.getStatus())) {
+                permission.setStatus(STATUS_REVOKED);
+                permission.setErrorMessage(null);
+            } else {
+                try {
+                    TtLockOperationResponse response = openApiClient.deleteEKey(
+                            requireClientId(), tokenService.getAccessToken(), permission.getTtlockKeyId()
+                    );
+                    if (response.success()) {
+                        permission.setStatus(STATUS_REVOKED);
+                        permission.setErrorMessage(null);
+                    } else {
+                        permission.setStatus(STATUS_REVOKE_FAILED);
+                        permission.setErrorMessage(truncate(platformRevokeError(response), 500));
+                    }
+                } catch (RuntimeException exception) {
+                    permission.setStatus(STATUS_REVOKE_FAILED);
+                    permission.setErrorMessage(truncate(safeErrorMessage(exception), 500));
+                }
+            }
+            permission.setUpdatedAt(LocalDateTime.now());
+            updateById(permission);
+        });
     }
 
     /**
@@ -260,6 +302,12 @@ public class LockPermissionServiceImpl extends ServiceImpl<LockPermissionMapper,
         String code = response.getErrcode() == null ? "UNKNOWN" : response.getErrcode().toString();
         String message = StringUtils.hasText(response.getErrmsg()) ? response.getErrmsg() : "未返回错误信息";
         return "TTLock eKey下发失败[" + code + "]: " + message;
+    }
+
+    private String platformRevokeError(TtLockOperationResponse response) {
+        String code = response.getErrcode() == null ? "UNKNOWN" : response.getErrcode().toString();
+        String message = StringUtils.hasText(response.getErrmsg()) ? response.getErrmsg() : "未返回错误信息";
+        return "TTLock eKey撤销失败[" + code + "]: " + message;
     }
 
     private String safeErrorMessage(RuntimeException exception) {

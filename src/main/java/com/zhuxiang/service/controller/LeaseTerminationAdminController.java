@@ -42,7 +42,7 @@ public class LeaseTerminationAdminController {
     }
 
     @GetMapping
-    @Operation(summary = "分页查询退租申请", description = "按状态以及退租单号、联系人、手机号或退租原因筛选退租申请。")
+    @Operation(summary = "分页查询退租申请", description = "按状态以及租约ID、退租单号、联系人、手机号或退租原因筛选退租申请。")
     public ApiResponse<PageData<LeaseTerminationDtos.TerminationDetailResponse>> getApplications(
             @Parameter(description = "退租状态") @RequestParam(required = false) String status,
             @Parameter(description = "搜索关键词") @RequestParam(required = false) @Size(max = 100) String keyword,
@@ -58,7 +58,8 @@ public class LeaseTerminationAdminController {
 
         if (normalizedKeyword != null) {
             query.and(wrapper -> wrapper
-                    .like(LeaseTerminationApplication::getApplicationNo, normalizedKeyword)
+                    .like(LeaseTerminationApplication::getLeaseId, normalizedKeyword)
+                    .or().like(LeaseTerminationApplication::getApplicationNo, normalizedKeyword)
                     .or().like(LeaseTerminationApplication::getContactName, normalizedKeyword)
                     .or().like(LeaseTerminationApplication::getContactPhone, normalizedKeyword)
                     .or().like(LeaseTerminationApplication::getReason, normalizedKeyword));
