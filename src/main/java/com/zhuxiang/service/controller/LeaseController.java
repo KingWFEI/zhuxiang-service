@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RequireAuth
@@ -71,5 +72,23 @@ public class LeaseController {
             HttpServletRequest request
     ) {
         return ApiResponse.success(leaseService.getLockPasscode(leaseId, CurrentUser.id(request)));
+    }
+
+    /**
+     * 当前租客在密码生成异常时主动重试。
+     */
+    @PostMapping("/leases/{leaseId}/lock/passcode/retry")
+    @Operation(
+            summary = "重新获取租约期限密码",
+            description = "仅限租约本人操作。FAILED 状态会重新调用 TTLock，ACTIVE 状态直接复用已有密码。"
+    )
+    public ApiResponse<LeaseLockPasscodeResponse> retryPasscode(
+            @Parameter(description = "租约 ID") @PathVariable String leaseId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                "开锁密码获取成功",
+                leaseService.retryLockPasscode(leaseId, CurrentUser.id(request))
+        );
     }
 }

@@ -5,12 +5,13 @@ spring:
     name: zhuxiang-service
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-#    url: ${DB_URL:jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
-#    username:   ${DB_USERNAME:root}
-#    password: ${DB_PASSWORD:wf010931}
-    url: ${DB_URL:jdbc:mysql://10.143.183.201:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
-    username: ${DB_USERNAME:zhuxiang_app_user}
-    password: ${DB_PASSWORD:Jq4rh84PWntGJ6VRc26k!3gu}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username:   ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:wf010931}
+# 局域网访问配置 (本机IP: 10.143.183.205)
+#    url: ${DB_URL:jdbc:mysql://10.143.183.205:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+#    username: ${DB_USERNAME:zhuxiang_app_user}
+#    password: ${DB_PASSWORD:Zhuxiang@2026!}
   flyway:
     enabled: ${FLYWAY_ENABLED:true}
     locations: classpath:db/migration
@@ -57,7 +58,7 @@ app:
   upload:
     directory: ${UPLOAD_DIRECTORY:./uploads}
   storage:
-    type: ${STORAGE_TYPE:local}
+    type: ${STORAGE_TYPE:cos}
     cos:
       secret-id: ${TENCENT_COS_SECRET_ID:}
       secret-key: ${TENCENT_COS_SECRET_KEY:}
@@ -71,11 +72,16 @@ app:
     key-version: ${LOCK_PASSCODE_KEY_VERSION:1}
     query-limit-per-minute: ${LOCK_PASSCODE_QUERY_LIMIT_PER_MINUTE:10}
     expiration-scan-ms: ${LOCK_PASSCODE_EXPIRATION_SCAN_MS:300000}
+  super-admin:
+    enabled: ${SUPER_ADMIN_ENABLED:true}
+    phone: ${SUPER_ADMIN_PHONE:13800000000}
+    password: ${SUPER_ADMIN_PASSWORD:admin123}
+    nickname: ${SUPER_ADMIN_NICKNAME:超级管理员}
 
 ttlock:
-  client-id: ${TTLOCK_CLIENT_ID:}
-  client-secret: ${TTLOCK_CLIENT_SECRET:}
-  username: ${TTLOCK_USERNAME:}
-  password: ${TTLOCK_PASSWORD:}
+  client-id: ${TTLOCK_CLIENT_ID:cb5534587e624eb59a9244cc14b8e281}
+  client-secret: ${TTLOCK_CLIENT_SECRET:b73051c1d61c6c3aa7a5bb4917a495e8}
+  username: ${TTLOCK_USERNAME:15282398801}
+  password: ${TTLOCK_PASSWORD:wf010931}
   access-token: ${TTLOCK_ACCESS_TOKEN:}
   base-url: ${TTLOCK_BASE_URL:https://api.sciener.com}

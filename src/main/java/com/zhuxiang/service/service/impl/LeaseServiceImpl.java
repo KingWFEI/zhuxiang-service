@@ -229,6 +229,17 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         return lockPasscodePermissionService.getTenantPasscode(leaseId, currentUserId);
     }
 
+    /** 重试生成期限密码，成功后按既有安全校验解密返回。 */
+    @Override
+    public LeaseLockPasscodeResponse retryLockPasscode(String leaseId, String currentUserId) {
+        LockPasscodePermission permission = lockPasscodePermissionService
+                .retryTenantPeriodPasscodeForLease(leaseId, currentUserId);
+        if (!"ACTIVE".equalsIgnoreCase(permission.getStatus())) {
+            throw BusinessException.badRequest("开锁密码生成失败，请稍后重试或联系管理员");
+        }
+        return lockPasscodePermissionService.getTenantPasscode(leaseId, currentUserId);
+    }
+
     /** 按门锁时区格式化期限密码时刻。 */
     private String formatPasscodeTime(Instant instant, SmartLock smartLock) {
         if (instant == null) {

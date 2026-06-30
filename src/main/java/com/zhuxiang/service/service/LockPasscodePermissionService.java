@@ -12,6 +12,9 @@ public interface LockPasscodePermissionService extends IService<LockPasscodePerm
     /** 幂等生成租约对应的 TTLock V4 期限密码。 */
     LockPasscodePermission grantTenantPeriodPasscodeForLease(String leaseId);
 
+    /** 校验租约归属并限流后，为租客重试生成期限密码。 */
+    LockPasscodePermission retryTenantPeriodPasscodeForLease(String leaseId, String currentUserId);
+
     /** 校验租客、租约和权限后解密返回期限密码。 */
     LeaseLockPasscodeResponse getTenantPasscode(String leaseId, String currentUserId);
 
