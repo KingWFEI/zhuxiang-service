@@ -709,6 +709,158 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     }
 
     /**
+     * 发布房源（草稿 → 可租）。
+     */
+    @Override
+    public AdminHouseDtos.AdminHouseView publishHouse(String houseId) {
+        House house = getById(houseId);
+        if (house == null) {
+            throw BusinessException.notFound("房源不存在");
+        }
+        if (!"draft".equals(house.getStatus())) {
+            throw BusinessException.badRequest("只有草稿状态的房源才能发布，当前状态：" + house.getStatus());
+        }
+        house.setStatus("available");
+        house.setUpdatedAt(LocalDateTime.now());
+        updateById(house);
+        return toAdminHouseView(house, null);
+    }
+
+    /**
+     * 下架房源（可租/草稿 → 下架）。
+     */
+    @Override
+    public AdminHouseDtos.AdminHouseView offlineHouse(String houseId) {
+        House house = getById(houseId);
+        if (house == null) {
+            throw BusinessException.notFound("房源不存在");
+        }
+        if ("offline".equals(house.getStatus())) {
+            throw BusinessException.badRequest("房源已处于下架状态");
+        }
+        if ("rented".equals(house.getStatus()) || "reserved".equals(house.getStatus())) {
+            throw BusinessException.badRequest("已出租或已被预定的房源不能下架，当前状态：" + house.getStatus());
+        }
+        house.setStatus("offline");
+        house.setUpdatedAt(LocalDateTime.now());
+        updateById(house);
+        return toAdminHouseView(house, null);
+    }
+
+    /**
+     * 修改房源信息。
+     */
+    @Override
+    @Transactional
+    public AdminHouseDtos.AdminHouseView updateHouse(
+            String houseId,
+            AdminHouseDtos.UpdateHouseRequest request,
+            String operatorId
+    ) {
+        requireAdminRole(operatorId);
+        House house = getById(houseId);
+        if (house == null) {
+            throw BusinessException.notFound("房源不存在");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (request.title() != null) {
+            house.setTitle(request.title());
+        }
+        if (request.location() != null) {
+            house.setLocation(request.location());
+        }
+        if (request.communityId() != null) {
+            house.setCommunityId(request.communityId());
+        }
+        if (request.address() != null) {
+            house.setAddress(request.address());
+        }
+        if (request.building() != null) {
+            house.setBuilding(request.building());
+        }
+        if (request.unit() != null) {
+            house.setUnit(request.unit());
+        }
+        if (request.room() != null) {
+            house.setRoom(request.room());
+        }
+        if (request.price() != null) {
+            house.setPrice(request.price());
+        }
+        if (request.deposit() != null) {
+            house.setDeposit(request.deposit());
+        }
+        if (request.paymentMethod() != null) {
+            house.setPaymentMethod(request.paymentMethod());
+        }
+        if (request.roomType() != null) {
+            house.setRoomType(request.roomType());
+        }
+        if (request.area() != null) {
+            house.setArea(request.area());
+        }
+        if (request.floor() != null) {
+            house.setFloor(request.floor());
+        }
+        if (request.orientation() != null) {
+            house.setOrientation(request.orientation());
+        }
+        if (request.decoration() != null) {
+            house.setDecoration(request.decoration());
+        }
+        if (request.availableDate() != null) {
+            house.setAvailableDate(request.availableDate());
+        }
+        if (request.metro() != null) {
+            house.setMetro(request.metro());
+        }
+        if (request.description() != null) {
+            house.setDescription(request.description());
+        }
+        if (request.rentType() != null) {
+            house.setRentType(request.rentType());
+        }
+        if (request.isSmartLockSupported() != null) {
+            house.setIsSmartLockSupported(request.isSmartLockSupported() ? 1 : 0);
+        }
+        if (request.isSelfViewingSupported() != null) {
+            house.setIsSelfViewingSupported(request.isSelfViewingSupported() ? 1 : 0);
+        }
+        if (request.landlordId() != null) {
+            house.setLandlordId(request.landlordId());
+        }
+        if (request.coverImage() != null || (request.imageUrls() != null && !request.imageUrls().isEmpty())) {
+            String coverImage = request.coverImage() != null
+                    ? request.coverImage().trim()
+                    : house.getCoverImage();
+            List<String> imageUrls;
+            if (request.imageUrls() != null && !request.imageUrls().isEmpty()) {
+                LinkedHashSet<String> urls = new LinkedHashSet<>();
+                urls.add(coverImage);
+                request.imageUrls().stream()
+                        .filter(StringUtils::hasText)
+                        .map(String::trim)
+                        .forEach(urls::add);
+                if (urls.size() > 20) {
+                    throw BusinessException.badRequest("房源图片不能超过20张");
+                }
+                urls.forEach(url -> fileRecordService.validateFileOwnership(
+                        operatorId, url, "house_image"
+                ));
+                imageUrls = List.copyOf(urls);
+            } else {
+                imageUrls = List.of(coverImage);
+            }
+            house.setCoverImage(coverImage);
+            imageService.remove(Wrappers.<HouseImage>lambdaQuery().eq(HouseImage::getHouseId, houseId));
+            saveHouseImages(houseId, coverImage, imageUrls, now);
+        }
+        house.setUpdatedAt(now);
+        updateById(house);
+        return toAdminHouseView(house, null);
+    }
+
+    /**
      * 获取所有房源（含智能锁绑定信息）。
      */
     @Override

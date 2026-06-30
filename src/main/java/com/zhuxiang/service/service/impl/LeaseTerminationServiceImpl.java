@@ -170,11 +170,9 @@ public class LeaseTerminationServiceImpl
 
         writeLog(id, "applied", null, "pending_review", userId, userId, null);
 
-        User user = userService.getById(userId);
-        String operatorName = user != null ? user.getNickname() : userId;
         createMessage(userId, "退租申请已提交",
                 "您的退租申请（编号：" + app.getApplicationNo() + "）已提交，等待后台审核。",
-                operatorName);
+                id);
 
         return new ApplyResponse(id, app.getApplicationNo(), "pending_review", STATUS_TEXT.get("pending_review"));
     }
@@ -222,7 +220,7 @@ public class LeaseTerminationServiceImpl
 
         writeLog(applicationId, "supplemented", "need_supplement", "pending_review", userId, userId, null);
         createMessage(userId, "退租材料已补充",
-                "您的退租申请材料已补充，等待后台重新审核。", "");
+                "您的退租申请材料已补充，等待后台重新审核。", applicationId);
     }
 
     @Override
@@ -272,7 +270,7 @@ public class LeaseTerminationServiceImpl
 
         writeLog(applicationId, "approved", "pending_review", "inspection_pending", adminId, adminName, null);
         createMessage(app.getTenantId(), "退租申请已通过",
-                "您的退租申请已审核通过，请等待验房安排。", adminName);
+                "您的退租申请已审核通过，请等待验房安排。", applicationId);
 
         return toDetailResponse(app);
     }
@@ -298,7 +296,7 @@ public class LeaseTerminationServiceImpl
 
         writeLog(applicationId, "rejected", "pending_review", "rejected", adminId, adminName, request.rejectReason());
         createMessage(app.getTenantId(), "退租申请被驳回",
-                "您的退租申请已被驳回，原因：" + request.rejectReason(), adminName);
+                "您的退租申请已被驳回，原因：" + request.rejectReason(), applicationId);
 
         return toDetailResponse(app);
     }
@@ -325,7 +323,7 @@ public class LeaseTerminationServiceImpl
         writeLog(applicationId, "supplement_requested", "pending_review", "need_supplement",
                 adminId, adminName, request.supplementReason());
         createMessage(app.getTenantId(), "退租申请需补充材料",
-                "您的退租申请需要补充材料，原因：" + request.supplementReason(), adminName);
+                "您的退租申请需要补充材料，原因：" + request.supplementReason(), applicationId);
 
         return toDetailResponse(app);
     }
@@ -350,7 +348,7 @@ public class LeaseTerminationServiceImpl
         writeLog(applicationId, "inspection_completed", "inspection_pending", "settlement_pending",
                 adminId, adminName, null);
         createMessage(app.getTenantId(), "验房已完成",
-                "您的退租验房已完成，正在进行费用结算。", adminName);
+                "您的退租验房已完成，正在进行费用结算。", applicationId);
 
         return toDetailResponse(app);
     }
@@ -385,7 +383,7 @@ public class LeaseTerminationServiceImpl
         writeLog(applicationId, "settlement_confirmed", "settlement_pending", toStatus,
                 adminId, adminName, null);
         createMessage(app.getTenantId(), "退租结算已确认",
-                "您的退租结算已确认" + (refundAmount > 0 ? "，等待退款处理。" : "，退租流程已完成。"), adminName);
+                "您的退租结算已确认" + (refundAmount > 0 ? "，等待退款处理。" : "，退租流程已完成。"), applicationId);
 
         return toDetailResponse(app);
     }
@@ -413,7 +411,7 @@ public class LeaseTerminationServiceImpl
         writeLog(applicationId, "refund_completed", "refund_pending", "completed",
                 adminId, adminName, null);
         createMessage(app.getTenantId(), "退租退款已完成",
-                "您的退租退款已完成，退租流程全部结束。", adminName);
+                "您的退租退款已完成，退租流程全部结束。", applicationId);
 
         return toDetailResponse(app);
     }
@@ -515,20 +513,8 @@ public class LeaseTerminationServiceImpl
         logMapper.insert(log);
     }
 
-    private void createMessage(String userId, String title, String content, String adminName) {
-        Message message = new Message();
-        message.setId(UUID.randomUUID().toString());
-        message.setUserId(userId);
-        message.setCategory("lease");
-        message.setTitle(title);
-        message.setContent(content);
-        message.setIconKey("lease");
-        message.setActionType("none");
-        message.setActionTarget("");
-        message.setIsRead(0);
-        message.setIsDeleted(0);
-        message.setCreatedAt(LocalDateTime.now());
-        messageService.save(message);
+    private void createMessage(String userId, String title, String content, String applicationId) {
+        messageService.sendMessage(userId, "lease", title, content, "lease", applicationId);
     }
 
     private String getAdminName(String adminId) {

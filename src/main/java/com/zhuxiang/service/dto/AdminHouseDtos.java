@@ -101,4 +101,34 @@ public final class AdminHouseDtos {
             LocalDateTime updatedAt
     ) {
     }
+
+    @Schema(description = "管理端房源修改请求，所有字段可选，仅更新传入的非空字段")
+    public record UpdateHouseRequest(
+            @Schema(description = "房源标题", example = "高新区精装一居室") String title,
+            @Schema(description = "房源封面图 URL") String coverImage,
+            @Schema(description = "房源图片 URL 列表")
+            List<String> imageUrls,
+            @Schema(description = "区域或商圈展示位置", example = "高新区金融城") String location,
+            @Schema(description = "小区 ID", example = "community_001") String communityId,
+            @Schema(description = "详细地址", example = "天府大道中段 1 号") String address,
+            @Schema(description = "楼栋", example = "2栋") String building,
+            @Schema(description = "单元", example = "1单元") String unit,
+            @Schema(description = "房号", example = "1801") String room,
+            @Min(0) @Schema(description = "月租金，单位元", example = "2800") Integer price,
+            @Min(0) @Schema(description = "押金，单位元", example = "2800") Integer deposit,
+            @Schema(description = "付款方式", example = "押一付三") String paymentMethod,
+            @Schema(description = "户型", example = "1室1厅1卫") String roomType,
+            @Schema(description = "建筑面积，单位平方米", example = "45.5") BigDecimal area,
+            @Schema(description = "楼层描述", example = "18/32层") String floor,
+            @Schema(description = "朝向", example = "南") String orientation,
+            @Schema(description = "装修情况", example = "精装") String decoration,
+            @Schema(description = "最早可入住日期", example = "2026-07-01") LocalDate availableDate,
+            @Schema(description = "地铁信息", example = "距1号线金融城站500米") String metro,
+            @Schema(description = "房源详细介绍") String description,
+            @Schema(description = "租赁类型，如整租或合租", example = "整租") String rentType,
+            @Schema(description = "是否支持智能门锁", example = "true") Boolean isSmartLockSupported,
+            @Schema(description = "是否支持自助看房", example = "true") Boolean isSelfViewingSupported,
+            @Schema(description = "房东用户 ID", example = "user_001") String landlordId
+    ) {
+    }
 }

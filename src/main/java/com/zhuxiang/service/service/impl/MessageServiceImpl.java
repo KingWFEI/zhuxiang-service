@@ -140,23 +140,59 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message>
     }
 
     /**
-     * 为新用户创建系统欢迎消息。
+     * 创建一条用户可见的站内消息。
      */
     @Override
-    public void createWelcomeMessage(String userId) {
+    @Transactional
+    public void sendMessage(
+            String userId,
+            String category,
+            String title,
+            String content,
+            String actionType,
+            String actionTarget
+    ) {
+        if (!StringUtils.hasText(userId)) {
+            throw BusinessException.badRequest("接收用户不能为空");
+        }
+        if (!StringUtils.hasText(category) || !CATEGORIES.contains(category)) {
+            throw BusinessException.badRequest("消息分类不支持");
+        }
+        if (!StringUtils.hasText(title)) {
+            throw BusinessException.badRequest("消息标题不能为空");
+        }
+        if (!StringUtils.hasText(content)) {
+            throw BusinessException.badRequest("消息内容不能为空");
+        }
+
         Message message = new Message();
         message.setId(UUID.randomUUID().toString());
         message.setUserId(userId);
-        message.setCategory("system");
-        message.setTitle("欢迎使用住享");
-        message.setContent("欢迎来到你的安心居住空间");
-        message.setIconKey("system");
-        message.setActionType("none");
-        message.setActionTarget("");
+        message.setCategory(category);
+        message.setTitle(title);
+        message.setContent(content);
+        message.setIconKey(category);
+        message.setActionType(StringUtils.hasText(actionType) ? actionType : "none");
+        message.setActionTarget(actionTarget == null ? "" : actionTarget);
         message.setIsRead(0);
         message.setIsDeleted(0);
         message.setCreatedAt(LocalDateTime.now());
         save(message);
+    }
+
+    /**
+     * 为新用户创建系统欢迎消息。
+     */
+    @Override
+    public void createWelcomeMessage(String userId) {
+        sendMessage(
+                userId,
+                "system",
+                "欢迎使用住享",
+                "欢迎来到你的安心居住空间",
+                "none",
+                ""
+        );
     }
 
     /**

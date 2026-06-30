@@ -2,7 +2,7 @@ package com.zhuxiang.service.service.impl;
 
 import com.zhuxiang.service.service.ObjectStorageService;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -12,10 +12,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 /**
- * 开发和测试使用的本地文件存储。
+ * 开发和测试使用的本地文件存储，当 COS 不可用时作为兜底实现。
  */
 @Service
-@ConditionalOnProperty(prefix = "app.storage", name = "type", havingValue = "local", matchIfMissing = true)
+@ConditionalOnMissingBean(ObjectStorageService.class)
 public class LocalObjectStorageService implements ObjectStorageService {
 
     private final Path uploadDirectory;

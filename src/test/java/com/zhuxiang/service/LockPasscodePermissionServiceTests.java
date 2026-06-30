@@ -134,6 +134,43 @@ class LockPasscodePermissionServiceTests {
     }
 
     @Test
+    void ownerCanRetryFailedGenerationAndReuseTheSamePermissionRecord() {
+        stubContext(activeLease(), tenant(), boundLock());
+        when(openApiClient.getLockDetail("client-id", "access-token", 12345L)).thenReturn(v4Detail());
+        TtLockPeriodPasscodeResponse failure = new TtLockPeriodPasscodeResponse();
+        failure.setErrcode(-3002);
+        failure.setErrmsg("temporary failure");
+        when(openApiClient.getPeriodPasscode(
+                anyString(), anyString(), any(Long.class), anyInt(), anyInt(), anyString(), anyLong(), anyLong()
+        )).thenReturn(failure).thenReturn(successPasscode("839204", 9001L));
+
+        LockPasscodePermission failed = service.grantTenantPeriodPasscodeForLease("lease-1");
+        LockPasscodePermission retried = service.retryTenantPeriodPasscodeForLease("lease-1", "tenant-1");
+
+        assertThat(failed).isSameAs(retried);
+        assertThat(retried.getStatus()).isEqualTo("ACTIVE");
+        assertThat(retried.getErrorMessage()).isNull();
+        verify(rateLimiter).check("tenant-1", "lease-1:retry");
+        verify(openApiClient, times(2)).getPeriodPasscode(
+                anyString(), anyString(), any(Long.class), anyInt(), anyInt(), anyString(), anyLong(), anyLong()
+        );
+    }
+
+    @Test
+    void otherUserCannotRetryTenantPasscode() {
+        when(leaseMapper.selectById("lease-1")).thenReturn(activeLease());
+
+        assertThatThrownBy(() -> service.retryTenantPeriodPasscodeForLease("lease-1", "other-user"))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getCode()).isEqualTo(403));
+
+        verify(rateLimiter, never()).check(anyString(), anyString());
+        verify(openApiClient, never()).getPeriodPasscode(
+                anyString(), anyString(), any(Long.class), anyInt(), anyInt(), anyString(), anyLong(), anyLong()
+        );
+    }
+
+    @Test
     void concurrentGrantIsSerializedAndGeneratesOnlyOnce() throws Exception {
         stubSuccessfulGeneration();
         Semaphore rowLock = new Semaphore(1);
