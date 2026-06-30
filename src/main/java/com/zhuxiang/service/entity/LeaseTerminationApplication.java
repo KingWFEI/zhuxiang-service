@@ -40,6 +40,8 @@ public class LeaseTerminationApplication implements Serializable {
 
     private String tenantId;
 
+    private String leaseId;
+
     private String contractId;
 
     private String houseId;

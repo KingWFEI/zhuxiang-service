@@ -5,6 +5,7 @@ import com.zhuxiang.service.config.TtLockProperties;
 import com.zhuxiang.service.dto.TtLockInitializeResponse;
 import com.zhuxiang.service.dto.TtLockDetailResponse;
 import com.zhuxiang.service.dto.TtLockPeriodPasscodeResponse;
+import com.zhuxiang.service.dto.TtLockOperationResponse;
 import com.zhuxiang.service.dto.TtLockSendEKeyResponse;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -112,6 +113,22 @@ public class TtLockOpenApiClient {
         } catch (RestClientException exception) {
             throw BusinessException.badRequest("TTLock eKey请求失败");
         }
+    }
+
+    /**
+     * 从通通锁开放平台删除指定租客 eKey。
+     */
+    public TtLockOperationResponse deleteEKey(
+            String clientId,
+            String accessToken,
+            Long keyId
+    ) {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("clientId", clientId);
+        params.add("accessToken", accessToken);
+        params.add("keyId", String.valueOf(keyId));
+        params.add("date", String.valueOf(System.currentTimeMillis()));
+        return postForm("/v3/key/delete", params, TtLockOperationResponse.class, "TTLock eKey撤销");
     }
 
     /**

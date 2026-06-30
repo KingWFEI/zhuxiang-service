@@ -52,7 +52,15 @@ public final class AdminHouseDtos {
             @NotBlank(message = "房东ID不能为空")
             @Schema(description = "房东用户 ID", example = "user_001") String landlordId,
             @Schema(description = "是否支持智能门锁", example = "true") Boolean isSmartLockSupported,
-            @Schema(description = "是否支持自助看房", example = "true") Boolean isSelfViewingSupported
+            @Schema(description = "是否支持自助看房", example = "true") Boolean isSelfViewingSupported,
+            @NotEmpty(message = "房源设施不能为空")
+            @Size(max = 100, message = "房源设施不能超过100项")
+            @Schema(description = "创建时绑定的启用设施 ID 列表")
+            List<@NotBlank(message = "设施ID不能为空") String> facilityIds,
+            @NotEmpty(message = "房源标签不能为空")
+            @Size(max = 100, message = "房源标签不能超过100项")
+            @Schema(description = "创建时绑定的启用标签 ID 列表")
+            List<@NotBlank(message = "标签ID不能为空") String> tagIds
     ) {
     }
 

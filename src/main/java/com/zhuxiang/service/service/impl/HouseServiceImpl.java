@@ -609,6 +609,10 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             String operatorId
     ) {
         requireAdminRole(operatorId);
+        List<String> facilityIds = normalizeAttributeIds(request.facilityIds(), "设施");
+        List<String> tagIds = normalizeAttributeIds(request.tagIds(), "标签");
+        validateEnabledFacilities(facilityIds);
+        validateEnabledTags(tagIds);
         List<String> imageUrls = normalizeAndValidateHouseImages(request, operatorId);
         String coverImage = imageUrls.getFirst();
         LocalDateTime now = LocalDateTime.now();
@@ -646,6 +650,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setUpdatedAt(now);
         save(house);
         saveHouseImages(house.getId(), coverImage, imageUrls, now);
+        saveHouseFacilityRelations(house.getId(), facilityIds);
+        saveHouseTagRelations(house.getId(), tagIds);
         return toAdminHouseView(house, null);
     }
 
@@ -705,6 +711,83 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         }
         if (!imageService.saveBatch(images)) {
             throw new IllegalStateException("房源图片保存失败");
+        }
+    }
+
+    /** 规范化创建请求中的设施或标签 ID，并自动去重。 */
+    private List<String> normalizeAttributeIds(List<String> ids, String label) {
+        if (ids == null || ids.isEmpty()) {
+            throw BusinessException.badRequest("房源" + label + "不能为空");
+        }
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String id : ids) {
+            if (!StringUtils.hasText(id)) {
+                throw BusinessException.badRequest(label + "ID不能为空");
+            }
+            normalized.add(id.trim());
+        }
+        return List.copyOf(normalized);
+    }
+
+    /** 创建房源前校验全部设施存在且已启用。 */
+    private void validateEnabledFacilities(List<String> facilityIds) {
+        Set<String> validIds = facilityService.list(
+                        Wrappers.<HouseFacility>lambdaQuery()
+                                .in(HouseFacility::getId, facilityIds)
+                                .eq(HouseFacility::getEnabled, 1)
+                ).stream()
+                .map(HouseFacility::getId)
+                .collect(Collectors.toSet());
+        List<String> invalidIds = facilityIds.stream()
+                .filter(id -> !validIds.contains(id))
+                .toList();
+        if (!invalidIds.isEmpty()) {
+            throw BusinessException.badRequest("设施不存在或已停用: " + String.join(", ", invalidIds));
+        }
+    }
+
+    /** 创建房源前校验全部标签存在且已启用。 */
+    private void validateEnabledTags(List<String> tagIds) {
+        Set<String> validIds = tagService.list(
+                        Wrappers.<HouseTag>lambdaQuery()
+                                .in(HouseTag::getId, tagIds)
+                                .eq(HouseTag::getEnabled, 1)
+                ).stream()
+                .map(HouseTag::getId)
+                .collect(Collectors.toSet());
+        List<String> invalidIds = tagIds.stream()
+                .filter(id -> !validIds.contains(id))
+                .toList();
+        if (!invalidIds.isEmpty()) {
+            throw BusinessException.badRequest("标签不存在或已停用: " + String.join(", ", invalidIds));
+        }
+    }
+
+    /** 在房源创建事务中保存设施关联。 */
+    private void saveHouseFacilityRelations(String houseId, List<String> facilityIds) {
+        List<HouseFacilityRelation> relations = facilityIds.stream().map(facilityId -> {
+            HouseFacilityRelation relation = new HouseFacilityRelation();
+            relation.setId(UUID.randomUUID().toString());
+            relation.setHouseId(houseId);
+            relation.setFacilityId(facilityId);
+            return relation;
+        }).toList();
+        if (!facilityRelationService.saveBatch(relations)) {
+            throw new IllegalStateException("房源设施关联保存失败");
+        }
+    }
+
+    /** 在房源创建事务中保存标签关联。 */
+    private void saveHouseTagRelations(String houseId, List<String> tagIds) {
+        List<HouseTagRelation> relations = tagIds.stream().map(tagId -> {
+            HouseTagRelation relation = new HouseTagRelation();
+            relation.setId(UUID.randomUUID().toString());
+            relation.setHouseId(houseId);
+            relation.setTagId(tagId);
+            return relation;
+        }).toList();
+        if (!tagRelationService.saveBatch(relations)) {
+            throw new IllegalStateException("房源标签关联保存失败");
         }
     }
 

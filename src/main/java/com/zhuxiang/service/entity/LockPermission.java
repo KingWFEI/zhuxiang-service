@@ -62,7 +62,7 @@ public class LockPermission implements Serializable {
     private String permissionType;
 
     /**
-     * 权限状态：ACTIVE、FAILED、REVOKED、EXPIRED。
+     * 权限状态：ACTIVE、FAILED、REVOKED、REVOKE_FAILED、EXPIRED。
      */
     private String status;
 

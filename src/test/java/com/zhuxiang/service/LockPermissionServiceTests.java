@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.zhuxiang.service.client.TtLockOpenApiClient;
 import com.zhuxiang.service.config.TtLockProperties;
 import com.zhuxiang.service.dto.TtLockSendEKeyResponse;
+import com.zhuxiang.service.dto.TtLockOperationResponse;
 import com.zhuxiang.service.entity.House;
 import com.zhuxiang.service.entity.Lease;
 import com.zhuxiang.service.entity.LockPermission;
@@ -165,6 +166,29 @@ class LockPermissionServiceTests {
         );
         verify(permissionMapper).insertIfAbsent(any(LockPermission.class));
         verify(permissionMapper, never()).updateById(any(LockPermission.class));
+    }
+
+    @Test
+    void revokesActiveEKeyFromPlatformAndUpdatesLocalPermission() {
+        LockPermission permission = new LockPermission();
+        permission.setId("permission-1");
+        permission.setLeaseId("lease-1");
+        permission.setPermissionType("EKEY");
+        permission.setStatus("ACTIVE");
+        permission.setTtlockKeyId(9876L);
+        when(permissionMapper.selectList(any(Wrapper.class))).thenReturn(java.util.List.of(permission));
+        when(permissionMapper.updateById(permission)).thenReturn(1);
+        when(tokenService.getAccessToken()).thenReturn("access-token");
+        TtLockOperationResponse response = new TtLockOperationResponse();
+        response.setErrcode(0);
+        when(openApiClient.deleteEKey("client-id", "access-token", 9876L)).thenReturn(response);
+
+        service.revokeTenantEKeyForLease("lease-1");
+
+        assertThat(permission.getStatus()).isEqualTo("REVOKED");
+        assertThat(permission.getErrorMessage()).isNull();
+        verify(openApiClient).deleteEKey("client-id", "access-token", 9876L);
+        verify(permissionMapper).updateById(permission);
     }
 
     private void stubGrantContext(Lease lease, User tenant, SmartLock smartLock) {

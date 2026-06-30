@@ -4,7 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.dto.AdminHouseDtos;
 import com.zhuxiang.service.entity.House;
+import com.zhuxiang.service.entity.HouseFacility;
+import com.zhuxiang.service.entity.HouseFacilityRelation;
 import com.zhuxiang.service.entity.HouseImage;
+import com.zhuxiang.service.entity.HouseTag;
+import com.zhuxiang.service.entity.HouseTagRelation;
 import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.mapper.HouseMapper;
 import com.zhuxiang.service.mapper.RentOrderMapper;
@@ -70,6 +74,8 @@ class AdminHouseImageCreationTests {
         ReflectionTestUtils.setField(service, "baseMapper", houseMapper);
         when(houseMapper.insert(any(House.class))).thenReturn(1);
         when(imageService.saveBatch(any(Collection.class))).thenReturn(true);
+        when(facilityRelationService.saveBatch(any(Collection.class))).thenReturn(true);
+        when(tagRelationService.saveBatch(any(Collection.class))).thenReturn(true);
     }
 
     @Test
@@ -81,6 +87,8 @@ class AdminHouseImageCreationTests {
         HouseImage cover = image("https://cdn.example.com/cover.jpg");
         HouseImage bedroom = image("https://cdn.example.com/bedroom.jpg");
         when(imageService.list(any(Wrapper.class))).thenReturn(List.of(cover, bedroom));
+        when(facilityService.list(any(Wrapper.class))).thenReturn(List.of(facility("wifi"), facility("air_conditioner")));
+        when(tagService.list(any(Wrapper.class))).thenReturn(List.of(tag("near_metro"), tag("direct_rent")));
 
         AdminHouseDtos.AdminHouseView response = service.createHouse(request(), "admin-1");
 
@@ -102,6 +110,18 @@ class AdminHouseImageCreationTests {
                 "https://cdn.example.com/cover.jpg",
                 "https://cdn.example.com/bedroom.jpg"
         );
+
+        ArgumentCaptor<Collection<HouseFacilityRelation>> facilitiesCaptor = collectionCaptor();
+        verify(facilityRelationService).saveBatch(facilitiesCaptor.capture());
+        assertThat(facilitiesCaptor.getValue())
+                .extracting(HouseFacilityRelation::getFacilityId)
+                .containsExactly("wifi", "air_conditioner");
+
+        ArgumentCaptor<Collection<HouseTagRelation>> tagsCaptor = collectionCaptor();
+        verify(tagRelationService).saveBatch(tagsCaptor.capture());
+        assertThat(tagsCaptor.getValue())
+                .extracting(HouseTagRelation::getTagId)
+                .containsExactly("near_metro", "direct_rent");
     }
 
     @Test
@@ -121,6 +141,26 @@ class AdminHouseImageCreationTests {
         verify(houseMapper, never()).insert(any(House.class));
     }
 
+    @Test
+    void invalidFacilityPreventsHouseFromBeingCreated() {
+        User admin = new User();
+        admin.setId("admin-1");
+        admin.setRole("ADMIN");
+        when(userService.requireActiveUser("admin-1")).thenReturn(admin);
+        when(facilityService.list(any(Wrapper.class))).thenReturn(List.of(facility("wifi")));
+
+        assertThatThrownBy(() -> service.createHouse(request(), "admin-1"))
+                .isInstanceOfSatisfying(BusinessException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo(400);
+                    assertThat(exception.getMessage()).contains("air_conditioner");
+                });
+
+        verify(houseMapper, never()).insert(any(House.class));
+        verify(imageService, never()).saveBatch(any(Collection.class));
+        verify(facilityRelationService, never()).saveBatch(any(Collection.class));
+        verify(tagRelationService, never()).saveBatch(any(Collection.class));
+    }
+
     private AdminHouseDtos.CreateHouseRequest request() {
         return new AdminHouseDtos.CreateHouseRequest(
                 "高新区精装一居室",
@@ -134,8 +174,24 @@ class AdminHouseImageCreationTests {
                 "押一付三", "1室1厅1卫", new BigDecimal("45.5"),
                 "18/32层", "南", "精装", LocalDate.of(2026, 7, 1),
                 "距地铁500米", "房源介绍", "long_rent", "landlord-1",
-                true, true
+                true, true,
+                List.of("wifi", "air_conditioner"),
+                List.of("near_metro", "direct_rent")
         );
+    }
+
+    private HouseFacility facility(String id) {
+        HouseFacility facility = new HouseFacility();
+        facility.setId(id);
+        facility.setEnabled(1);
+        return facility;
+    }
+
+    private HouseTag tag(String id) {
+        HouseTag tag = new HouseTag();
+        tag.setId(id);
+        tag.setEnabled(1);
+        return tag;
     }
 
     private HouseImage image(String url) {
@@ -145,7 +201,7 @@ class AdminHouseImageCreationTests {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private ArgumentCaptor<Collection<HouseImage>> collectionCaptor() {
+    private <T> ArgumentCaptor<Collection<T>> collectionCaptor() {
         return ArgumentCaptor.forClass((Class) Collection.class);
     }
 }

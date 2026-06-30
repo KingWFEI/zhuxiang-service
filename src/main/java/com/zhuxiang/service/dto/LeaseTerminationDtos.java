@@ -51,6 +51,7 @@ public final class LeaseTerminationDtos {
     public record ApplyResponse(
             @Schema(description = "退租申请ID") String id,
             @Schema(description = "退租申请编号") String applicationNo,
+            @Schema(description = "租约ID") String leaseId,
             @Schema(description = "状态") String status,
             @Schema(description = "状态文本") String statusText
     ) {
@@ -60,6 +61,7 @@ public final class LeaseTerminationDtos {
     public record TerminationDetailResponse(
             @Schema(description = "申请ID") String id,
             @Schema(description = "申请编号") String applicationNo,
+            @Schema(description = "租约ID") String leaseId,
             @Schema(description = "合同ID") String contractId,
             @Schema(description = "房源ID") String houseId,
             @Schema(description = "房源名称") String houseName,

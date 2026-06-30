@@ -40,7 +40,7 @@ public class AdminHouseController {
      * 新增房源。
      */
     @PostMapping
-    @Operation(summary = "新增房源", description = "创建房源并关联管理端已上传的封面和房源图片。")
+    @Operation(summary = "新增房源", description = "在同一事务中创建房源，并关联已上传图片、设施和标签。")
     public ApiResponse<AdminHouseDtos.AdminHouseView> createHouse(
             HttpServletRequest servletRequest,
             @Valid @RequestBody AdminHouseDtos.CreateHouseRequest request
