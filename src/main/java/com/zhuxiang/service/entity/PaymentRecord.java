@@ -15,7 +15,17 @@ public class PaymentRecord implements Serializable {
     @TableId
     private String id;
 
+    private String paymentNo;
+
     private String orderId;
+
+    private String billId;
+
+    private String leaseId;
+
+    private String houseId;
+
+    private String houseName;
 
     private String userId;
 
@@ -27,7 +37,11 @@ public class PaymentRecord implements Serializable {
 
     private String status;
 
+    private String type;
+
     private String feeBreakdown;
+
+    private String remark;
 
     private LocalDateTime paidAt;
 
