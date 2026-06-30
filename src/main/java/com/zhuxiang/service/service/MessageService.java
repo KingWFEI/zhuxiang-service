@@ -49,6 +49,25 @@ public interface MessageService extends IService<Message> {
     boolean clearReadMessages(String userId);
 
     /**
+     * 向指定用户发送一条站内消息。
+     *
+     * @param userId 接收用户 ID
+     * @param category 消息分类
+     * @param title 消息标题
+     * @param content 消息正文
+     * @param actionType 点击消息后的动作类型
+     * @param actionTarget 动作目标，例如业务 ID 或 URL
+     */
+    void sendMessage(
+            String userId,
+            String category,
+            String title,
+            String content,
+            String actionType,
+            String actionTarget
+    );
+
+    /**
      * 创建新用户欢迎消息。
      */
     void createWelcomeMessage(String userId);

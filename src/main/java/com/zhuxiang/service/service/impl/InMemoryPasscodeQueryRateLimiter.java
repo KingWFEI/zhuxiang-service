@@ -23,7 +23,7 @@ public class InMemoryPasscodeQueryRateLimiter implements PasscodeQueryRateLimite
         this.properties = properties;
     }
 
-    /** 校验固定窗口内的明文密码查询次数。 */
+    /** 校验固定窗口内的密码操作次数。 */
     @Override
     public void check(String userId, String leaseId) {
         int limit = properties.getQueryLimitPerMinute();
@@ -44,7 +44,7 @@ public class InMemoryPasscodeQueryRateLimiter implements PasscodeQueryRateLimite
             return new Window(current.startedAt(), current.count() + 1);
         });
         if (rejected.get()) {
-            throw BusinessException.tooManyRequests("密码查看过于频繁，请稍后再试");
+            throw BusinessException.tooManyRequests("密码操作过于频繁，请稍后再试");
         }
         if (windows.size() > 10_000) {
             windows.entrySet().removeIf(entry -> now - entry.getValue().startedAt() >= WINDOW_SECONDS);

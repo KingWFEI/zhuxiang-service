@@ -101,6 +101,27 @@ public class LockPasscodePermissionServiceImpl
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public LockPasscodePermission grantTenantPeriodPasscodeForLease(String leaseId) {
         Lease lease = requireEffectiveLease(leaseId);
+        return generatePeriodPasscode(lease);
+    }
+
+    /**
+     * 租客主动重试生成期限密码。使用独立限流键，避免频繁调用 TTLock 平台。
+     */
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public LockPasscodePermission retryTenantPeriodPasscodeForLease(String leaseId, String currentUserId) {
+        if (!StringUtils.hasText(currentUserId)) {
+            throw BusinessException.unauthorized("未登录或 Token 失效");
+        }
+        Lease lease = requireEffectiveLease(leaseId);
+        if (!currentUserId.equals(lease.getUserId())) {
+            throw BusinessException.forbidden("无权重新生成该租约的门锁密码");
+        }
+        rateLimiter.check(currentUserId, leaseId + ":retry");
+        return generatePeriodPasscode(lease);
+    }
+
+    private LockPasscodePermission generatePeriodPasscode(Lease lease) {
         User tenant = userService.requireActiveUser(lease.getUserId());
         SmartLock smartLock = requireBoundSmartLock(lease.getHouseId());
 

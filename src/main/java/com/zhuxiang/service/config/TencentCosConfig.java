@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
  */
 @Configuration
 @ConditionalOnProperty(prefix = "app.storage", name = "type", havingValue = "cos")
+@ConditionalOnProperty(name = "app.storage.cos.secret-id", matchIfMissing = false)
 public class TencentCosConfig {
 
     /**

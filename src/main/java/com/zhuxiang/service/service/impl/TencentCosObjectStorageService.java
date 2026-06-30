@@ -6,6 +6,7 @@ import com.qcloud.cos.model.ObjectMetadata;
 import com.qcloud.cos.model.PutObjectRequest;
 import com.zhuxiang.service.config.ObjectStorageProperties;
 import com.zhuxiang.service.service.ObjectStorageService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -17,6 +18,7 @@ import java.io.InputStream;
  */
 @Service
 @ConditionalOnProperty(prefix = "app.storage", name = "type", havingValue = "cos")
+@ConditionalOnBean(COSClient.class)
 public class TencentCosObjectStorageService implements ObjectStorageService {
 
     private final COSClient cosClient;

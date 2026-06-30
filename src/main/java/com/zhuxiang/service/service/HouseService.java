@@ -76,4 +76,23 @@ public interface HouseService extends IService<House> {
      * 获取所有房源（含智能锁绑定信息）。
      */
     List<AdminHouseDtos.AdminHouseView> getAllHousesWithLockInfo();
+
+    /**
+     * 发布房源（将草稿状态改为可租）。
+     */
+    AdminHouseDtos.AdminHouseView publishHouse(String houseId);
+
+    /**
+     * 下架房源（将可租或草稿状态改为下架）。
+     */
+    AdminHouseDtos.AdminHouseView offlineHouse(String houseId);
+
+    /**
+     * 修改房源信息，返回管理端视图。
+     */
+    AdminHouseDtos.AdminHouseView updateHouse(
+            String houseId,
+            AdminHouseDtos.UpdateHouseRequest request,
+            String operatorId
+    );
 }
