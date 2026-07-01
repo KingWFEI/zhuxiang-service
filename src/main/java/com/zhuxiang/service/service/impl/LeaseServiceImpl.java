@@ -12,13 +12,16 @@ import com.zhuxiang.service.mapper.RentContractMapper;
 import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.service.*;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 
 /**
 * @author king-wang
@@ -35,6 +38,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
     private final LockPermissionService lockPermissionService;
     private final LockPasscodePermissionService lockPasscodePermissionService;
     private final RentContractMapper rentContractMapper;
+    private final RentBillService rentBillService;
     private final LandlordService landlordService;
 
     public LeaseServiceImpl(
@@ -44,6 +48,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             LockPermissionService lockPermissionService,
             LockPasscodePermissionService lockPasscodePermissionService,
             RentContractMapper rentContractMapper,
+            RentBillService rentBillService,
             LandlordService landlordService
     ) {
         this.houseService = houseService;
@@ -52,6 +57,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         this.lockPermissionService = lockPermissionService;
         this.lockPasscodePermissionService = lockPasscodePermissionService;
         this.rentContractMapper = rentContractMapper;
+        this.rentBillService = rentBillService;
         this.landlordService = landlordService;
     }
 
@@ -150,6 +156,127 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
     }
 
     @Override
+    public LeaseDtos.LeaseDetail getLeaseDetail(String leaseId, String currentUserId) {
+        Lease lease = getById(leaseId);
+        if (lease == null) {
+            throw BusinessException.notFound("租约不存在");
+        }
+        if (!currentUserId.equals(lease.getUserId())) {
+            throw BusinessException.forbidden("无权查看该租约");
+        }
+
+        House house = houseService.getById(lease.getHouseId());
+        RentContract contract = lease.getContractId() == null
+                ? null
+                : rentContractMapper.selectById(lease.getContractId());
+        Landlord keeper = house == null || house.getLandlordId() == null
+                ? null
+                : landlordService.getById(house.getLandlordId());
+
+        RentBill pendingBill = rentBillService.getOne(
+                Wrappers.<RentBill>lambdaQuery()
+                        .eq(RentBill::getLeaseId, lease.getId())
+                        .in(RentBill::getStatus, "pending", "overdue")
+                        .orderByAsc(RentBill::getDueDate)
+                        .last("LIMIT 1"),
+                false
+        );
+
+        SmartLock smartLock = smartLockMapper.selectLatestByHouseId(lease.getHouseId());
+        LockPermission permission = smartLock == null
+                ? null
+                : lockPermissionService.getOne(
+                        Wrappers.<LockPermission>lambdaQuery()
+                                .eq(LockPermission::getTenantId, currentUserId)
+                                .eq(LockPermission::getLeaseId, lease.getId())
+                                .eq(LockPermission::getSmartLockId, smartLock.getId())
+                                .last("LIMIT 1"),
+                        false
+                );
+
+        return new LeaseDtos.LeaseDetail(
+                lease.getId(),
+                lease.getContractId(),
+                lease.getHouseId(),
+                buildHouseName(house),
+                house == null ? "" : textOrEmpty(house.getAddress()),
+                buildHouseSummary(house),
+                contract == null ? "" : textOrEmpty(contract.getTenantName()),
+                contract == null ? "" : textOrEmpty(contract.getTenantPhone()),
+                contract == null ? "" : textOrEmpty(contract.getTenantIdCard()),
+                lease.getStartDate(),
+                lease.getEndDate(),
+                centsToYuan(lease.getMonthlyRent()),
+                centsToYuan(lease.getDeposit()),
+                house == null ? "" : textOrEmpty(house.getPaymentMethod()),
+                pendingBill != null && pendingBill.getDueDate() != null
+                        ? pendingBill.getDueDate().getDayOfMonth()
+                        : 5,
+                lease.getStatus(),
+                contract == null ? "unsigned" : contract.getStatus(),
+                pendingBill == null ? "paid" : "unpaid",
+                permission == null || permission.getStatus() == null
+                        ? "inactive"
+                        : permission.getStatus().toLowerCase(Locale.ROOT),
+                keeper == null ? "" : textOrEmpty(keeper.getName()),
+                keeper == null ? "" : textOrEmpty(keeper.getPhone()),
+                buildPendingBillTitle(pendingBill),
+                pendingBillAmount(pendingBill),
+                pendingBill == null ? null : pendingBill.getDueDate()
+        );
+    }
+
+    private String buildHouseName(House house) {
+        if (house == null) {
+            return "";
+        }
+        return textOrEmpty(house.getBuilding())
+                + textOrEmpty(house.getUnit())
+                + textOrEmpty(house.getRoom());
+    }
+
+    private String buildHouseSummary(House house) {
+        if (house == null) {
+            return "";
+        }
+        List<String> parts = new java.util.ArrayList<>();
+        if (StringUtils.hasText(house.getRoomType())) {
+            parts.add(house.getRoomType());
+        }
+        if (house.getArea() != null) {
+            parts.add(house.getArea().stripTrailingZeros().toPlainString() + "㎡");
+        }
+        if (StringUtils.hasText(house.getOrientation())) {
+            parts.add(house.getOrientation());
+        }
+        return String.join(" · ", parts);
+    }
+
+    private String buildPendingBillTitle(RentBill bill) {
+        if (bill == null || bill.getDueDate() == null) {
+            return null;
+        }
+        return bill.getDueDate().getMonthValue() + "月租金待支付";
+    }
+
+    private BigDecimal centsToYuan(Integer cents) {
+        return cents == null ? BigDecimal.ZERO.setScale(2) : BigDecimal.valueOf(cents, 2);
+    }
+
+    private BigDecimal pendingBillAmount(RentBill bill) {
+        if (bill == null) {
+            return null;
+        }
+        int amountDue = bill.getAmountDue() == null ? 0 : bill.getAmountDue();
+        int amountPaid = bill.getAmountPaid() == null ? 0 : bill.getAmountPaid();
+        return centsToYuan(Math.max(amountDue - amountPaid, 0));
+    }
+
+    private String textOrEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    @Override
     public LeaseDtos.UnlockDataResponse getUnlockData(String leaseId, String currentUserId) {
         Lease lease = getById(leaseId);
         if (lease == null) {
@@ -211,6 +338,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 house.getTitle(),
                 smartLock.getLockName(),
                 smartLock.getLockMac(),
+                smartLock.getLockData(),
                 permission != null ? permission.getTtlockKeyId() : null,
                 permission != null && permission.getStartTime() != null ? permission.getStartTime().toString() : null,
                 permission != null && permission.getEndTime() != null ? permission.getEndTime().toString() : null,

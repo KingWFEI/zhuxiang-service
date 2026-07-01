@@ -136,7 +136,13 @@ public final class AdminHouseDtos {
             @Schema(description = "租赁类型，如整租或合租", example = "整租") String rentType,
             @Schema(description = "是否支持智能门锁", example = "true") Boolean isSmartLockSupported,
             @Schema(description = "是否支持自助看房", example = "true") Boolean isSelfViewingSupported,
-            @Schema(description = "房东用户 ID", example = "user_001") String landlordId
+            @Schema(description = "房东用户 ID", example = "user_001") String landlordId,
+            @Size(max = 100, message = "房源设施不能超过100项")
+            @Schema(description = "完整替换房源设施的启用设施 ID 列表；不传保持不变，空数组清空")
+            List<@NotBlank(message = "设施ID不能为空") String> facilityIds,
+            @Size(max = 100, message = "房源标签不能超过100项")
+            @Schema(description = "完整替换房源标签的启用标签 ID 列表；不传保持不变，空数组清空")
+            List<@NotBlank(message = "标签ID不能为空") String> tagIds
     ) {
     }
 }

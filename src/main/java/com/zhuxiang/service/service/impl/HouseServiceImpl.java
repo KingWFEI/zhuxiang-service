@@ -47,10 +47,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -912,35 +914,122 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         if (request.landlordId() != null) {
             house.setLandlordId(request.landlordId());
         }
-        if (request.coverImage() != null || (request.imageUrls() != null && !request.imageUrls().isEmpty())) {
-            String coverImage = request.coverImage() != null
-                    ? request.coverImage().trim()
-                    : house.getCoverImage();
-            List<String> imageUrls;
-            if (request.imageUrls() != null && !request.imageUrls().isEmpty()) {
-                LinkedHashSet<String> urls = new LinkedHashSet<>();
-                urls.add(coverImage);
-                request.imageUrls().stream()
-                        .filter(StringUtils::hasText)
-                        .map(String::trim)
-                        .forEach(urls::add);
-                if (urls.size() > 20) {
-                    throw BusinessException.badRequest("房源图片不能超过20张");
-                }
-                urls.forEach(url -> fileRecordService.validateFileOwnership(
-                        operatorId, url, "house_image"
-                ));
-                imageUrls = List.copyOf(urls);
-            } else {
-                imageUrls = List.of(coverImage);
+        if (request.facilityIds() != null) {
+            List<String> facilityIds = normalizeOptionalAttributeIds(request.facilityIds(), "设施");
+            validateEnabledFacilities(facilityIds);
+            replaceHouseFacilityRelations(houseId, facilityIds);
+        }
+        if (request.tagIds() != null) {
+            List<String> tagIds = normalizeOptionalAttributeIds(request.tagIds(), "标签");
+            validateEnabledTags(tagIds);
+            replaceHouseTagRelations(houseId, tagIds);
+        }
+        if (request.coverImage() != null || request.imageUrls() != null) {
+            String coverImage = request.coverImage() == null
+                    ? house.getCoverImage()
+                    : requireImageUrl(request.coverImage(), "封面图不能为空");
+            LinkedHashSet<String> requestedUrls = new LinkedHashSet<>();
+            if (request.coverImage() != null) {
+                requestedUrls.add(coverImage);
             }
+            if (request.imageUrls() != null) {
+                for (String imageUrl : request.imageUrls()) {
+                    requestedUrls.add(requireImageUrl(imageUrl, "房源图片URL不能为空"));
+                }
+            }
+            if (requestedUrls.size() > 20) {
+                throw BusinessException.badRequest("单次新增房源图片不能超过20张");
+            }
+            appendHouseImages(houseId, coverImage, requestedUrls, operatorId, now);
             house.setCoverImage(coverImage);
-            imageService.remove(Wrappers.<HouseImage>lambdaQuery().eq(HouseImage::getHouseId, houseId));
-            saveHouseImages(houseId, coverImage, imageUrls, now);
         }
         house.setUpdatedAt(now);
         updateById(house);
         return toAdminHouseView(house, null);
+    }
+
+    /** 规范化修改请求中的设施或标签 ID；空数组表示清空关联。 */
+    private List<String> normalizeOptionalAttributeIds(List<String> ids, String label) {
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String id : ids) {
+            if (!StringUtils.hasText(id)) {
+                throw BusinessException.badRequest(label + "ID不能为空");
+            }
+            normalized.add(id.trim());
+        }
+        return List.copyOf(normalized);
+    }
+
+    /** 完整替换房源设施关联。 */
+    private void replaceHouseFacilityRelations(String houseId, List<String> facilityIds) {
+        facilityRelationService.remove(
+                Wrappers.<HouseFacilityRelation>lambdaQuery().eq(HouseFacilityRelation::getHouseId, houseId)
+        );
+        if (!facilityIds.isEmpty()) {
+            saveHouseFacilityRelations(houseId, facilityIds);
+        }
+    }
+
+    /** 完整替换房源标签关联。 */
+    private void replaceHouseTagRelations(String houseId, List<String> tagIds) {
+        tagRelationService.remove(
+                Wrappers.<HouseTagRelation>lambdaQuery().eq(HouseTagRelation::getHouseId, houseId)
+        );
+        if (!tagIds.isEmpty()) {
+            saveHouseTagRelations(houseId, tagIds);
+        }
+    }
+
+    /** 校验并规范化图片 URL。 */
+    private String requireImageUrl(String imageUrl, String message) {
+        if (!StringUtils.hasText(imageUrl)) {
+            throw BusinessException.badRequest(message);
+        }
+        return imageUrl.trim();
+    }
+
+    /** 新图片增量入库，保留房源已有图片记录，并避免重复保存相同 URL。 */
+    private void appendHouseImages(
+            String houseId,
+            String coverImage,
+            Collection<String> requestedUrls,
+            String operatorId,
+            LocalDateTime createdAt
+    ) {
+        List<HouseImage> existingImages = imageService.list(
+                Wrappers.<HouseImage>lambdaQuery()
+                        .eq(HouseImage::getHouseId, houseId)
+                        .orderByAsc(HouseImage::getSortOrder)
+        );
+        Set<String> existingUrls = existingImages.stream()
+                .map(HouseImage::getImageUrl)
+                .collect(Collectors.toSet());
+        List<String> newUrls = requestedUrls.stream()
+                .filter(url -> !existingUrls.contains(url))
+                .toList();
+        newUrls.forEach(url -> fileRecordService.validateFileOwnership(operatorId, url, "house_image"));
+        if (newUrls.isEmpty()) {
+            return;
+        }
+        int nextSortOrder = existingImages.stream()
+                .map(HouseImage::getSortOrder)
+                .filter(Objects::nonNull)
+                .max(Integer::compareTo)
+                .orElse(-1) + 1;
+        List<HouseImage> newImages = new ArrayList<>();
+        for (String imageUrl : newUrls) {
+            HouseImage image = new HouseImage();
+            image.setId(UUID.randomUUID().toString());
+            image.setHouseId(houseId);
+            image.setImageUrl(imageUrl);
+            image.setImageType(imageUrl.equals(coverImage) ? "cover" : "normal");
+            image.setSortOrder(nextSortOrder++);
+            image.setCreatedAt(createdAt);
+            newImages.add(image);
+        }
+        if (!imageService.saveBatch(newImages)) {
+            throw new IllegalStateException("房源图片保存失败");
+        }
     }
 
     /**
@@ -956,6 +1045,19 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         return houses.stream()
                 .map(house -> toAdminHouseView(house, smartLockMap.get(house.getId())))
                 .toList();
+    }
+
+    /**
+     * 根据房源 ID 获取管理端房源详情。
+     */
+    @Override
+    public AdminHouseDtos.AdminHouseView getAdminHouseById(String houseId) {
+        House house = getById(houseId);
+        if (house == null) {
+            throw BusinessException.notFound("房源不存在");
+        }
+        SmartLock smartLock = smartLockMapper.selectLatestByHouseId(houseId);
+        return toAdminHouseView(house, smartLock);
     }
 
     /**

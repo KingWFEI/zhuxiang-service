@@ -161,7 +161,7 @@ public class LockPasscodePermissionServiceImpl
                     smartLock.getLockId(),
                     KEYBOARD_PWD_VERSION,
                     KEYBOARD_PWD_TYPE_PERIOD,
-                    buildPasscodeName(lease, smartLock),
+                    buildPasscodeName(lease),
                     window.start().toEpochMilli(),
                     window.end().toEpochMilli()
             );
@@ -419,9 +419,10 @@ public class LockPasscodePermissionServiceImpl
         return properties.getClientId();
     }
 
-    /** 生成不含密码内容的平台密码名称。 */
-    private String buildPasscodeName(Lease lease, SmartLock smartLock) {
-        return "租约-" + lease.getId() + "-" + smartLock.getLockName();
+    /** 生成简短的平台密码名称，避免 TTLock 因名称过长拒绝请求。 */
+    private String buildPasscodeName(Lease lease) {
+        String leaseId = lease.getId();
+        return "L-" + leaseId.substring(0, Math.min(8, leaseId.length()));
     }
 
     /** 构造租客可读的房间名称。 */

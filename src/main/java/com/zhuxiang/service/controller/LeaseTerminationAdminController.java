@@ -25,7 +25,6 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @Validated
 @RequireAuth
@@ -125,20 +124,14 @@ public class LeaseTerminationAdminController {
     public ApiResponse<LeaseTerminationDtos.TerminationDetailResponse> confirmSettlement(
             HttpServletRequest request,
             @PathVariable String id,
-            @RequestBody(required = false) LeaseTerminationDtos.SettlementConfirmRequest body
+            @Valid @RequestBody(required = false) LeaseTerminationDtos.SettlementConfirmRequest body
     ) {
         LeaseTerminationApplication application = leaseTerminationService.getById(id);
-        if (application != null && body != null) {
-            application.setTotalDeduction(Optional.ofNullable(body.settlementAmount()).orElse(0));
-            application.setRefundAmount(Optional.ofNullable(body.refundAmount()).orElse(0));
-            application.setSettlementDetail(body.remark());
-            leaseTerminationService.updateById(application);
-        }
         if (application != null && LeaseTerminationApplication.STATUS_INSPECTION_PENDING.equals(application.getStatus())) {
             leaseTerminationService.completeInspection(CurrentUser.id(request), id);
         }
         return ApiResponse.success("结算已确认",
-                leaseTerminationService.confirmSettlement(CurrentUser.id(request), id));
+                leaseTerminationService.confirmSettlement(CurrentUser.id(request), id, body));
     }
 
     @PostMapping("/{id}/refund/complete")
@@ -163,6 +156,6 @@ public class LeaseTerminationAdminController {
                     leaseTerminationService.completeRefund(CurrentUser.id(request), id));
         }
         return ApiResponse.success("退租已完成",
-                leaseTerminationService.confirmSettlement(CurrentUser.id(request), id));
+                leaseTerminationService.confirmSettlement(CurrentUser.id(request), id, null));
     }
 }

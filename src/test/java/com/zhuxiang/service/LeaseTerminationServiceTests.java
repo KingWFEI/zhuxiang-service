@@ -130,9 +130,16 @@ class LeaseTerminationServiceTests {
         when(contractMapper.selectById("contract-1")).thenReturn(contract);
         when(houseService.getById("house-1")).thenReturn(house);
 
-        service.confirmSettlement("admin-1", application.getId());
+        service.confirmSettlement(
+                "admin-1",
+                application.getId(),
+                new LeaseTerminationDtos.SettlementConfirmRequest(10000, 0, "扣除清洁费用")
+        );
 
         assertThat(application.getStatus()).isEqualTo("completed");
+        assertThat(application.getSettlementDetail()).isEqualTo(
+                "{\"settlementAmount\":10000,\"refundAmount\":0,\"remark\":\"扣除清洁费用\"}"
+        );
         assertThat(lease.getStatus()).isEqualTo("terminated");
         assertThat(contract.getStatus()).isEqualTo("terminated");
         assertThat(house.getStatus()).isEqualTo("available");

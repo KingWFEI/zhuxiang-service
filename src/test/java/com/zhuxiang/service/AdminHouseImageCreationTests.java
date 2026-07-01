@@ -161,6 +161,120 @@ class AdminHouseImageCreationTests {
         verify(tagRelationService, never()).saveBatch(any(Collection.class));
     }
 
+    @Test
+    void updatesAttributesAndAppendsImagesWithoutDeletingExistingRecords() {
+        User admin = new User();
+        admin.setId("admin-1");
+        admin.setRole("ADMIN");
+        House house = new House();
+        house.setId("house-1");
+        house.setCoverImage("https://cdn.example.com/old-cover.jpg");
+        HouseImage oldImage = image("https://cdn.example.com/old-cover.jpg");
+        oldImage.setSortOrder(0);
+        HouseImage newCover = image("https://cdn.example.com/new-cover.jpg");
+        newCover.setSortOrder(1);
+        HouseImage newRoom = image("https://cdn.example.com/new-room.jpg");
+        newRoom.setSortOrder(2);
+
+        when(userService.requireActiveUser("admin-1")).thenReturn(admin);
+        when(houseMapper.selectById("house-1")).thenReturn(house);
+        when(houseMapper.updateById(any(House.class))).thenReturn(1);
+        when(facilityService.list(any(Wrapper.class))).thenReturn(List.of(facility("wifi")));
+        when(tagService.list(any(Wrapper.class))).thenReturn(List.of(tag("near_metro")));
+        when(imageService.list(any(Wrapper.class)))
+                .thenReturn(List.of(oldImage))
+                .thenReturn(List.of(oldImage, newCover, newRoom));
+
+        AdminHouseDtos.AdminHouseView response = service.updateHouse(
+                "house-1",
+                updateRequest(
+                        "https://cdn.example.com/new-cover.jpg",
+                        List.of("https://cdn.example.com/new-cover.jpg", "https://cdn.example.com/new-room.jpg"),
+                        List.of("wifi"),
+                        List.of("near_metro")
+                ),
+                "admin-1"
+        );
+
+        verify(imageService, never()).remove(any(Wrapper.class));
+        ArgumentCaptor<Collection<HouseImage>> imagesCaptor = collectionCaptor();
+        verify(imageService).saveBatch(imagesCaptor.capture());
+        assertThat(imagesCaptor.getValue())
+                .extracting(HouseImage::getImageUrl)
+                .containsExactly("https://cdn.example.com/new-cover.jpg", "https://cdn.example.com/new-room.jpg");
+        assertThat(response.coverImage()).isEqualTo("https://cdn.example.com/new-cover.jpg");
+        assertThat(response.imageUrls()).containsExactly(
+                "https://cdn.example.com/old-cover.jpg",
+                "https://cdn.example.com/new-cover.jpg",
+                "https://cdn.example.com/new-room.jpg"
+        );
+
+        verify(facilityRelationService).remove(any(Wrapper.class));
+        verify(tagRelationService).remove(any(Wrapper.class));
+        ArgumentCaptor<Collection<HouseFacilityRelation>> facilitiesCaptor = collectionCaptor();
+        verify(facilityRelationService).saveBatch(facilitiesCaptor.capture());
+        assertThat(facilitiesCaptor.getValue())
+                .extracting(HouseFacilityRelation::getFacilityId)
+                .containsExactly("wifi");
+        ArgumentCaptor<Collection<HouseTagRelation>> tagsCaptor = collectionCaptor();
+        verify(tagRelationService).saveBatch(tagsCaptor.capture());
+        assertThat(tagsCaptor.getValue())
+                .extracting(HouseTagRelation::getTagId)
+                .containsExactly("near_metro");
+    }
+
+    @Test
+    void emptyAttributeListsClearRelationsWithoutSavingEmptyBatches() {
+        User admin = new User();
+        admin.setRole("ADMIN");
+        House house = new House();
+        house.setId("house-1");
+        when(userService.requireActiveUser("admin-1")).thenReturn(admin);
+        when(houseMapper.selectById("house-1")).thenReturn(house);
+
+        service.updateHouse(
+                "house-1",
+                updateRequest(null, null, List.of(), List.of()),
+                "admin-1"
+        );
+
+        verify(facilityRelationService).remove(any(Wrapper.class));
+        verify(tagRelationService).remove(any(Wrapper.class));
+        verify(facilityRelationService, never()).saveBatch(any(Collection.class));
+        verify(tagRelationService, never()).saveBatch(any(Collection.class));
+    }
+
+    @Test
+    void returnsSingleAdminHouseWithImages() {
+        House house = new House();
+        house.setId("house-1");
+        house.setTitle("高新区精装一居室");
+        HouseImage cover = image("https://cdn.example.com/cover.jpg");
+        cover.setSortOrder(0);
+        HouseImage room = image("https://cdn.example.com/room.jpg");
+        room.setSortOrder(1);
+        when(houseMapper.selectById("house-1")).thenReturn(house);
+        when(imageService.list(any(Wrapper.class))).thenReturn(List.of(cover, room));
+
+        AdminHouseDtos.AdminHouseView response = service.getAdminHouseById("house-1");
+
+        assertThat(response.id()).isEqualTo("house-1");
+        assertThat(response.title()).isEqualTo("高新区精装一居室");
+        assertThat(response.imageUrls()).containsExactly(
+                "https://cdn.example.com/cover.jpg",
+                "https://cdn.example.com/room.jpg"
+        );
+    }
+
+    @Test
+    void rejectsMissingAdminHouse() {
+        when(houseMapper.selectById("missing-house")).thenReturn(null);
+
+        assertThatThrownBy(() -> service.getAdminHouseById("missing-house"))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getCode()).isEqualTo(404));
+    }
+
     private AdminHouseDtos.CreateHouseRequest request() {
         return new AdminHouseDtos.CreateHouseRequest(
                 "高新区精装一居室",
@@ -177,6 +291,19 @@ class AdminHouseImageCreationTests {
                 true, true,
                 List.of("wifi", "air_conditioner"),
                 List.of("near_metro", "direct_rent")
+        );
+    }
+
+    private AdminHouseDtos.UpdateHouseRequest updateRequest(
+            String coverImage,
+            List<String> imageUrls,
+            List<String> facilityIds,
+            List<String> tagIds
+    ) {
+        return new AdminHouseDtos.UpdateHouseRequest(
+                null, coverImage, imageUrls, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, facilityIds, tagIds
         );
     }
 

@@ -28,8 +28,11 @@ public interface LeaseService extends IService<Lease> {
      */
     LeaseDtos.LeaseListResponse getUserLeases(String userId);
 
+    /** 根据租约 ID 查询当前租客自己的单条租约详情。 */
+    LeaseDtos.LeaseDetail getLeaseDetail(String leaseId, String currentUserId);
+
     /**
-     * 获取租约关联的门锁权限摘要，不返回管理员 lockData。
+     * 校验租约归属后，获取租约关联的门锁权限摘要及蓝牙 SDK lockData。
      */
     LeaseDtos.UnlockDataResponse getUnlockData(String leaseId, String currentUserId);
 

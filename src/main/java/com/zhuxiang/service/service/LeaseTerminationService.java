@@ -28,7 +28,11 @@ public interface LeaseTerminationService extends IService<LeaseTerminationApplic
 
     LeaseTerminationDtos.TerminationDetailResponse completeInspection(String adminId, String applicationId);
 
-    LeaseTerminationDtos.TerminationDetailResponse confirmSettlement(String adminId, String applicationId);
+    LeaseTerminationDtos.TerminationDetailResponse confirmSettlement(
+            String adminId,
+            String applicationId,
+            LeaseTerminationDtos.SettlementConfirmRequest request
+    );
 
     LeaseTerminationDtos.TerminationDetailResponse completeRefund(String adminId, String applicationId);
 }
