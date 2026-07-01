@@ -39,7 +39,11 @@
       "Bash(echo \"Login\\(password\\): $\\(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8000/api/auth/login/password -H 'Content-Type: application/json' -d '{\"phone\":\"13213592847\",\"password\":\"123456\"}'\\)\")",
       "Bash(java *)",
       "Bash(netsh advfirewall *)",
-      "Bash(ipconfig)"
+      "Bash(ipconfig)",
+      "Bash(git checkout *)",
+      "Bash(git reset *)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)"
     ]
   }
 }
