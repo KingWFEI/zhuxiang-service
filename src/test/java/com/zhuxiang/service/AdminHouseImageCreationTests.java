@@ -275,6 +275,38 @@ class AdminHouseImageCreationTests {
                         assertThat(exception.getCode()).isEqualTo(404));
     }
 
+    @Test
+    void bringsOfflineHouseBackOnline() {
+        House house = new House();
+        house.setId("house-1");
+        house.setStatus("offline");
+        when(houseMapper.selectById("house-1")).thenReturn(house);
+        when(houseMapper.updateById(any(House.class))).thenReturn(1);
+        when(imageService.list(any(Wrapper.class))).thenReturn(List.of());
+
+        AdminHouseDtos.AdminHouseView response = service.onlineHouse("house-1");
+
+        assertThat(response.status()).isEqualTo("available");
+        assertThat(house.getStatus()).isEqualTo("available");
+        verify(houseMapper).updateById(house);
+    }
+
+    @Test
+    void rejectsOnlineRequestForHouseThatIsNotOffline() {
+        House house = new House();
+        house.setId("house-1");
+        house.setStatus("rented");
+        when(houseMapper.selectById("house-1")).thenReturn(house);
+
+        assertThatThrownBy(() -> service.onlineHouse("house-1"))
+                .isInstanceOfSatisfying(BusinessException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo(400);
+                    assertThat(exception.getMessage()).contains("只有已下架房源");
+                });
+
+        verify(houseMapper, never()).updateById(any(House.class));
+    }
+
     private AdminHouseDtos.CreateHouseRequest request() {
         return new AdminHouseDtos.CreateHouseRequest(
                 "高新区精装一居室",

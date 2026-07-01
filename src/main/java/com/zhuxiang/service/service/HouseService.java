@@ -93,6 +93,11 @@ public interface HouseService extends IService<House> {
     AdminHouseDtos.AdminHouseView offlineHouse(String houseId);
 
     /**
+     * 重新上架房源（将下架状态恢复为可租）。
+     */
+    AdminHouseDtos.AdminHouseView onlineHouse(String houseId);
+
+    /**
      * 修改房源信息，返回管理端视图。
      */
     AdminHouseDtos.AdminHouseView updateHouse(

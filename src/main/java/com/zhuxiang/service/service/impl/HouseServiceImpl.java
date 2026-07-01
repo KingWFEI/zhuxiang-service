@@ -833,6 +833,24 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     }
 
     /**
+     * 重新上架房源（下架 → 可租）。
+     */
+    @Override
+    public AdminHouseDtos.AdminHouseView onlineHouse(String houseId) {
+        House house = getById(houseId);
+        if (house == null) {
+            throw BusinessException.notFound("房源不存在");
+        }
+        if (!"offline".equals(house.getStatus())) {
+            throw BusinessException.badRequest("只有已下架房源才能重新上架，当前状态：" + house.getStatus());
+        }
+        house.setStatus("available");
+        house.setUpdatedAt(LocalDateTime.now());
+        updateById(house);
+        return toAdminHouseView(house, smartLockMapper.selectLatestByHouseId(houseId));
+    }
+
+    /**
      * 修改房源信息。
      */
     @Override

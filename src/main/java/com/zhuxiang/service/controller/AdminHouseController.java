@@ -94,6 +94,17 @@ public class AdminHouseController {
     }
 
     /**
+     * 重新上架房源（下架 → 可租）。
+     */
+    @PutMapping("/{houseId}/online")
+    @Operation(summary = "重新上架房源", description = "将已下架房源恢复为可租状态，对外重新展示。")
+    public ApiResponse<AdminHouseDtos.AdminHouseView> onlineHouse(
+            @PathVariable String houseId
+    ) {
+        return ApiResponse.success("房源重新上架成功", houseService.onlineHouse(houseId));
+    }
+
+    /**
      * 修改房源信息。
      */
     @PutMapping("/{houseId}")
