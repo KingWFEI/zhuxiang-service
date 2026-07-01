@@ -39,6 +39,18 @@ public class LeaseController {
     }
 
     /**
+     * 根据租约 ID 获取当前租客自己的租约详情。
+     */
+    @GetMapping("/leases/{leaseId}")
+    @Operation(summary = "查询租约详情", description = "根据租约 ID 返回当前登录租客自己的合同、房源、账单和门锁权限信息。")
+    public ApiResponse<LeaseDtos.LeaseDetail> getLeaseDetail(
+            @Parameter(description = "租约 ID") @PathVariable String leaseId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(leaseService.getLeaseDetail(leaseId, CurrentUser.id(request)));
+    }
+
+    /**
      * 获取当前用户租约对应的门锁展示信息。
      */
     @GetMapping("/leases/my/lock")
@@ -51,7 +63,7 @@ public class LeaseController {
      * 获取指定租约的门锁权限摘要。
      */
     @GetMapping("/leases/{leaseId}/lock/unlock-data")
-    @Operation(summary = "获取租约门锁开锁摘要", description = "返回蓝牙和期限密码可用性，不返回管理员 lockData 或明文密码。")
+    @Operation(summary = "获取租约门锁开锁摘要", description = "校验租约归属后返回蓝牙开锁所需的 lockData、权限及期限密码可用性，不返回明文密码。")
     public ApiResponse<LeaseDtos.UnlockDataResponse> getUnlockData(
             @Parameter(description = "租约 ID") @PathVariable String leaseId,
             HttpServletRequest request

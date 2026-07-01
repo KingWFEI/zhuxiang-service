@@ -115,10 +115,20 @@ class LockPasscodePermissionServiceTests {
         assertThat(result.getEndTime()).isEqualTo(Instant.parse("2027-06-30T16:00:00Z"));
         verify(openApiClient).getPeriodPasscode(
                 "client-id", "access-token", 12345L, 4, 3,
-                "租约-lease-1-1508门锁",
+                "L-lease-1",
                 Instant.parse("2026-06-30T16:00:00Z").toEpochMilli(),
                 Instant.parse("2027-06-30T16:00:00Z").toEpochMilli()
         );
+    }
+
+    @Test
+    void usesFirstEightLeaseIdCharactersAsPasscodeName() {
+        Lease lease = activeLease();
+        lease.setId("4ca6194f-1234-5678-9012-abcdefabcdef");
+
+        String name = ReflectionTestUtils.invokeMethod(service, "buildPasscodeName", lease);
+
+        assertThat(name).isEqualTo("L-4ca6194f");
     }
 
     @Test

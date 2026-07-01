@@ -61,6 +61,17 @@ public class AdminHouseController {
     }
 
     /**
+     * 根据房源 ID 获取管理端房源详情。
+     */
+    @GetMapping("/{houseId}")
+    @Operation(summary = "查询单条房源", description = "根据房源ID返回房源详情、图片列表和智能锁绑定信息。")
+    public ApiResponse<AdminHouseDtos.AdminHouseView> getHouse(
+            @PathVariable String houseId
+    ) {
+        return ApiResponse.success(houseService.getAdminHouseById(houseId));
+    }
+
+    /**
      * 发布房源（草稿 → 可租）。
      */
     @PutMapping("/{houseId}/publish")
@@ -86,7 +97,10 @@ public class AdminHouseController {
      * 修改房源信息。
      */
     @PutMapping("/{houseId}")
-    @Operation(summary = "修改房源", description = "修改房源信息，仅更新传入的非空字段，更新图片时会替换旧图片。")
+    @Operation(
+            summary = "修改房源",
+            description = "仅更新传入的字段；设施和标签采用完整替换语义，新增图片会入库且保留已有图片记录。"
+    )
     public ApiResponse<AdminHouseDtos.AdminHouseView> updateHouse(
             HttpServletRequest servletRequest,
             @PathVariable String houseId,

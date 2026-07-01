@@ -342,7 +342,11 @@ public class LeaseTerminationServiceImpl
 
     @Override
     @Transactional
-    public TerminationDetailResponse confirmSettlement(String adminId, String applicationId) {
+    public TerminationDetailResponse confirmSettlement(
+            String adminId,
+            String applicationId,
+            SettlementConfirmRequest request
+    ) {
         LeaseTerminationApplication app = getById(applicationId);
         if (app == null || app.getDeletedAt() != null) throw BusinessException.notFound("退租申请不存在");
         if (!"settlement_pending".equals(app.getStatus())) {
@@ -351,6 +355,12 @@ public class LeaseTerminationServiceImpl
 
         LocalDateTime now = LocalDateTime.now();
         String adminName = getAdminName(adminId);
+
+        if (request != null) {
+            app.setTotalDeduction(Optional.ofNullable(request.settlementAmount()).orElse(0));
+            app.setRefundAmount(Optional.ofNullable(request.refundAmount()).orElse(0));
+            app.setSettlementDetail(serializeSettlementDetail(request));
+        }
 
         int refundAmount = Optional.ofNullable(app.getRefundAmount()).orElse(0);
 
@@ -606,6 +616,18 @@ public class LeaseTerminationServiceImpl
             return objectMapper.writeValueAsString(items);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("序列化附件失败", e);
+        }
+    }
+
+    private String serializeSettlementDetail(SettlementConfirmRequest request) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("settlementAmount", Optional.ofNullable(request.settlementAmount()).orElse(0));
+        detail.put("refundAmount", Optional.ofNullable(request.refundAmount()).orElse(0));
+        detail.put("remark", request.remark());
+        try {
+            return objectMapper.writeValueAsString(detail);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("序列化退租结算明细失败", exception);
         }
     }
 
