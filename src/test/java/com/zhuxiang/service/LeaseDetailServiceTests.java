@@ -2,6 +2,7 @@ package com.zhuxiang.service;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.zhuxiang.service.common.BusinessException;
+import com.zhuxiang.service.config.AutoUnlockProperties;
 import com.zhuxiang.service.dto.LeaseDtos;
 import com.zhuxiang.service.entity.House;
 import com.zhuxiang.service.entity.Landlord;
@@ -25,13 +26,20 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class LeaseDetailServiceTests {
@@ -45,13 +53,15 @@ class LeaseDetailServiceTests {
     private final RentBillService billService = mock(RentBillService.class);
     private final LandlordService landlordService = mock(LandlordService.class);
     private final LeaseMapper leaseMapper = mock(LeaseMapper.class);
+    private final AutoUnlockProperties autoUnlockProperties = new AutoUnlockProperties();
     private LeaseServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new LeaseServiceImpl(
                 houseService, communityService, smartLockMapper, lockPermissionService,
-                passcodePermissionService, contractMapper, billService, landlordService
+                passcodePermissionService, contractMapper, billService, landlordService,
+                autoUnlockProperties
         );
         ReflectionTestUtils.setField(service, "baseMapper", leaseMapper);
     }
@@ -111,14 +121,77 @@ class LeaseDetailServiceTests {
         smartLock.setLockName("1201门锁");
         smartLock.setLockMac("AA:BB:CC:DD:EE:FF");
         smartLock.setLockData("encrypted-sdk-lock-data");
+        smartLock.setLockId(123456L);
+        smartLock.setStatus("BOUND");
+        LockPermission permission = new LockPermission();
+        permission.setStatus("ACTIVE");
+        permission.setTtlockKeyId(987654L);
+        permission.setTtlockLockId(123456L);
+        permission.setStartTime(LocalDateTime.now().minusDays(1));
+        permission.setEndTime(LocalDateTime.now().plusDays(1));
 
         when(leaseMapper.selectById("lease-1")).thenReturn(lease());
         when(houseService.getById("house-1")).thenReturn(house());
         when(smartLockMapper.selectLatestByHouseId("house-1")).thenReturn(smartLock);
+        when(lockPermissionService.getOne(any(Wrapper.class), eq(false))).thenReturn(permission);
 
         LeaseDtos.UnlockDataResponse result = service.getUnlockData("lease-1", "tenant-1");
 
+        assertThat(result.leaseStatus()).isEqualTo("active");
+        assertThat(result.leaseValid()).isTrue();
         assertThat(result.lockData()).isEqualTo("encrypted-sdk-lock-data");
+        assertThat(result.ttlockLockId()).isEqualTo(123456L);
+        assertThat(result.autoUnlockAvailable()).isTrue();
+        assertThat(result.autoUnlockMinRssi()).isEqualTo(-60);
+        assertThat(result.autoUnlockStableMillis()).isEqualTo(2000);
+        assertThat(result.autoUnlockCooldownSeconds()).isEqualTo(30);
+    }
+
+    @Test
+    void returnsInvalidLeaseMarkerWithoutUnlockData() {
+        Lease lease = lease();
+        lease.setStatus("terminated");
+        when(leaseMapper.selectById("lease-1")).thenReturn(lease);
+
+        LeaseDtos.UnlockDataResponse result = service.getUnlockData("lease-1", "tenant-1");
+
+        assertThat(result.leaseStatus()).isEqualTo("terminated");
+        assertThat(result.leaseValid()).isFalse();
+        assertThat(result.permissionStatus()).isEqualTo("LEASE_INVALID");
+        assertThat(result.bluetoothUnlockAvailable()).isFalse();
+        assertThat(result.passcodeAvailable()).isFalse();
+        assertThat(result.lockData()).isNull();
+        assertThat(result.ttlockKeyId()).isNull();
+        assertThat(result.ttlockLockId()).isNull();
+        assertThat(result.autoUnlockAvailable()).isFalse();
+        verify(houseService, never()).getById(any());
+        verify(smartLockMapper, never()).selectLatestByHouseId(any());
+    }
+
+    @Test
+    void expiresDueLeaseAndOfflinesHouseUntilAdminRelistsIt() {
+        Lease lease = lease();
+        lease.setEndDate(LocalDate.of(2026, 7, 2));
+        RentContract contract = contract();
+        House house = house();
+        house.setStatus("rented");
+        ReflectionTestUtils.setField(
+                service,
+                "clock",
+                Clock.fixed(Instant.parse("2026-07-03T00:00:00Z"), ZoneOffset.UTC)
+        );
+        when(leaseMapper.selectList(any(Wrapper.class))).thenReturn(List.of(lease));
+        when(contractMapper.selectById("contract-1")).thenReturn(contract);
+        when(houseService.getById("house-1")).thenReturn(house);
+
+        int expiredCount = service.expireDueLeases();
+
+        assertThat(expiredCount).isEqualTo(1);
+        assertThat(lease.getStatus()).isEqualTo("expired");
+        assertThat(contract.getStatus()).isEqualTo("expired");
+        assertThat(house.getStatus()).isEqualTo("offline");
+        verify(lockPermissionService).revokeTenantEKeyForLease("lease-1");
+        verify(passcodePermissionService).revokePasscodesForLease("lease-1");
     }
 
     private Lease lease() {

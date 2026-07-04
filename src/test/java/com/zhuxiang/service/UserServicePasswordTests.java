@@ -6,6 +6,7 @@ import com.zhuxiang.service.dto.ProfileDtos;
 import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.mapper.UserMapper;
 import com.zhuxiang.service.service.MessageService;
+import com.zhuxiang.service.service.ObjectStorageService;
 import com.zhuxiang.service.service.RefreshTokenService;
 import com.zhuxiang.service.service.SmsCodeService;
 import com.zhuxiang.service.service.impl.UserServiceImpl;
@@ -13,9 +14,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.mock.web.MockMultipartFile;
+
+import java.io.InputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -23,6 +32,7 @@ import static org.mockito.Mockito.when;
 class UserServicePasswordTests {
 
     private final UserMapper userMapper = mock(UserMapper.class);
+    private final ObjectStorageService objectStorageService = mock(ObjectStorageService.class);
     private UserServiceImpl userService;
 
     @BeforeEach
@@ -32,8 +42,7 @@ class UserServicePasswordTests {
                 mock(RefreshTokenService.class),
                 mock(MessageService.class),
                 mock(TokenProvider.class),
-                "target/test-uploads",
-                "/api"
+                objectStorageService
         );
         ReflectionTestUtils.setField(userService, "baseMapper", userMapper);
     }
@@ -67,6 +76,29 @@ class UserServicePasswordTests {
             assertThat(exception.getCode()).isEqualTo(409);
             assertThat(exception.getMessage()).isEqualTo("当前账号已设置密码，请使用修改密码功能");
         });
+    }
+
+    @Test
+    void uploadsAvatarThroughConfiguredObjectStorage() {
+        User user = activeUser(null);
+        MockMultipartFile avatar = new MockMultipartFile(
+                "file", "avatar.png", "image/png", new byte[]{1, 2, 3}
+        );
+        String cosUrl = "https://example.cos.ap-guangzhou.myqcloud.com/zhuxiang/avatars/avatar.png";
+        when(userMapper.selectById(user.getId())).thenReturn(user);
+        when(userMapper.updateById(user)).thenReturn(1);
+        when(objectStorageService.store(
+                anyString(), any(InputStream.class), anyLong(), eq("image/png")
+        )).thenReturn(cosUrl);
+
+        ProfileDtos.AvatarResult result = userService.uploadAvatar(user.getId(), avatar);
+
+        assertThat(result.avatarUrl()).isEqualTo(cosUrl);
+        assertThat(user.getAvatarUrl()).isEqualTo(cosUrl);
+        verify(objectStorageService).store(
+                startsWith("avatars/"), any(InputStream.class), eq(3L), eq("image/png")
+        );
+        verify(userMapper).updateById(user);
     }
 
     private User activeUser(String passwordHash) {

@@ -11,10 +11,17 @@ import com.zhuxiang.service.dto.SmartLockDetailResponse;
 import com.zhuxiang.service.dto.SmartLockUnlockDataResponse;
 import com.zhuxiang.service.entity.SmartLock;
 
+import java.util.List;
+
 /**
  * 管理端门锁服务。
  */
 public interface AdminLockService extends IService<SmartLock> {
+
+    /**
+     * 查询全部智能门锁管理信息。
+     */
+    List<SmartLockDetailResponse> getLockList(String operatorId);
 
     /**
      * 保存App端SDK初始化成功后的门锁数据。

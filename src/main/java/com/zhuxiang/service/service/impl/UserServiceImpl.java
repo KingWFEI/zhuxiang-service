@@ -11,10 +11,10 @@ import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.entity.RefreshToken;
 import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.service.MessageService;
+import com.zhuxiang.service.service.ObjectStorageService;
 import com.zhuxiang.service.service.RefreshTokenService;
 import com.zhuxiang.service.service.SmsCodeService;
 import com.zhuxiang.service.mapper.UserMapper;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,10 +22,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.io.InputStream;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,29 +43,28 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             "image/png", ".png",
             "image/webp", ".webp"
     );
+    private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024;
+    private static final DateTimeFormatter PATH_DATE = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
     private final SmsCodeService smsCodeService;
     private final RefreshTokenService refreshTokenService;
     private final MessageService messageService;
     private final TokenProvider tokenProvider;
+    private final ObjectStorageService objectStorageService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-    private final Path uploadDirectory;
-    private final String contextPath;
 
     public UserServiceImpl(
             SmsCodeService smsCodeService,
             RefreshTokenService refreshTokenService,
             MessageService messageService,
             TokenProvider tokenProvider,
-            @Value("${app.upload.directory}") String uploadDirectory,
-            @Value("${server.servlet.context-path:/api}") String contextPath
+            ObjectStorageService objectStorageService
     ) {
         this.smsCodeService = smsCodeService;
         this.refreshTokenService = refreshTokenService;
         this.messageService = messageService;
         this.tokenProvider = tokenProvider;
-        this.uploadDirectory = Path.of(uploadDirectory).toAbsolutePath().normalize();
-        this.contextPath = contextPath;
+        this.objectStorageService = objectStorageService;
     }
 
     /**
@@ -160,23 +159,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         if (extension == null) {
             throw BusinessException.badRequest("头像仅支持 JPG、PNG 或 WebP");
         }
-        try {
-            Path avatarDirectory = uploadDirectory.resolve("avatars");
-            Files.createDirectories(avatarDirectory);
-            String filename = UUID.randomUUID() + extension;
-            Path target = avatarDirectory.resolve(filename).normalize();
-            if (!target.startsWith(avatarDirectory)) {
-                throw BusinessException.badRequest("文件名无效");
-            }
-            Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
-            String avatarUrl = contextPath + "/uploads/avatars/" + filename;
+        if (file.getSize() > MAX_AVATAR_SIZE) {
+            throw BusinessException.badRequest("头像文件不能超过 5MB");
+        }
+        String objectKey = "avatars/" + LocalDate.now().format(PATH_DATE)
+                + "/" + UUID.randomUUID() + extension;
+        try (InputStream input = file.getInputStream()) {
+            String avatarUrl = objectStorageService.store(
+                    objectKey, input, file.getSize(), file.getContentType()
+            );
             User user = requireActiveUser(userId);
             user.setAvatarUrl(avatarUrl);
             user.setUpdatedAt(LocalDateTime.now());
             updateById(user);
             return new ProfileDtos.AvatarResult(avatarUrl);
         } catch (IOException exception) {
-            throw new IllegalStateException("头像保存失败", exception);
+            throw new IllegalStateException("头像文件读取失败", exception);
         }
     }
 
@@ -289,7 +287,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             throw BusinessException.unauthorized("用户不存在");
         }
         if (!"active".equals(user.getStatus())) {
-            throw BusinessException.forbidden("用户状态不可用");
+            throw BusinessException.forbidden("ACCOUNT_DISABLED");
         }
         return user;
     }

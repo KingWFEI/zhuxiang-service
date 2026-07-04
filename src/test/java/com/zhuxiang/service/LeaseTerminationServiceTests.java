@@ -142,7 +142,7 @@ class LeaseTerminationServiceTests {
         );
         assertThat(lease.getStatus()).isEqualTo("terminated");
         assertThat(contract.getStatus()).isEqualTo("terminated");
-        assertThat(house.getStatus()).isEqualTo("available");
+        assertThat(house.getStatus()).isEqualTo("offline");
         verify(leaseService).updateById(lease);
         verify(contractMapper).updateById(contract);
         verify(houseService).updateById(house);

@@ -27,6 +27,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * 管理端门锁接口。
  */
@@ -41,6 +43,20 @@ public class AdminLockController {
 
     public AdminLockController(AdminLockService adminLockService) {
         this.adminLockService = adminLockService;
+    }
+
+    /**
+     * 查询智能门锁列表。
+     */
+    @GetMapping
+    @Operation(summary = "查询智能门锁列表", description = "返回全部本地门锁及其房源绑定、平台同步、电量和信号信息，不返回敏感 lockData。")
+    public ApiResponse<List<SmartLockDetailResponse>> getLockList(
+            HttpServletRequest servletRequest
+    ) {
+        return ApiResponse.success(
+                "查询成功",
+                adminLockService.getLockList(CurrentUser.id(servletRequest))
+        );
     }
 
     /**

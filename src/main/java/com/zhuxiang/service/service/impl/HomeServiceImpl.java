@@ -186,7 +186,7 @@ public class HomeServiceImpl implements HomeService {
         for (HomeDtos.Tab tab : TABS) {
             PageData<HouseDtos.HouseView> houses = houseService.searchHouses(
                     null, tab.key(), region, null, null, null,
-                    null, null, null, "default", 1, pageSize, userId
+                    null, null, null, null, "default", 1, pageSize, userId
             );
             List<HouseDtos.FeedItem> items = new ArrayList<>(
                     houses.items().stream().map(HouseDtos.FeedItem::house).toList()

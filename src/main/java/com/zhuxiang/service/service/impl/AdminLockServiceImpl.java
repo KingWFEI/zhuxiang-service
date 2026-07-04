@@ -27,8 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 管理端门锁服务实现。
@@ -74,6 +78,29 @@ public class AdminLockServiceImpl extends ServiceImpl<SmartLockMapper, SmartLock
         this.tokenService = tokenService;
         this.openApiClient = openApiClient;
         this.properties = properties;
+    }
+
+    /**
+     * 查询全部智能门锁管理信息，不返回敏感 lockData。
+     */
+    @Override
+    public List<SmartLockDetailResponse> getLockList(String operatorId) {
+        requireAdminRole(operatorId);
+        List<SmartLock> smartLocks = list(
+                Wrappers.<SmartLock>lambdaQuery().orderByDesc(SmartLock::getCreatedAt)
+        );
+        List<String> houseIds = smartLocks.stream()
+                .map(SmartLock::getHouseId)
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        Map<String, House> houses = houseIds.isEmpty()
+                ? Map.of()
+                : houseService.listByIds(houseIds).stream()
+                        .collect(Collectors.toMap(House::getId, Function.identity()));
+        return smartLocks.stream()
+                .map(smartLock -> toDetailResponse(smartLock, houses.get(smartLock.getHouseId())))
+                .toList();
     }
 
     /**
@@ -265,24 +292,7 @@ public class AdminLockServiceImpl extends ServiceImpl<SmartLockMapper, SmartLock
         House house = StringUtils.hasText(smartLock.getHouseId())
                 ? houseService.getById(smartLock.getHouseId())
                 : null;
-        return new SmartLockDetailResponse(
-                smartLock.getId(),
-                smartLock.getLockName(),
-                smartLock.getLockMac(),
-                smartLock.getStatus(),
-                smartLock.getLockId(),
-                smartLock.getKeyId(),
-                smartLock.getHouseId(),
-                smartLock.getRoomId(),
-                house == null ? null : house.getTitle(),
-                buildRoomName(house, smartLock.getRoomId()),
-                smartLock.getBattery(),
-                smartLock.getRssi(),
-                smartLock.getBatterySource(),
-                smartLock.getLastBleSyncTime(),
-                smartLock.getLastSyncTime(),
-                smartLock.getPlatformErrorMessage()
-        );
+        return toDetailResponse(smartLock, house);
     }
 
     /**
@@ -322,6 +332,11 @@ public class AdminLockServiceImpl extends ServiceImpl<SmartLockMapper, SmartLock
         House house = StringUtils.hasText(smartLock.getHouseId())
                 ? houseService.getById(smartLock.getHouseId())
                 : null;
+        return toDetailResponse(smartLock, house);
+    }
+
+    /** 构造不包含 lockData 的管理端门锁响应。 */
+    private SmartLockDetailResponse toDetailResponse(SmartLock smartLock, House house) {
         return new SmartLockDetailResponse(
                 smartLock.getId(),
                 smartLock.getLockName(),

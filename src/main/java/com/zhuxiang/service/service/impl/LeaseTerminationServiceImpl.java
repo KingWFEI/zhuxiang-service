@@ -435,7 +435,7 @@ public class LeaseTerminationServiceImpl
 
         House house = houseService.getById(app.getHouseId());
         if (house != null) {
-            house.setStatus("available");
+            house.setStatus("offline");
             house.setUpdatedAt(now);
             houseService.updateById(house);
         }

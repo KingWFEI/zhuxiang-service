@@ -23,6 +23,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * 房源查询与收藏接口。
  */
@@ -63,7 +65,7 @@ public class HouseController {
      * 按条件分页搜索房源。
      */
     @GetMapping
-    @Operation(summary = "搜索房源", description = "按关键字、分类、区域、价格、户型、面积和设施组合筛选房源，并支持排序和分页。")
+    @Operation(summary = "搜索房源", description = "按关键字、分类、区域、价格、户型、面积、设施和标签组合筛选房源，并支持排序和分页。")
     public ApiResponse<PageData<HouseDtos.HouseView>> search(
             @Parameter(description = "标题、位置或小区关键字") @RequestParam(required = false) String keyword,
             @Parameter(description = "房源分类键") @RequestParam(required = false) String category,
@@ -74,6 +76,7 @@ public class HouseController {
             @Parameter(description = "最小面积，单位平方米", example = "20") @RequestParam(required = false) @Min(0) Integer minArea,
             @Parameter(description = "最大面积，单位平方米", example = "120") @RequestParam(required = false) @Min(0) Integer maxArea,
             @Parameter(description = "设施值，多个值使用英文逗号分隔", example = "wifi,air_conditioner") @RequestParam(required = false) String facilities,
+            @Parameter(description = "标签，可传多个", example = "near_subway") @RequestParam(required = false) List<String> tags,
             @Parameter(description = "排序值，以筛选选项接口返回值为准", example = "default") @RequestParam(defaultValue = "default") String sort,
             @Parameter(description = "页码，从 1 开始", example = "1") @RequestParam(defaultValue = "1") @Min(1) long page,
             @Parameter(description = "每页条数，范围 1-100", example = "20") @RequestParam(defaultValue = "20") @Min(1) @Max(100) long pageSize,
@@ -81,7 +84,7 @@ public class HouseController {
     ) {
         return ApiResponse.success(houseService.searchHouses(
                 keyword, category, region, minPrice, maxPrice, roomType,
-                minArea, maxArea, facilities, sort, page, pageSize,
+                minArea, maxArea, facilities, tags, sort, page, pageSize,
                 CurrentUser.optionalId(request)
         ));
     }

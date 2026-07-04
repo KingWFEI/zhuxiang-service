@@ -38,6 +38,7 @@ public interface HouseService extends IService<House> {
             Integer minArea,
             Integer maxArea,
             String facilities,
+            List<String> tags,
             String sort,
             long page,
             long pageSize,

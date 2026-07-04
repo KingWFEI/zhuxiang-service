@@ -6,12 +6,16 @@ import com.zhuxiang.service.common.ApiResponse;
 import com.zhuxiang.service.dto.LeaseDtos;
 import com.zhuxiang.service.dto.LeaseLockPasscodeResponse;
 import com.zhuxiang.service.dto.ProfileDtos;
+import com.zhuxiang.service.dto.UnlockRecordDtos;
 import com.zhuxiang.service.service.LeaseService;
+import com.zhuxiang.service.service.UnlockRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,9 +28,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class LeaseController {
 
     private final LeaseService leaseService;
+    private final UnlockRecordService unlockRecordService;
 
-    public LeaseController(LeaseService leaseService) {
+    public LeaseController(
+            LeaseService leaseService,
+            UnlockRecordService unlockRecordService
+    ) {
         this.leaseService = leaseService;
+        this.unlockRecordService = unlockRecordService;
     }
 
     /**
@@ -63,12 +72,34 @@ public class LeaseController {
      * 获取指定租约的门锁权限摘要。
      */
     @GetMapping("/leases/{leaseId}/lock/unlock-data")
-    @Operation(summary = "获取租约门锁开锁摘要", description = "校验租约归属后返回蓝牙开锁所需的 lockData、权限及期限密码可用性，不返回明文密码。")
+    @Operation(
+            summary = "获取租约门锁开锁摘要",
+            description = "先校验租约归属和有效状态；失效租约仅返回 leaseValid=false，不返回 lockData 等开锁数据。"
+    )
     public ApiResponse<LeaseDtos.UnlockDataResponse> getUnlockData(
             @Parameter(description = "租约 ID") @PathVariable String leaseId,
             HttpServletRequest request
     ) {
         return ApiResponse.success(leaseService.getUnlockData(leaseId, CurrentUser.id(request)));
+    }
+
+    /**
+     * 记录租客开锁结果（手动蓝牙 + 无感）。服务端会重新校验租约、门锁和 eKey 权限。
+     */
+    @PostMapping("/leases/{leaseId}/lock/unlock-records")
+    @Operation(
+            summary = "记录开锁结果",
+            description = "仅接收脱敏审计字段；不接收 lockData、密码或 Token。门锁身份必须与当前有效租约一致。triggerType 支持 MANUAL_BLUETOOTH 或 AUTO_NEARBY。"
+    )
+    public ApiResponse<UnlockRecordDtos.UnlockRecordResponse> recordUnlock(
+            @Parameter(description = "租约 ID") @PathVariable String leaseId,
+            @Valid @RequestBody UnlockRecordDtos.UnlockRecordRequest body,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                "开锁记录成功",
+                unlockRecordService.record(leaseId, CurrentUser.id(request), body)
+        );
     }
 
     /**

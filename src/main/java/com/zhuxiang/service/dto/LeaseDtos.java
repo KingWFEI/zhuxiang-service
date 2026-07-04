@@ -13,6 +13,8 @@ public final class LeaseDtos {
 
     public record UnlockDataResponse(
             String leaseId,
+            String leaseStatus,
+            boolean leaseValid,
             String smartLockId,
             String roomName,
             String houseName,
@@ -20,6 +22,7 @@ public final class LeaseDtos {
             String lockMac,
             String lockData,
             Long ttlockKeyId,
+            Long ttlockLockId,
             String startTime,
             String endTime,
             String permissionStatus,
@@ -27,7 +30,11 @@ public final class LeaseDtos {
             boolean passcodeAvailable,
             String passcodeStatus,
             String passcodeStartTime,
-            String passcodeEndTime
+            String passcodeEndTime,
+            boolean autoUnlockAvailable,
+            int autoUnlockMinRssi,
+            int autoUnlockStableMillis,
+            int autoUnlockCooldownSeconds
     ) {
     }
 

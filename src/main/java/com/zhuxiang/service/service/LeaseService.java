@@ -41,4 +41,7 @@ public interface LeaseService extends IService<Lease> {
 
     /** 校验当前租客后重试生成并返回租约期限密码。 */
     LeaseLockPasscodeResponse retryLockPasscode(String leaseId, String currentUserId);
+
+    /** 批量处理自然到期租约，并将对应房源下架。 */
+    int expireDueLeases();
 }

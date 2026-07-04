@@ -132,7 +132,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     ) {
         validateCategory(category);
         IPage<House> result = queryHouses(
-                null, category, null, null, null, null, null, null, null,
+                null, category, null, null, null, null, null, null, null, null,
                 "default", page, pageSize
         );
         List<HouseDtos.FeedItem> items = result.getRecords().stream()
@@ -170,6 +170,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             Integer minArea,
             Integer maxArea,
             String facilities,
+            List<String> tags,
             String sort,
             long page,
             long pageSize,
@@ -177,7 +178,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     ) {
         IPage<House> result = queryHouses(
                 keyword, category, region, minPrice, maxPrice, roomType,
-                minArea, maxArea, facilities, sort, page, pageSize
+                minArea, maxArea, facilities, tags, sort, page, pageSize
         );
         return PageData.of(
                 result.getRecords().stream()
@@ -397,6 +398,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             Integer minArea,
             Integer maxArea,
             String facilityNames,
+            List<String> tags,
             String sort,
             long page,
             long pageSize
@@ -473,6 +475,14 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             wrapper.in(House::getId, facilityHouseIds);
         }
 
+        Set<String> tagHouseIds = resolveTagHouseIds(tags);
+        if (tagHouseIds != null) {
+            if (tagHouseIds.isEmpty()) {
+                return new Page<>(page, pageSize, 0);
+            }
+            wrapper.in(House::getId, tagHouseIds);
+        }
+
         switch (actualSort) {
             case "price_asc" -> wrapper.orderByAsc(House::getPrice);
             case "price_desc" -> wrapper.orderByDesc(House::getPrice);
@@ -519,6 +529,48 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 ))
                 .entrySet().stream()
                 .filter(entry -> entry.getValue().containsAll(facilityIds))
+                .map(java.util.Map.Entry::getKey)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    /**
+     * 解析标签条件并返回同时匹配的房源编号。
+     */
+    private Set<String> resolveTagHouseIds(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return null;
+        }
+        List<String> values = tags.stream()
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        if (values.isEmpty()) {
+            return null;
+        }
+        List<HouseTag> matched = tagService.list(
+                Wrappers.<HouseTag>lambdaQuery()
+                        .and(query -> query.in(HouseTag::getId, values)
+                                .or().in(HouseTag::getName, values))
+        );
+        if (matched.size() < values.size()) {
+            return Set.of();
+        }
+        Set<String> tagIds = matched.stream()
+                .map(HouseTag::getId)
+                .collect(Collectors.toSet());
+        return tagRelationService.list(
+                        Wrappers.<HouseTagRelation>lambdaQuery()
+                                .in(HouseTagRelation::getTagId, tagIds)
+                ).stream()
+                .collect(Collectors.groupingBy(
+                        HouseTagRelation::getHouseId,
+                        Collectors.mapping(
+                                HouseTagRelation::getTagId,
+                                Collectors.toSet()
+                        )
+                ))
+                .entrySet().stream()
+                .filter(entry -> entry.getValue().containsAll(tagIds))
                 .map(java.util.Map.Entry::getKey)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }

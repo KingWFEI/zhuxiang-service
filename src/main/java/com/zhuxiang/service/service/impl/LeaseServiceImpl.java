@@ -3,6 +3,7 @@ package com.zhuxiang.service.service.impl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhuxiang.service.common.BusinessException;
+import com.zhuxiang.service.config.AutoUnlockProperties;
 import com.zhuxiang.service.dto.LeaseLockPasscodeResponse;
 import com.zhuxiang.service.dto.LeaseDtos;
 import com.zhuxiang.service.dto.ProfileDtos;
@@ -12,16 +13,20 @@ import com.zhuxiang.service.mapper.RentContractMapper;
 import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.service.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
 * @author king-wang
@@ -40,6 +45,8 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
     private final RentContractMapper rentContractMapper;
     private final RentBillService rentBillService;
     private final LandlordService landlordService;
+    private final AutoUnlockProperties autoUnlockProperties;
+    private Clock clock = Clock.system(ZoneId.of("Asia/Shanghai"));
 
     public LeaseServiceImpl(
             HouseService houseService,
@@ -49,7 +56,8 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             LockPasscodePermissionService lockPasscodePermissionService,
             RentContractMapper rentContractMapper,
             RentBillService rentBillService,
-            LandlordService landlordService
+            LandlordService landlordService,
+            AutoUnlockProperties autoUnlockProperties
     ) {
         this.houseService = houseService;
         this.communityService = communityService;
@@ -59,6 +67,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         this.rentContractMapper = rentContractMapper;
         this.rentBillService = rentBillService;
         this.landlordService = landlordService;
+        this.autoUnlockProperties = autoUnlockProperties;
     }
 
     /**
@@ -285,6 +294,11 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         if (!currentUserId.equals(lease.getUserId())) {
             throw BusinessException.forbidden("无权查看该租约的门锁权限");
         }
+        boolean leaseEffective = "active".equalsIgnoreCase(lease.getStatus())
+                || "effective".equalsIgnoreCase(lease.getStatus());
+        if (!leaseEffective) {
+            return invalidLeaseUnlockData(lease);
+        }
         House house = houseService.getById(lease.getHouseId());
         if (house == null) {
             throw BusinessException.notFound("租约关联房间不存在");
@@ -312,27 +326,32 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         );
         Instant now = Instant.now();
         LocalDateTime businessNow = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
-        boolean leaseEffective = "active".equalsIgnoreCase(lease.getStatus())
-                || "effective".equalsIgnoreCase(lease.getStatus());
-        boolean bluetoothAvailable = leaseEffective
-                && permission != null
+        boolean bluetoothAvailable = permission != null
                 && "ACTIVE".equalsIgnoreCase(permission.getStatus())
                 && permission.getStartTime() != null
                 && permission.getEndTime() != null
                 && !businessNow.isBefore(permission.getStartTime())
                 && !businessNow.isAfter(permission.getEndTime());
-        boolean passcodeAvailable = leaseEffective
-                && passcodePermission != null
+        boolean passcodeAvailable = passcodePermission != null
                 && "ACTIVE".equalsIgnoreCase(passcodePermission.getStatus())
                 && passcodePermission.getStartTime() != null
                 && passcodePermission.getEndTime() != null
                 && !now.isBefore(passcodePermission.getStartTime())
                 && now.isBefore(passcodePermission.getEndTime());
+        boolean autoUnlockAvailable = autoUnlockProperties.isEnabled()
+                && bluetoothAvailable
+                && permission.getTtlockLockId() != null
+                && permission.getTtlockLockId().equals(smartLock.getLockId())
+                && StringUtils.hasText(smartLock.getLockMac())
+                && StringUtils.hasText(smartLock.getLockData())
+                && Set.of("BOUND", "PLATFORM_BOUND").contains(smartLock.getStatus());
         String roomName = (house.getBuilding() != null ? house.getBuilding() : "")
                 + (house.getUnit() != null ? house.getUnit() : "")
                 + (house.getRoom() != null ? house.getRoom() : "");
         return new LeaseDtos.UnlockDataResponse(
                 lease.getId(),
+                lease.getStatus(),
+                true,
                 smartLock.getId(),
                 roomName,
                 house.getTitle(),
@@ -340,6 +359,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 smartLock.getLockMac(),
                 smartLock.getLockData(),
                 permission != null ? permission.getTtlockKeyId() : null,
+                permission != null ? permission.getTtlockLockId() : null,
                 permission != null && permission.getStartTime() != null ? permission.getStartTime().toString() : null,
                 permission != null && permission.getEndTime() != null ? permission.getEndTime().toString() : null,
                 permission != null ? permission.getStatus() : null,
@@ -347,7 +367,40 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 passcodeAvailable,
                 passcodePermission != null ? passcodePermission.getStatus() : null,
                 formatPasscodeTime(passcodePermission == null ? null : passcodePermission.getStartTime(), smartLock),
-                formatPasscodeTime(passcodePermission == null ? null : passcodePermission.getEndTime(), smartLock)
+                formatPasscodeTime(passcodePermission == null ? null : passcodePermission.getEndTime(), smartLock),
+                autoUnlockAvailable,
+                autoUnlockProperties.getMinRssi(),
+                autoUnlockProperties.getStableMillis(),
+                autoUnlockProperties.getCooldownSeconds()
+        );
+    }
+
+    /** 失效租约只返回状态标识，禁止继续查询或泄露任何开锁数据。 */
+    private LeaseDtos.UnlockDataResponse invalidLeaseUnlockData(Lease lease) {
+        return new LeaseDtos.UnlockDataResponse(
+                lease.getId(),
+                lease.getStatus(),
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                "LEASE_INVALID",
+                false,
+                false,
+                "LEASE_INVALID",
+                null,
+                null,
+                false,
+                autoUnlockProperties.getMinRssi(),
+                autoUnlockProperties.getStableMillis(),
+                autoUnlockProperties.getCooldownSeconds()
         );
     }
 
@@ -366,6 +419,44 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             throw BusinessException.badRequest("开锁密码生成失败，请稍后重试或联系管理员");
         }
         return lockPasscodePermissionService.getTenantPasscode(leaseId, currentUserId);
+    }
+
+    /** 租约结束日期次日起标记到期，下架房源并撤销租客门锁权限。 */
+    @Override
+    @Transactional
+    public int expireDueLeases() {
+        LocalDate today = LocalDate.now(clock);
+        LocalDateTime now = LocalDateTime.now(clock);
+        List<Lease> dueLeases = list(
+                Wrappers.<Lease>lambdaQuery()
+                        .in(Lease::getStatus, "active", "effective")
+                        .lt(Lease::getEndDate, today)
+        );
+        for (Lease lease : dueLeases) {
+            lease.setStatus("expired");
+            lease.setUpdatedAt(now);
+            updateById(lease);
+
+            if (StringUtils.hasText(lease.getContractId())) {
+                RentContract contract = rentContractMapper.selectById(lease.getContractId());
+                if (contract != null && !"terminated".equalsIgnoreCase(contract.getStatus())) {
+                    contract.setStatus("expired");
+                    contract.setUpdatedAt(now);
+                    rentContractMapper.updateById(contract);
+                }
+            }
+
+            House house = houseService.getById(lease.getHouseId());
+            if (house != null && !"offline".equalsIgnoreCase(house.getStatus())) {
+                house.setStatus("offline");
+                house.setUpdatedAt(now);
+                houseService.updateById(house);
+            }
+
+            lockPermissionService.revokeTenantEKeyForLease(lease.getId());
+            lockPasscodePermissionService.revokePasscodesForLease(lease.getId());
+        }
+        return dueLeases.size();
     }
 
     /** 按门锁时区格式化期限密码时刻。 */
