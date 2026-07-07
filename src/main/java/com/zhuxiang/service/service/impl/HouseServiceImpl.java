@@ -15,6 +15,7 @@ import com.zhuxiang.service.entity.House;
 import com.zhuxiang.service.entity.HouseFacility;
 import com.zhuxiang.service.entity.HouseFacilityRelation;
 import com.zhuxiang.service.entity.HouseImage;
+import com.zhuxiang.service.entity.HouseLocation;
 import com.zhuxiang.service.entity.HouseTag;
 import com.zhuxiang.service.entity.HouseTagRelation;
 import com.zhuxiang.service.entity.Landlord;
@@ -23,6 +24,7 @@ import com.zhuxiang.service.entity.SmartLock;
 import com.zhuxiang.service.entity.RentOrder;
 import com.zhuxiang.service.entity.UserFavoriteHouse;
 import com.zhuxiang.service.entity.User;
+import com.zhuxiang.service.mapper.HouseLocationMapper;
 import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.mapper.RentOrderMapper;
 import com.zhuxiang.service.mapper.UserFavoriteHouseMapper;
@@ -87,6 +89,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     private final RentOrderMapper rentOrderMapper;
     private final UserService userService;
     private final FileRecordService fileRecordService;
+    private final HouseLocationMapper houseLocationMapper;
 
     public HouseServiceImpl(
             CommunityService communityService,
@@ -102,7 +105,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             UserFavoriteHouseMapper favoriteHouseMapper,
             RentOrderMapper rentOrderMapper,
             UserService userService,
-            FileRecordService fileRecordService
+            FileRecordService fileRecordService,
+            HouseLocationMapper houseLocationMapper
     ) {
         this.communityService = communityService;
         this.imageService = imageService;
@@ -118,6 +122,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         this.rentOrderMapper = rentOrderMapper;
         this.userService = userService;
         this.fileRecordService = fileRecordService;
+        this.houseLocationMapper = houseLocationMapper;
     }
 
     /**
@@ -706,7 +711,10 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         saveHouseImages(house.getId(), coverImage, imageUrls, now);
         saveHouseFacilityRelations(house.getId(), facilityIds);
         saveHouseTagRelations(house.getId(), tagIds);
-        return toAdminHouseView(house, null);
+        saveHouseLocation(house.getId(), request.longitude(), request.latitude(),
+                request.province(), request.city(), request.district(),
+                request.township(), request.neighborhood(), request.address(), now);
+        return toAdminHouseView(house, null, findHouseLocation(house.getId()));
     }
 
     /** 校验管理端角色。 */
@@ -785,6 +793,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
 
     /** 创建房源前校验全部设施存在且已启用。 */
     private void validateEnabledFacilities(List<String> facilityIds) {
+        if (facilityIds.isEmpty()) {
+            return;
+        }
         Set<String> validIds = facilityService.list(
                         Wrappers.<HouseFacility>lambdaQuery()
                                 .in(HouseFacility::getId, facilityIds)
@@ -802,6 +813,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
 
     /** 创建房源前校验全部标签存在且已启用。 */
     private void validateEnabledTags(List<String> tagIds) {
+        if (tagIds.isEmpty()) {
+            return;
+        }
         Set<String> validIds = tagService.list(
                         Wrappers.<HouseTag>lambdaQuery()
                                 .in(HouseTag::getId, tagIds)
@@ -829,6 +843,67 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         if (!facilityRelationService.saveBatch(relations)) {
             throw new IllegalStateException("房源设施关联保存失败");
         }
+    }
+
+    /** 若请求传入了坐标，则在事务中保存前端传入的完整位置信息。 */
+    private void saveHouseLocation(
+            String houseId,
+            BigDecimal longitude,
+            BigDecimal latitude,
+            String province,
+            String city,
+            String district,
+            String township,
+            String neighborhood,
+            String address,
+            LocalDateTime createdAt
+    ) {
+        if (longitude == null || latitude == null) {
+            return;
+        }
+        HouseLocation location = new HouseLocation();
+        location.setId(UUID.randomUUID().toString());
+        location.setHouseId(houseId);
+        location.setLongitude(longitude);
+        location.setLatitude(latitude);
+        location.setProvince(province == null ? "" : province);
+        location.setCity(city == null ? "" : city);
+        location.setDistrict(district == null ? "" : district);
+        location.setTownship(township == null ? "" : township);
+        location.setNeighborhood(neighborhood == null ? "" : neighborhood);
+        location.setAddress(address == null ? "" : address);
+        location.setCreatedAt(createdAt);
+        location.setUpdatedAt(createdAt);
+        houseLocationMapper.insert(location);
+    }
+
+    /** 查询房源位置信息，无记录时返回 null。 */
+    private HouseLocation findHouseLocation(String houseId) {
+        return houseLocationMapper.selectOne(
+                Wrappers.<HouseLocation>lambdaQuery().eq(HouseLocation::getHouseId, houseId),
+                false
+        );
+    }
+
+    /** 更新房源位置信息：删除旧记录后写入前端传入的完整位置信息。 */
+    private void updateHouseLocation(
+            String houseId,
+            BigDecimal longitude,
+            BigDecimal latitude,
+            String province,
+            String city,
+            String district,
+            String township,
+            String neighborhood,
+            String address,
+            LocalDateTime now
+    ) {
+        houseLocationMapper.delete(
+                com.baomidou.mybatisplus.core.toolkit.Wrappers.<HouseLocation>lambdaQuery()
+                        .eq(HouseLocation::getHouseId, houseId)
+        );
+        saveHouseLocation(houseId, longitude, latitude, province, city, district,
+                township, neighborhood, address, now);
     }
 
     /** 在房源创建事务中保存标签关联。 */
@@ -860,7 +935,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setStatus("available");
         house.setUpdatedAt(LocalDateTime.now());
         updateById(house);
-        return toAdminHouseView(house, null);
+        return toAdminHouseView(house, null, findHouseLocation(house.getId()));
     }
 
     /**
@@ -881,7 +956,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setStatus("offline");
         house.setUpdatedAt(LocalDateTime.now());
         updateById(house);
-        return toAdminHouseView(house, null);
+        return toAdminHouseView(house, null, findHouseLocation(house.getId()));
     }
 
     /**
@@ -899,7 +974,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setStatus("available");
         house.setUpdatedAt(LocalDateTime.now());
         updateById(house);
-        return toAdminHouseView(house, smartLockMapper.selectLatestByHouseId(houseId));
+        return toAdminHouseView(house, smartLockMapper.selectLatestByHouseId(houseId), findHouseLocation(houseId));
     }
 
     /**
@@ -1013,9 +1088,14 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             appendHouseImages(houseId, coverImage, requestedUrls, operatorId, now);
             house.setCoverImage(coverImage);
         }
+        if (request.longitude() != null && request.latitude() != null) {
+            updateHouseLocation(houseId, request.longitude(), request.latitude(),
+                    request.province(), request.city(), request.district(),
+                    request.township(), request.neighborhood(), request.address(), now);
+        }
         house.setUpdatedAt(now);
         updateById(house);
-        return toAdminHouseView(house, null);
+        return toAdminHouseView(house, null, findHouseLocation(house.getId()));
     }
 
     /** 规范化修改请求中的设施或标签 ID；空数组表示清空关联。 */
@@ -1112,8 +1192,14 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         Map<String, SmartLock> smartLockMap = smartLockMapper.selectLatestByHouseIds(houseIds)
                 .stream()
                 .collect(Collectors.toMap(SmartLock::getHouseId, lock -> lock, (latest, ignored) -> latest));
+        Map<String, HouseLocation> locationMap = houseLocationMapper.selectList(
+                        Wrappers.<HouseLocation>lambdaQuery().in(HouseLocation::getHouseId, houseIds)
+                ).stream()
+                .collect(Collectors.toMap(HouseLocation::getHouseId, loc -> loc, (latest, ignored) -> latest));
         return houses.stream()
-                .map(house -> toAdminHouseView(house, smartLockMap.get(house.getId())))
+                .map(house -> toAdminHouseView(house,
+                        smartLockMap.get(house.getId()),
+                        locationMap.get(house.getId())))
                 .toList();
     }
 
@@ -1127,13 +1213,14 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             throw BusinessException.notFound("房源不存在");
         }
         SmartLock smartLock = smartLockMapper.selectLatestByHouseId(houseId);
-        return toAdminHouseView(house, smartLock);
+        return toAdminHouseView(house, smartLock, findHouseLocation(houseId));
     }
 
     /**
      * 将房源实体及门锁信息转换为管理端视图。
      */
-    private AdminHouseDtos.AdminHouseView toAdminHouseView(House house, SmartLock smartLock) {
+    private AdminHouseDtos.AdminHouseView toAdminHouseView(House house, SmartLock smartLock,
+                                                          HouseLocation houseLocation) {
         AdminHouseDtos.LockDeviceView lockDeviceView = null;
         boolean smartLockBound = StringUtils.hasText(house.getSmartLockId())
                 || (StringUtils.hasText(house.getLockBindStatus())
@@ -1181,7 +1268,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getViewCount(),
                 house.getFavoriteCount(),
                 house.getCreatedAt(),
-                house.getUpdatedAt()
+                house.getUpdatedAt(),
+                houseLocation == null ? null : houseLocation.getLongitude(),
+                houseLocation == null ? null : houseLocation.getLatitude()
         );
     }
 
