@@ -45,5 +45,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         String location = Path.of(uploadDirectory).toAbsolutePath().normalize().toUri().toString();
         registry.addResourceHandler("/uploads/**").addResourceLocations(location);
+        registry.addResourceHandler("/files/immersive/**")
+                .addResourceLocations("file:" + uploadDirectory + "/immersive/");
     }
 }

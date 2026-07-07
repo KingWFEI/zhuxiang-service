@@ -44,8 +44,33 @@
       "Bash(git reset *)",
       "Bash(git fetch *)",
       "Bash(git merge *)",
+<<<<<<< Updated upstream
       "Read(//d/java/**)",
       "Read(//c/Program Files/**)"
+=======
+      "Bash(mvn dependency:tree -Dincludes=com.baomidou:*)",
+      "Read(//c/Users/86132/.m2/repository/com/baomidou/mybatis-plus-spring-boot3-starter/**)",
+      "Read(//c/Users/86132/.m2/repository/com/baomidou/**)",
+      "Bash(jar tf *)",
+      "Bash(cd /tmp)",
+      "Bash(jar xf *)",
+      "Bash(javap -p com/baomidou/mybatisplus/extension/plugins/MybatisPlusInterceptor.class)",
+      "Bash(javap -p com/baomidou/mybatisplus/core/annotations/TableField.class)",
+      "Read(//e/Project/immersive-tour-service/**)",
+      "Read(//e/Project/**)",
+      "Bash(ls -d /e/*/immersive*)",
+      "Bash(git clean *)",
+      "Bash(docker --version)",
+      "Bash(mvn spring-boot:run -pl .)",
+      "Bash(kill %1)",
+      "Read(//tmp/**)",
+      "Bash(mvn flyway:repair -Dflyway.url=jdbc:mysql://localhost:3306/zhuxiang_app -Dflyway.user=root -Dflyway.password=132135)",
+      "Bash(xargs grep -l \"immersive-api\\\\|baseURL\\\\|BASE_URL\\\\|apiPrefix\\\\|API_BASE\")",
+      "Bash(mv V20260707_01__create_immersive_tables.sql V20260708_01__create_immersive_tables.sql)",
+      "Bash(mv V20260707_02__fix_immersive_user_id_columns.sql V20260708_02__fix_immersive_user_id_columns.sql)",
+      "Bash(mv V20260708_01__create_immersive_tables.sql V20260707_03__create_immersive_tables.sql)",
+      "Bash(mv V20260708_02__fix_immersive_user_id_columns.sql V20260707_04__fix_immersive_user_id_columns.sql)"
+>>>>>>> Stashed changes
     ]
   }
 }
