@@ -9,6 +9,7 @@ import java.util.List;
 
 public interface ImmersiveImageService {
     List<ImmersiveImageResponse> uploadImages(String sceneId, List<MultipartFile> files, String projectionType, String userId);
+    ImmersiveImageResponse getImage(String imageId);
     List<ImmersiveImageResponse> listImages(String sceneId);
     void sortImages(String sceneId, SortImagesRequest request, String userId);
     void setEntryImage(String sceneId, SetEntryImageRequest request, String userId);
