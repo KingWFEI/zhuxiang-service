@@ -16,8 +16,8 @@ spring:
     locations: classpath:db/migration
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 5MB
+      max-file-size: 20MB
+      max-request-size: 20MB
 
 server:
   port: ${SERVER_PORT:8000}
@@ -73,6 +73,9 @@ app:
     expiration-scan-ms: ${LOCK_PASSCODE_EXPIRATION_SCAN_MS:300000}
   lease:
     expiration-scan-ms: ${LEASE_EXPIRATION_SCAN_MS:300000}
+  agent:
+    base-url: ${AGENT_BASE_URL:http://localhost:8101}
+    api-key: ${AGENT_API_KEY:change-this-agent-api-key}
   auto-unlock:
     enabled: ${AUTO_UNLOCK_ENABLED:true}
 #    信号强度阈值
@@ -86,6 +89,9 @@ app:
     phone: ${SUPER_ADMIN_PHONE:13800000000}
     password: ${SUPER_ADMIN_PASSWORD:admin123}
     nickname: ${SUPER_ADMIN_NICKNAME:超级管理员}
+
+amap:
+  key: ${AMAP_KEY:34467f081797ade37c2eb007a8d0dbdc}
 
 ttlock:
   client-id: ${TTLOCK_CLIENT_ID:cb5534587e624eb59a9244cc14b8e281}

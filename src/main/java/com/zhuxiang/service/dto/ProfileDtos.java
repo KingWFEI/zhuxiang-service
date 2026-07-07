@@ -57,6 +57,7 @@ public final class ProfileDtos {
             String building,
             String unit,
             String room,
+            String address,
             String leaseId,
             String leaseStatus,
             String lockId,

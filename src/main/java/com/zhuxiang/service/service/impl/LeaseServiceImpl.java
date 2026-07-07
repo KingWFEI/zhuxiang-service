@@ -98,6 +98,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 house.getBuilding(),
                 house.getUnit(),
                 house.getRoom(),
+                house.getAddress() != null ? house.getAddress() : "",
                 lease.getId(),
                 lease.getStatus(),
                 lock == null ? null : lock.getId(),
@@ -345,15 +346,14 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 && StringUtils.hasText(smartLock.getLockMac())
                 && StringUtils.hasText(smartLock.getLockData())
                 && Set.of("BOUND", "PLATFORM_BOUND").contains(smartLock.getStatus());
-        String roomName = (house.getBuilding() != null ? house.getBuilding() : "")
-                + (house.getUnit() != null ? house.getUnit() : "")
-                + (house.getRoom() != null ? house.getRoom() : "");
         return new LeaseDtos.UnlockDataResponse(
                 lease.getId(),
                 lease.getStatus(),
                 true,
                 smartLock.getId(),
-                roomName,
+                house.getBuilding() != null ? house.getBuilding() : "",
+                house.getUnit() != null ? house.getUnit() : "",
+                house.getRoom() != null ? house.getRoom() : "",
                 house.getTitle(),
                 smartLock.getLockName(),
                 smartLock.getLockMac(),
@@ -381,6 +381,8 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 lease.getId(),
                 lease.getStatus(),
                 false,
+                null,
+                null,
                 null,
                 null,
                 null,

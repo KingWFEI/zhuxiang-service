@@ -1,10 +1,13 @@
 package com.zhuxiang.service.service.impl;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhuxiang.service.entity.HouseTag;
 import com.zhuxiang.service.service.HouseTagService;
 import com.zhuxiang.service.mapper.HouseTagMapper;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
 * @author king-wang
@@ -14,6 +17,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class HouseTagServiceImpl extends ServiceImpl<HouseTagMapper, HouseTag>
     implements HouseTagService{
+
+    @Override
+    public List<HouseTag> getEnabledTags() {
+        return list(
+                Wrappers.<HouseTag>lambdaQuery()
+                        .eq(HouseTag::getEnabled, 1)
+                        .orderByAsc(HouseTag::getSortOrder)
+        );
+    }
 
 }
 

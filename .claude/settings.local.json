@@ -43,7 +43,9 @@
       "Bash(git checkout *)",
       "Bash(git reset *)",
       "Bash(git fetch *)",
-      "Bash(git merge *)"
+      "Bash(git merge *)",
+      "Read(//d/java/**)",
+      "Read(//c/Program Files/**)"
     ]
   }
 }

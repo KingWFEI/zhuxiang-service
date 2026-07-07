@@ -32,6 +32,13 @@ public final class AdminHouseDtos {
             @NotBlank(message = "小区ID不能为空")
             @Schema(description = "小区 ID", example = "community_001") String communityId,
             @Schema(description = "详细地址", example = "天府大道中段 1 号") String address,
+            @Schema(description = "经度", example = "106.60") BigDecimal longitude,
+            @Schema(description = "纬度", example = "29.53") BigDecimal latitude,
+            @Schema(description = "省/直辖市", example = "重庆市") String province,
+            @Schema(description = "城市", example = "重庆市") String city,
+            @Schema(description = "区县", example = "南岸区") String district,
+            @Schema(description = "街道/镇", example = "南山街道") String township,
+            @Schema(description = "社区/小区名称", example = "重庆邮电大学") String neighborhood,
             @Schema(description = "楼栋", example = "2栋") String building,
             @Schema(description = "单元", example = "1单元") String unit,
             @Schema(description = "房号", example = "1801") String room,
@@ -106,7 +113,9 @@ public final class AdminHouseDtos {
             Integer viewCount,
             Integer favoriteCount,
             LocalDateTime createdAt,
-            LocalDateTime updatedAt
+            LocalDateTime updatedAt,
+            BigDecimal longitude,
+            BigDecimal latitude
     ) {
     }
 
@@ -119,6 +128,13 @@ public final class AdminHouseDtos {
             @Schema(description = "区域或商圈展示位置", example = "高新区金融城") String location,
             @Schema(description = "小区 ID", example = "community_001") String communityId,
             @Schema(description = "详细地址", example = "天府大道中段 1 号") String address,
+            @Schema(description = "经度", example = "106.60") BigDecimal longitude,
+            @Schema(description = "纬度", example = "29.53") BigDecimal latitude,
+            @Schema(description = "省/直辖市", example = "重庆市") String province,
+            @Schema(description = "城市", example = "重庆市") String city,
+            @Schema(description = "区县", example = "南岸区") String district,
+            @Schema(description = "街道/镇", example = "南山街道") String township,
+            @Schema(description = "社区/小区名称", example = "重庆邮电大学") String neighborhood,
             @Schema(description = "楼栋", example = "2栋") String building,
             @Schema(description = "单元", example = "1单元") String unit,
             @Schema(description = "房号", example = "1801") String room,

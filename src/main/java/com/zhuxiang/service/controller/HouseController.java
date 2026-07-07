@@ -6,6 +6,7 @@ import com.zhuxiang.service.common.ApiResponse;
 import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.HouseDtos;
 import com.zhuxiang.service.service.HouseService;
+import com.zhuxiang.service.service.HouseTagService;
 import com.zhuxiang.service.service.UserFavoriteHouseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -36,13 +37,16 @@ public class HouseController {
 
     private final HouseService houseService;
     private final UserFavoriteHouseService favoriteHouseService;
+    private final HouseTagService houseTagService;
 
     public HouseController(
             HouseService houseService,
-            UserFavoriteHouseService favoriteHouseService
+            UserFavoriteHouseService favoriteHouseService,
+            HouseTagService houseTagService
     ) {
         this.houseService = houseService;
         this.favoriteHouseService = favoriteHouseService;
+        this.houseTagService = houseTagService;
     }
 
     /**
@@ -96,6 +100,19 @@ public class HouseController {
     @Operation(summary = "获取筛选选项", description = "返回区域、价格区间、户型、设施和排序选项。")
     public ApiResponse<HouseDtos.FilterOptions> filterOptions() {
         return ApiResponse.success(houseService.getFilterOptions());
+    }
+
+    /**
+     * 获取所有已启用的房源标签。
+     */
+    @GetMapping("/tags")
+    @Operation(summary = "获取房源标签", description = "返回所有已启用的房源标签列表，按排序值升序排列。")
+    public ApiResponse<List<HouseDtos.Option>> tags() {
+        return ApiResponse.success(
+                houseTagService.getEnabledTags().stream()
+                        .map(tag -> new HouseDtos.Option(tag.getName(), tag.getId()))
+                        .toList()
+        );
     }
 
     /**
