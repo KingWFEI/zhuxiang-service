@@ -45,6 +45,12 @@ public class AdminImmersiveImageController {
         return ApiResponse.success(imageService.listImages(sceneId));
     }
 
+    @GetMapping("/immersive-images/{imageId}")
+    @Operation(summary = "查询单张图片")
+    public ApiResponse<ImmersiveImageResponse> getImage(@PathVariable String imageId) {
+        return ApiResponse.success(imageService.getImage(imageId));
+    }
+
     @PutMapping("/immersive-scenes/{sceneId}/images/sort")
     @Operation(summary = "图片排序")
     public ApiResponse<Void> sortImages(@PathVariable String sceneId,
