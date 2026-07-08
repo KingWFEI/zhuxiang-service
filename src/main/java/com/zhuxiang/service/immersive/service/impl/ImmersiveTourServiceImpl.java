@@ -288,6 +288,8 @@ public class ImmersiveTourServiceImpl implements ImmersiveTourService {
     public AvailabilityResponse getAvailability(String houseId) {
         AvailabilityResponse resp = new AvailabilityResponse();
         resp.setAvailable(false);
+        System.out.println("appProperties.isEnabled()");
+        System.out.println(appProperties.isEnabled());
         if (!appProperties.isEnabled()) return resp;
         if (!isHouseVisible(houseId)) return resp;
         ImmersiveTourEntity tour = findPublishedTour(houseId);
@@ -315,9 +317,7 @@ public class ImmersiveTourServiceImpl implements ImmersiveTourService {
 
     // ============ 房源可见性判断，与原项目 GET /api/houses/{houseId} 一致 ============
     private boolean isHouseVisible(String houseId) {
-        House house = houseService.getById(houseId);
-        if (house == null) return false;
-        return "available".equals(house.getStatus()) || "reserved".equals(house.getStatus());
+        return houseService.getById(houseId) != null;
     }
 
     private ImmersiveTourEntity findPublishedTour(String houseId) {
