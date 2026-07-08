@@ -367,11 +367,7 @@ public class ImmersiveTourServiceImpl implements ImmersiveTourService {
                     .collect(Collectors.groupingBy(ImmersiveHotspotResponse::getSourceImageId));
             for (ImmersiveSceneResponse sceneResp : sceneResponses) {
                 for (ImmersiveImageResponse img : sceneResp.getImages()) {
-                    if (userView && (img.getEntry() == null || !img.getEntry())) {
-                        img.setHotspots(List.of());
-                    } else {
-                        img.setHotspots(hotspotsByImage.getOrDefault(img.getImageId(), List.of()));
-                    }
+                    img.setHotspots(hotspotsByImage.getOrDefault(img.getImageId(), List.of()));
                 }
             }
         }

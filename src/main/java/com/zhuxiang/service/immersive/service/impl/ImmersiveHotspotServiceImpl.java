@@ -97,7 +97,9 @@ public class ImmersiveHotspotServiceImpl implements ImmersiveHotspotService {
     public List<ImmersiveHotspotResponse> listByImages(List<String> imageIds) {
         if (imageIds == null || imageIds.isEmpty()) return Collections.emptyList();
         List<ImmersiveImageHotspotEntity> hotspots = hotspotMapper.selectList(
-                new LambdaQueryWrapper<ImmersiveImageHotspotEntity>().in(ImmersiveImageHotspotEntity::getSourceImageId, imageIds));
+                new LambdaQueryWrapper<ImmersiveImageHotspotEntity>()
+                        .in(ImmersiveImageHotspotEntity::getSourceImageId, imageIds)
+                        .orderByAsc(ImmersiveImageHotspotEntity::getCreatedAt));
         if (hotspots.isEmpty()) return Collections.emptyList();
         Set<String> targetSceneIds = hotspots.stream().map(ImmersiveImageHotspotEntity::getTargetSceneId).collect(Collectors.toSet());
         Set<String> targetImageIds = hotspots.stream().map(ImmersiveImageHotspotEntity::getTargetImageId)
