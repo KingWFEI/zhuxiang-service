@@ -14,9 +14,8 @@ import com.zhuxiang.service.immersive.enums.ProjectionType;
 import com.zhuxiang.service.immersive.enums.TourStatus;
 import com.zhuxiang.service.immersive.mapper.*;
 import com.zhuxiang.service.immersive.service.ImmersiveImageService;
-import com.zhuxiang.service.immersive.storage.FileStorageService;
 import com.zhuxiang.service.immersive.storage.FileValidationUtil;
-import com.zhuxiang.service.immersive.storage.StoredFile;
+import com.zhuxiang.service.service.ObjectStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.UUID;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -43,15 +43,15 @@ public class ImmersiveImageServiceImpl implements ImmersiveImageService {
     private final ImmersiveImageConverter imageConverter;
     private final IdGenerator idGenerator;
     private final ImmersiveAppProperties appProperties;
-    private final FileStorageService fileStorageService;
+    private final ObjectStorageService objectStorageService;
 
     public ImmersiveImageServiceImpl(ImmersiveTourMapper tourMapper, ImmersiveSceneMapper sceneMapper,
                                       ImmersiveSceneImageMapper imageMapper, ImmersiveImageHotspotMapper hotspotMapper,
                                       ImmersiveImageConverter imageConverter, IdGenerator idGenerator,
-                                      ImmersiveAppProperties appProperties, FileStorageService fileStorageService) {
+                                      ImmersiveAppProperties appProperties, ObjectStorageService objectStorageService) {
         this.tourMapper = tourMapper; this.sceneMapper = sceneMapper; this.imageMapper = imageMapper;
         this.hotspotMapper = hotspotMapper; this.imageConverter = imageConverter; this.idGenerator = idGenerator;
-        this.appProperties = appProperties; this.fileStorageService = fileStorageService;
+        this.appProperties = appProperties; this.objectStorageService = objectStorageService;
     }
 
     @Override
@@ -73,32 +73,40 @@ public class ImmersiveImageServiceImpl implements ImmersiveImageService {
             validateImageFile(file);
             imageMetas.add(readImageMeta(file, projType));
         }
-        String directory = "immersive/" + tour.getHouseId() + "/" + tour.getId() + "/scenes/" + sceneId;
-        List<SavedFile> savedFiles = new ArrayList<>();
-        try { for (MultipartFile file : files) savedFiles.add(new SavedFile(fileStorageService.upload(file, directory), file)); }
-        catch (Exception e) { for (SavedFile sf : savedFiles) fileStorageService.delete(sf.storedFile.getUrl()); throw new RuntimeException("文件保存失败: " + e.getMessage(), e); }
+        List<String> savedUrls = new ArrayList<>();
+        try {
+            for (MultipartFile file : files) {
+                savedUrls.add(saveFile(file, tour.getHouseId(), tour.getId(), sceneId));
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("文件存储失败: " + e.getMessage(), e);
+        }
         boolean hasEntryImage = imageMapper.selectCount(new LambdaQueryWrapper<ImmersiveSceneImageEntity>()
                 .eq(ImmersiveSceneImageEntity::getSceneId, sceneId).eq(ImmersiveSceneImageEntity::getIsEntry, 1)) > 0;
         int maxSort = getMaxSortOrder(sceneId);
-        List<ImmersiveImageResponse> results;
-        try {
-            results = new ArrayList<>();
-            for (int i = 0; i < savedFiles.size(); i++) {
-                SavedFile sf = savedFiles.get(i);
-                String imageId = idGenerator.nextImageId();
-                boolean isEntry = !hasEntryImage && i == 0;
-                ImmersiveSceneImageEntity entity = new ImmersiveSceneImageEntity();
-                entity.setId(imageId); entity.setSceneId(sceneId); entity.setImageUrl(sf.storedFile.getUrl());
-                entity.setSortOrder(maxSort + i + 1); entity.setIsEntry(isEntry ? 1 : 0); entity.setEnabled(1);
-                entity.setProjectionType(projType);
-                ImageMeta meta = imageMetas.get(i);
-                if (projType == ProjectionType.EQUIRECTANGULAR) { entity.setImageWidth(meta.width); entity.setImageHeight(meta.height); }
-                imageMapper.insert(entity);
-                if (isEntry) { scene.setEntryImageId(imageId); sceneMapper.updateById(scene); }
-                results.add(imageConverter.toResponse(entity));
-            }
-        } catch (Exception e) { for (SavedFile sf : savedFiles) fileStorageService.delete(sf.storedFile.getUrl()); throw new RuntimeException("图片记录保存失败", e); }
+        List<ImmersiveImageResponse> results = new ArrayList<>();
+        for (int i = 0; i < savedUrls.size(); i++) {
+            String imageId = idGenerator.nextImageId();
+            boolean isEntry = !hasEntryImage && i == 0;
+            ImmersiveSceneImageEntity entity = new ImmersiveSceneImageEntity();
+            entity.setId(imageId); entity.setSceneId(sceneId); entity.setImageUrl(savedUrls.get(i));
+            entity.setSortOrder(maxSort + i + 1); entity.setIsEntry(isEntry ? 1 : 0); entity.setEnabled(1);
+            entity.setProjectionType(projType);
+            ImageMeta meta = imageMetas.get(i);
+            if (projType == ProjectionType.EQUIRECTANGULAR) { entity.setImageWidth(meta.width); entity.setImageHeight(meta.height); }
+            imageMapper.insert(entity);
+            if (isEntry) { scene.setEntryImageId(imageId); sceneMapper.updateById(scene); }
+            results.add(imageConverter.toResponse(entity));
+        }
         return results;
+    }
+
+    @Override
+    public ImmersiveImageResponse getImage(String imageId) {
+        if (!appProperties.isEnabled()) throw ImmersiveErrors.featureDisabled();
+        ImmersiveSceneImageEntity entity = imageMapper.selectById(imageId);
+        if (entity == null) throw ImmersiveErrors.imageNotFound();
+        return imageConverter.toResponse(entity);
     }
 
     @Override
@@ -157,7 +165,12 @@ public class ImmersiveImageServiceImpl implements ImmersiveImageService {
         if (scene == null) throw ImmersiveErrors.sceneNotFound();
         validateSceneTourEditable(scene);
         if (image.getIsEntry() == 1) {
-            if (!force) throw ImmersiveErrors.conflict("入口图片不能直接删除，请先设置其他入口图片或使用强制删除");
+            long imageCount = imageMapper.selectCount(new LambdaQueryWrapper<ImmersiveSceneImageEntity>()
+                    .eq(ImmersiveSceneImageEntity::getSceneId, scene.getId()));
+            boolean isLastImage = imageCount <= 1;
+            if (!force && !isLastImage) {
+                throw ImmersiveErrors.conflict("入口图片不能直接删除，请先设置其他入口图片或使用强制删除");
+            }
             scene.setEntryImageId(null); sceneMapper.updateById(scene);
         }
         Long hotspotCount = hotspotMapper.selectCount(new LambdaQueryWrapper<ImmersiveImageHotspotEntity>()
@@ -175,9 +188,7 @@ public class ImmersiveImageServiceImpl implements ImmersiveImageService {
                 ref.setTargetImageId(null); hotspotMapper.updateById(ref);
             }
         }
-        String imageUrl = image.getImageUrl();
         imageMapper.deleteById(imageId);
-        if (StringUtils.hasText(imageUrl)) fileStorageService.delete(imageUrl);
     }
 
     @Override @Transactional(rollbackFor = Exception.class)
@@ -200,19 +211,27 @@ public class ImmersiveImageServiceImpl implements ImmersiveImageService {
         if (tour == null) throw ImmersiveErrors.tourNotFound();
         if (tour.getStatus() == TourStatus.PUBLISHED) throw ImmersiveErrors.tourStatusNotAllowed("已发布项目不能修改户型图");
         validateImageFile(file);
-        String directory = "immersive/" + tour.getHouseId() + "/" + tourId + "/floor-plan";
-        StoredFile stored;
-        try { stored = fileStorageService.upload(file, directory); }
-        catch (Exception e) { throw new RuntimeException("户型图文件保存失败", e); }
-        String newUrl = stored.getUrl(), oldUrl = tour.getFloorPlanUrl();
-        tour.setFloorPlanUrl(newUrl); tour.setUpdatedBy(userId); tourMapper.updateById(tour);
-        if (StringUtils.hasText(oldUrl) && fileStorageService.isLocalUrl(oldUrl)) fileStorageService.delete(oldUrl);
-        return newUrl;
+        String savedUrl = saveFile(file, tour.getHouseId(), tourId, "floor-plan");
+        tour.setFloorPlanUrl(savedUrl); tour.setUpdatedBy(userId); tourMapper.updateById(tour);
+        return savedUrl;
     }
 
     // --- helpers ---
     private static class ImageMeta { final int width, height; ImageMeta(int w, int h) { width = w; height = h; } }
-    private static class SavedFile { final StoredFile storedFile; final MultipartFile original; SavedFile(StoredFile sf, MultipartFile o) { storedFile = sf; original = o; } }
+
+    private String saveFile(MultipartFile file, String houseId, String tourId, String subPath) {
+        String ext = "";
+        String originalName = file.getOriginalFilename();
+        if (originalName != null && originalName.contains(".")) {
+            ext = originalName.substring(originalName.lastIndexOf('.'));
+        }
+        String objectKey = "immersive/" + houseId + "/" + tourId + "/" + subPath + "/" + UUID.randomUUID() + ext;
+        try (java.io.InputStream is = file.getInputStream()) {
+            return objectStorageService.store(objectKey, is, file.getSize(), file.getContentType());
+        } catch (java.io.IOException e) {
+            throw new RuntimeException("文件存储失败: " + e.getMessage(), e);
+        }
+    }
 
     private ImageMeta readImageMeta(MultipartFile file, ProjectionType projType) {
         if (projType != ProjectionType.EQUIRECTANGULAR) return new ImageMeta(0, 0);

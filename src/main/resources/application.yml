@@ -106,9 +106,3 @@ ttlock:
 features:
   immersive-tour:
     enabled: ${FEATURE_IMMERSIVE_TOUR_ENABLED:true}
-
-immersive:
-  storage:
-    local:
-      root-path: ${IMMERSIVE_STORAGE_ROOT_PATH:./uploads}
-      public-base-url: ${IMMERSIVE_STORAGE_PUBLIC_BASE_URL:http://localhost:8000/api/files/immersive}
