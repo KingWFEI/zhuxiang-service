@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -134,8 +135,8 @@ public class ProfileController {
      * 获取当前用户正在履行的租约。
      */
     @GetMapping("/current-home")
-    @Operation(summary = "获取当前住所", description = "返回当前生效租约对应的房源、房间和门锁摘要；无生效租约时数据可能为空。")
-    public ApiResponse<ProfileDtos.CurrentHome> currentHome(HttpServletRequest request) {
+    @Operation(summary = "获取当前住所列表", description = "返回当前所有生效租约对应的房源、房间和门锁摘要；无生效租约时返回空列表。")
+    public ApiResponse<List<ProfileDtos.CurrentHome>> currentHome(HttpServletRequest request) {
         return ApiResponse.success(leaseService.getCurrentHome(CurrentUser.id(request)));
     }
 

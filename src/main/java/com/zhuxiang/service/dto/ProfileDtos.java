@@ -61,7 +61,8 @@ public final class ProfileDtos {
             String leaseId,
             String leaseStatus,
             String lockId,
-            String lockStatus
+            String lockStatus,
+            String coverImage
     ) {
     }
 

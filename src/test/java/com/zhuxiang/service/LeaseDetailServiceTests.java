@@ -22,6 +22,7 @@ import com.zhuxiang.service.service.LockPermissionService;
 import com.zhuxiang.service.service.RentBillService;
 import com.zhuxiang.service.service.impl.LeaseServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -54,6 +55,7 @@ class LeaseDetailServiceTests {
     private final LandlordService landlordService = mock(LandlordService.class);
     private final LeaseMapper leaseMapper = mock(LeaseMapper.class);
     private final AutoUnlockProperties autoUnlockProperties = new AutoUnlockProperties();
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private LeaseServiceImpl service;
 
     @BeforeEach
@@ -61,7 +63,7 @@ class LeaseDetailServiceTests {
         service = new LeaseServiceImpl(
                 houseService, communityService, smartLockMapper, lockPermissionService,
                 passcodePermissionService, contractMapper, billService, landlordService,
-                autoUnlockProperties
+                autoUnlockProperties, eventPublisher
         );
         ReflectionTestUtils.setField(service, "baseMapper", leaseMapper);
     }

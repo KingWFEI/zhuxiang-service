@@ -106,4 +106,9 @@ public interface HouseService extends IService<House> {
             AdminHouseDtos.UpdateHouseRequest request,
             String operatorId
     );
+
+    /**
+     * 获取热门小区列表，基于社区房源数量聚合。
+     */
+    List<HouseDtos.HotCommunityItem> getHotCommunities(int limit);
 }

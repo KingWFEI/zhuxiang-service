@@ -422,6 +422,17 @@ public class LeaseTerminationServiceImpl
 
             lockPermissionService.revokeTenantEKeyForLease(lease.getId());
             lockPasscodePermissionService.revokePasscodesForLease(lease.getId());
+
+            // 取消租约下所有未付账单（scheduled / pending / overdue → cancelled）
+            List<RentBill> unpaidBills = rentBillService.list(
+                    Wrappers.<RentBill>lambdaQuery()
+                            .eq(RentBill::getLeaseId, lease.getId())
+                            .in(RentBill::getStatus, "scheduled", "pending", "overdue"));
+            for (RentBill bill : unpaidBills) {
+                bill.setStatus("cancelled");
+                bill.setUpdatedAt(now);
+                rentBillService.updateById(bill);
+            }
         }
 
         if (app.getContractId() != null) {

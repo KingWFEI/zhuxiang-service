@@ -52,6 +52,7 @@ public final class LeaseDtos {
             @Schema(description = "合同 ID") String contractId,
             @Schema(description = "房源 ID") String houseId,
             @Schema(description = "房间名称") String houseName,
+            @Schema(description = "房源封面图片") String houseImageUrl,
             @Schema(description = "房源详细地址") String houseAddress,
             @Schema(description = "房源摘要") String houseSummary,
             @Schema(description = "租客姓名") String tenantName,

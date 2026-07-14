@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.zhuxiang.service.dto.LeaseDtos;
 import com.zhuxiang.service.dto.LeaseLockPasscodeResponse;
 import com.zhuxiang.service.dto.ProfileDtos;
+import java.util.List;
 
 /**
 * @author king-wang
@@ -14,9 +15,9 @@ import com.zhuxiang.service.dto.ProfileDtos;
 public interface LeaseService extends IService<Lease> {
 
     /**
-     * 获取用户当前生效的租约。
+     * 获取用户当前所有生效的租约。
      */
-    ProfileDtos.CurrentHome getCurrentHome(String userId);
+    List<ProfileDtos.CurrentHome> getCurrentHome(String userId);
 
     /**
      * 获取用户当前租约对应的门锁展示信息。
@@ -44,4 +45,7 @@ public interface LeaseService extends IService<Lease> {
 
     /** 批量处理自然到期租约，并将对应房源下架。 */
     int expireDueLeases();
+
+    /** 将到达入住日期的待生效租约切换为生效中，并触发锁权限下发。 */
+    int activatePendingLeases();
 }

@@ -24,6 +24,8 @@ public class RentBill implements Serializable {
 
     private Integer amountPaid;
 
+    private Integer overdueAmount;
+
     private LocalDate dueDate;
 
     private LocalDateTime paidAt;

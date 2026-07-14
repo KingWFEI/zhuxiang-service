@@ -12,6 +12,8 @@ import com.zhuxiang.service.event.LeaseActivatedEvent;
 import com.zhuxiang.service.mapper.RentContractMapper;
 import com.zhuxiang.service.mapper.RentOrderMapper;
 import com.zhuxiang.service.service.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,8 @@ import java.util.*;
 @Service
 public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder>
         implements RentOrderService {
+
+    private static final Logger log = LoggerFactory.getLogger(RentOrderServiceImpl.class);
 
     private static final int SERVICE_FEE = 20000;
 
@@ -42,6 +46,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
     private final FileRecordService fileRecordService;
     private final PaymentRecordService paymentRecordService;
     private final RentBillService rentBillService;
+    private final AlipayService alipayService;
     private final ObjectMapper objectMapper;
 
     public RentOrderServiceImpl(
@@ -53,6 +58,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             FileRecordService fileRecordService,
             PaymentRecordService paymentRecordService,
             RentBillService rentBillService,
+            AlipayService alipayService,
             ObjectMapper objectMapper
     ) {
         this.houseService = houseService;
@@ -62,6 +68,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         this.fileRecordService = fileRecordService;
         this.paymentRecordService = paymentRecordService;
         this.rentBillService = rentBillService;
+        this.alipayService = alipayService;
         this.objectMapper = objectMapper;
         this.landlordService=landlordService;
     }
@@ -317,7 +324,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
 
     @Override
     @Transactional
-    public RentOrderResponse pay(String userId, String orderId, PayRequest request) {
+    public PayResponse pay(String userId, String orderId, PayRequest request) {
         RentOrder order = getOwnedOrder(userId, orderId);
 
         if (!"pendingPayment".equals(order.getStatus())) {
@@ -351,12 +358,34 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         record.setUpdatedAt(LocalDateTime.now());
         paymentRecordService.save(record);
 
+        String channel = request.paymentChannel();
+        String payType = null;
+        String paymentUrl = null;
+
         // mock 渠道自动确认支付（开发阶段），真实渠道等待回调确认
-        if ("mock".equals(request.paymentChannel())) {
+        if ("mock".equals(channel)) {
             confirmPayment(record.getId(), null);
+        } else if ("alipay".equals(channel)) {
+            String subject = "住享租房-" + houseName;
+            try {
+                paymentUrl = alipayService.buildH5PayUrl(record.getPaymentNo(), record.getAmount(), subject);
+                payType = alipayService.getPayType();
+                log.info("支付宝下单成功 paymentNo={} paymentUrl={}", record.getPaymentNo(), paymentUrl);
+            } catch (Exception e) {
+                log.error("支付宝下单失败 paymentNo={}", record.getPaymentNo(), e);
+                // 支付记录保留为 pending，不回滚订单（用户可重新发起支付）
+            }
         }
 
-        return toResponse(order, payHouse);
+        return new PayResponse(
+                orderId,
+                record.getId(),
+                payType,
+                paymentUrl,
+                order.getStatus(),
+                record.getPaymentNo(),
+                record.getAmount()
+        );
     }
 
     @Override
@@ -406,11 +435,15 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         LocalDateTime now = LocalDateTime.now();
 
         // 创建租约（补齐所有履约字段）
+        // 若入住日期还未到，租约状态为待生效（pending），反之为生效中（active）
+        LocalDate today = LocalDate.now();
+        String leaseStatus = order.getStartDate().isAfter(today) ? "pending" : "active";
+
         Lease lease = new Lease();
         lease.setId(UUID.randomUUID().toString());
         lease.setUserId(userId);
         lease.setHouseId(order.getHouseId());
-        lease.setStatus("active");
+        lease.setStatus(leaseStatus);
         lease.setStartDate(order.getStartDate());
         lease.setEndDate(order.getEndDate());
         lease.setLeaseMonths(order.getLeaseMonths());
@@ -449,8 +482,10 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             house.setUpdatedAt(now);
             houseService.updateById(house);
         }
-        // 租约事务提交后自动下发TTLock eKey，平台失败不会回滚租约。
-        eventPublisher.publishEvent(new LeaseActivatedEvent(lease.getId()));
+        // 租约当即生效时事务提交后自动下发TTLock eKey，平台失败不会回滚租约。
+        if ("active".equals(leaseStatus)) {
+            eventPublisher.publishEvent(new LeaseActivatedEvent(lease.getId()));
+        }
         return toResponse(order, house);
     }
 
@@ -515,7 +550,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
                 bill.setStatus("paid");
             } else {
                 bill.setAmountPaid(0);
-                bill.setStatus("pending");
+                // 未来账单预生成但不激活，由定时任务在到期时激活为 pending
+                bill.setStatus("scheduled");
             }
             bill.setCreatedAt(now);
             bill.setUpdatedAt(now);
@@ -594,8 +630,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
     }
 
     private static String formatRoomName(House house) {
-        return (house.getBuilding() != null ? house.getBuilding() : "")
-                + (house.getUnit() != null ? house.getUnit() : "")
+        return (house.getBuilding() != null ? house.getBuilding() + "栋" : "")
+                + (house.getUnit() != null ? house.getUnit() + "单元" : "")
                 + (house.getRoom() != null ? house.getRoom() : "");
     }
 

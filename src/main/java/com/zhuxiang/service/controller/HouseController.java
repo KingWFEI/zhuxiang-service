@@ -162,4 +162,13 @@ public class HouseController {
                 favoriteHouseService.unfavorite(CurrentUser.id(request), houseId)
         );
     }
+
+    /**
+     * 获取热门小区列表（按房源数量降序）。
+     */
+    @GetMapping("/hot-communities")
+    @Operation(summary = "热门小区", description = "返回基于社区房源数量降序的热门小区列表，最多8条")
+    public ApiResponse<List<HouseDtos.HotCommunityItem>> hotCommunities() {
+        return ApiResponse.success(houseService.getHotCommunities(8));
+    }
 }

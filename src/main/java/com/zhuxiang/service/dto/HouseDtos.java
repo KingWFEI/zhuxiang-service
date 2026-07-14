@@ -72,7 +72,9 @@ public final class HouseDtos {
             boolean isRented,
             String rentAvailability,
             String activeOrderId,
-            boolean activeOrderBelongsToMe
+            boolean activeOrderBelongsToMe,
+            BigDecimal longitude,
+            BigDecimal latitude
     ) {
     }
 
@@ -134,4 +136,11 @@ public final class HouseDtos {
             String responseDescription
     ) {
     }
+
+    public record HotCommunityItem(
+            String name,
+            String district,
+            int startingRent,
+            int colorValue
+    ) {}
 }

@@ -18,7 +18,8 @@ public class LeaseExpirationJob {
             fixedDelayString = "${app.lease.expiration-scan-ms:300000}",
             initialDelayString = "${app.lease.expiration-scan-ms:300000}"
     )
-    public void expireDueLeases() {
+    public void scanLeaseStatus() {
+        leaseService.activatePendingLeases();
         leaseService.expireDueLeases();
     }
 }

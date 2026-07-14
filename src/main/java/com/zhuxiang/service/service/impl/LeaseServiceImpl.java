@@ -8,10 +8,12 @@ import com.zhuxiang.service.dto.LeaseLockPasscodeResponse;
 import com.zhuxiang.service.dto.LeaseDtos;
 import com.zhuxiang.service.dto.ProfileDtos;
 import com.zhuxiang.service.entity.*;
+import com.zhuxiang.service.event.LeaseActivatedEvent;
 import com.zhuxiang.service.mapper.LeaseMapper;
 import com.zhuxiang.service.mapper.RentContractMapper;
 import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.service.*;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -46,6 +48,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
     private final RentBillService rentBillService;
     private final LandlordService landlordService;
     private final AutoUnlockProperties autoUnlockProperties;
+    private final ApplicationEventPublisher eventPublisher;
     private Clock clock = Clock.system(ZoneId.of("Asia/Shanghai"));
 
     public LeaseServiceImpl(
@@ -57,7 +60,8 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             RentContractMapper rentContractMapper,
             RentBillService rentBillService,
             LandlordService landlordService,
-            AutoUnlockProperties autoUnlockProperties
+            AutoUnlockProperties autoUnlockProperties,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.houseService = houseService;
         this.communityService = communityService;
@@ -68,42 +72,45 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         this.rentBillService = rentBillService;
         this.landlordService = landlordService;
         this.autoUnlockProperties = autoUnlockProperties;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
      * 查询用户当前租约及关联住房信息。
      */
     @Override
-    public ProfileDtos.CurrentHome getCurrentHome(String userId) {
-        Lease lease = getOne(
+    public List<ProfileDtos.CurrentHome> getCurrentHome(String userId) {
+        List<Lease> leases = list(
                 Wrappers.<Lease>lambdaQuery()
                         .eq(Lease::getUserId, userId)
                         .in(Lease::getStatus, "active", "pending")
                         .orderByDesc(Lease::getCreatedAt)
-                        .last("LIMIT 1"),
-                false
         );
-        if (lease == null) {
-            return null;
+        if (leases.isEmpty()) {
+            return List.of();
         }
-        House house = houseService.getById(lease.getHouseId());
-        if (house == null) {
-            return null;
+
+        List<ProfileDtos.CurrentHome> homes = new java.util.ArrayList<>();
+        for (Lease lease : leases) {
+            House house = houseService.getById(lease.getHouseId());
+            if (house == null) continue;
+            Community community = communityService.getById(house.getCommunityId());
+            SmartLock lock = smartLockMapper.selectLatestByHouseId(house.getId());
+            homes.add(new ProfileDtos.CurrentHome(
+                    house.getId(),
+                    community == null ? "" : community.getName(),
+                    house.getBuilding(),
+                    house.getUnit(),
+                    house.getRoom(),
+                    house.getAddress() != null ? house.getAddress() : "",
+                    lease.getId(),
+                    lease.getStatus(),
+                    lock == null ? null : lock.getId(),
+                    lock == null ? "UNBOUND" : lock.getStatus(),
+                    house.getCoverImage() != null ? house.getCoverImage() : ""
+            ));
         }
-        Community community = communityService.getById(house.getCommunityId());
-        SmartLock lock = smartLockMapper.selectLatestByHouseId(house.getId());
-        return new ProfileDtos.CurrentHome(
-                house.getId(),
-                community == null ? "" : community.getName(),
-                house.getBuilding(),
-                house.getUnit(),
-                house.getRoom(),
-                house.getAddress() != null ? house.getAddress() : "",
-                lease.getId(),
-                lease.getStatus(),
-                lock == null ? null : lock.getId(),
-                lock == null ? "unknown" : lock.getStatus()
-        );
+        return homes;
     }
 
     @Override
@@ -209,6 +216,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 lease.getContractId(),
                 lease.getHouseId(),
                 buildHouseName(house),
+                house == null ? "" : textOrEmpty(house.getCoverImage()),
                 house == null ? "" : textOrEmpty(house.getAddress()),
                 buildHouseSummary(house),
                 contract == null ? "" : textOrEmpty(contract.getTenantName()),
@@ -240,8 +248,8 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         if (house == null) {
             return "";
         }
-        return textOrEmpty(house.getBuilding())
-                + textOrEmpty(house.getUnit())
+        return textOrEmpty(house.getBuilding() == null ? null : house.getBuilding() + "栋")
+                + textOrEmpty(house.getUnit() == null ? null : house.getUnit() + "单元")
                 + textOrEmpty(house.getRoom());
     }
 
@@ -461,6 +469,26 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         return dueLeases.size();
     }
 
+    /** 将已到达入住日期的待生效租约切换为生效中，并触发锁权限下发。 */
+    @Override
+    @Transactional
+    public int activatePendingLeases() {
+        LocalDate today = LocalDate.now(clock);
+        LocalDateTime now = LocalDateTime.now(clock);
+        List<Lease> pendingLeases = list(
+                Wrappers.<Lease>lambdaQuery()
+                        .eq(Lease::getStatus, "pending")
+                        .le(Lease::getStartDate, today)
+        );
+        for (Lease lease : pendingLeases) {
+            lease.setStatus("active");
+            lease.setUpdatedAt(now);
+            updateById(lease);
+            eventPublisher.publishEvent(new LeaseActivatedEvent(lease.getId()));
+        }
+        return pendingLeases.size();
+    }
+
     /** 按门锁时区格式化期限密码时刻。 */
     private String formatPasscodeTime(Instant instant, SmartLock smartLock) {
         if (instant == null) {
@@ -493,8 +521,8 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             Community community = communityService.getById(house.getCommunityId());
             String communityName = community == null ? "" : community.getName();
             houseName = (communityName.isEmpty() ? "" : communityName + " ")
-                    + (house.getBuilding() != null ? house.getBuilding() + " " : "")
-                    + (house.getUnit() != null ? house.getUnit() + " " : "")
+                    + (house.getBuilding() != null ? house.getBuilding() + "栋" : "")
+                    + (house.getUnit() != null ? house.getUnit() + "单元" : "")
                     + (house.getRoom() != null ? house.getRoom() : "");
             houseAddress = house.getAddress() != null ? house.getAddress() : "";
             houseSummary = (house.getRoomType() != null ? house.getRoomType() + " · " : "")

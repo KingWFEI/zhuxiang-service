@@ -111,14 +111,14 @@ public class RentOrderController {
     }
 
     @PostMapping("/rent-orders/{orderId}/pay")
-    @Operation(summary = "支付租房订单", description = "按支付方式和支付渠道发起付款；当前实现可使用 mock 渠道。")
-    public ApiResponse<RentOrderResponse> pay(
+    @Operation(summary = "支付租房订单", description = "按支付方式和支付渠道发起付款；mock 渠道自动确认，alipay 渠道返回 H5 支付页面 URL。")
+    public ApiResponse<PayResponse> pay(
             HttpServletRequest request,
             @Parameter(description = "租房订单 ID", example = "order_001") @PathVariable String orderId,
             @Valid @RequestBody PayRequest body
     ) {
         return ApiResponse.success(
-                "支付成功",
+                "支付请求已提交",
                 rentOrderService.pay(CurrentUser.id(request), orderId, body)
         );
     }

@@ -91,6 +91,14 @@ app:
     password: ${SUPER_ADMIN_PASSWORD:admin123}
     nickname: ${SUPER_ADMIN_NICKNAME:超级管理员}
 
+alipay:
+  gateway-url: ${ALIPAY_GATEWAY_URL:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+  app-id: ${ALIPAY_APP_ID:}
+  merchant-private-key: ${ALIPAY_MERCHANT_PRIVATE_KEY:}
+  alipay-public-key: ${ALIPAY_ALIPAY_PUBLIC_KEY:}
+  notify-url: ${ALIPAY_NOTIFY_URL:http://localhost:8000/api/payments/alipay/notify}
+  return-url: ${ALIPAY_RETURN_URL:http://localhost/zhuxiang-payment-done}
+
 amap:
   key: ${AMAP_KEY:34467f081797ade37c2eb007a8d0dbdc}
 

@@ -225,12 +225,13 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 .map(HouseImage::getImageUrl)
                 .toList();
         RentAvailabilityData rent = loadRentAvailability(house, userId);
+        HouseLocation houseLocation = findHouseLocation(houseId);
         return new HouseDtos.HouseDetail(
                 house.getId(),
                 house.getTitle(),
                 house.getCoverImage(),
                 images.isEmpty() ? List.of(house.getCoverImage()) : images,
-                house.getLocation(),
+                buildLocationDisplay(houseLocation, house),
                 community == null ? "" : community.getName(),
                 house.getAddress(),
                 house.getPrice(),
@@ -259,7 +260,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 "rented".equals(house.getStatus()),
                 rent.rentAvailability(),
                 rent.activeOrderId(),
-                rent.activeOrderBelongsToMe()
+                rent.activeOrderBelongsToMe(),
+                houseLocation == null ? null : houseLocation.getLongitude(),
+                houseLocation == null ? null : houseLocation.getLatitude()
         );
     }
 
@@ -363,11 +366,12 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     public HouseDtos.HouseView toHouseView(House house, String userId) {
         Community community = communityService.getById(house.getCommunityId());
         RentAvailabilityData rent = loadRentAvailability(house, userId);
+        String location = buildLocationDisplay(findHouseLocation(house.getId()), house);
         return new HouseDtos.HouseView(
                 house.getId(),
                 house.getTitle(),
                 house.getCoverImage(),
-                house.getLocation(),
+                location,
                 community == null ? "" : community.getName(),
                 house.getPrice(),
                 house.getRoomType(),
@@ -885,6 +889,33 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         );
     }
 
+    /** 从 house_location 表拼接五级街道信息。无记录或为空时回退到 house_location.address → house.location。 */
+    private String buildLocationDisplay(HouseLocation loc, House house) {
+        String result = "";
+        if (loc != null) {
+            List<String> parts = new ArrayList<>();
+            addNotEmpty(parts, loc.getProvince());
+            addNotEmpty(parts, loc.getCity());
+            addNotEmpty(parts, loc.getDistrict());
+            addNotEmpty(parts, loc.getTownship());
+            addNotEmpty(parts, loc.getNeighborhood());
+            result = parts.isEmpty() ? "" : String.join("", parts);
+        }
+        if (result.isEmpty() && loc != null && loc.getAddress() != null && !loc.getAddress().isBlank()) {
+            result = loc.getAddress();
+        }
+        if (result.isEmpty() && house != null && house.getLocation() != null && !house.getLocation().isBlank()) {
+            result = house.getLocation();
+        }
+        return result;
+    }
+
+    private void addNotEmpty(List<String> parts, String value) {
+        if (value != null && !value.isBlank()) {
+            parts.add(value.trim());
+        }
+    }
+
     /** 更新房源位置信息：删除旧记录后写入前端传入的完整位置信息。 */
     private void updateHouseLocation(
             String houseId,
@@ -1085,7 +1116,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             if (requestedUrls.size() > 20) {
                 throw BusinessException.badRequest("单次新增房源图片不能超过20张");
             }
-            appendHouseImages(houseId, coverImage, requestedUrls, operatorId, now);
+            // 全量替换：删除旧图片，写入新图片
+            replaceHouseImages(houseId, coverImage, requestedUrls, now);
             house.setCoverImage(coverImage);
         }
         if (request.longitude() != null && request.latitude() != null) {
@@ -1139,6 +1171,17 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     }
 
     /** 新图片增量入库，保留房源已有图片记录，并避免重复保存相同 URL。 */
+    /** 全量替换房源图片：删除旧图片记录，写入新图片。 */
+    private void replaceHouseImages(
+            String houseId,
+            String coverImage,
+            Collection<String> requestedUrls,
+            LocalDateTime createdAt
+    ) {
+        imageService.remove(Wrappers.<HouseImage>lambdaQuery().eq(HouseImage::getHouseId, houseId));
+        saveHouseImages(houseId, coverImage, new ArrayList<>(requestedUrls), createdAt);
+    }
+
     private void appendHouseImages(
             String houseId,
             String coverImage,
@@ -1241,7 +1284,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getTitle(),
                 house.getCoverImage(),
                 getHouseImageUrls(house.getId()),
-                house.getLocation(),
+                buildLocationDisplay(houseLocation, house),
                 house.getCommunityId(),
                 house.getAddress(),
                 house.getBuilding(),
@@ -1290,6 +1333,56 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
      */
     private Integer areaAsInteger(BigDecimal area) {
         return area == null ? 0 : area.intValue();
+    }
+
+    @Override
+    public List<HouseDtos.HotCommunityItem> getHotCommunities(int limit) {
+        List<Map<String, Object>> raw = baseMapper.selectMaps(
+                Wrappers.<House>lambdaQuery()
+                        .isNotNull(House::getCommunityId)
+                        .ne(House::getCommunityId, "")
+                        .apply("community_id IN (SELECT id FROM community)")
+                        .groupBy(House::getCommunityId)
+                        .last("ORDER BY COUNT(1) DESC LIMIT " + limit)
+        );
+        if (raw.isEmpty()) return List.of();
+
+        List<String> topIds = raw.stream()
+                .map(m -> m.get("community_id").toString())
+                .toList();
+
+        Map<String, String> names = communityService.listByIds(topIds).stream()
+                .collect(Collectors.toMap(Community::getId, Community::getName, (a, b) -> a));
+
+        Map<String, String> regionNames = communityService.listByIds(topIds).stream()
+                .map(Community::getRegionId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList()).stream()
+                .flatMap(rid -> regionService.listByIds(List.of(rid)).stream())
+                .collect(Collectors.toMap(Region::getId, Region::getName, (a, b) -> a));
+
+        List<HouseDtos.HotCommunityItem> items = new ArrayList<>();
+        for (String cid : topIds) {
+            String name = names.getOrDefault(cid, "");
+            Community comm = communityService.getById(cid);
+            String district = comm != null && comm.getRegionId() != null
+                    ? regionNames.getOrDefault(comm.getRegionId(), "")
+                    : "";
+
+            List<House> houses = list(Wrappers.<House>lambdaQuery()
+                    .select(House::getPrice)
+                    .eq(House::getCommunityId, cid)
+                    .orderByAsc(House::getPrice)
+                    .last("LIMIT 1"));
+            int minPrice = houses.isEmpty() || houses.get(0).getPrice() == null
+                    ? 0 : houses.get(0).getPrice() / 100;
+
+            int colorValue = 0xFF000000 | (Math.abs(cid.hashCode()) & 0x00FFFFFF);
+
+            items.add(new HouseDtos.HotCommunityItem(name, district, minPrice, colorValue));
+        }
+        return items;
     }
 }
 
