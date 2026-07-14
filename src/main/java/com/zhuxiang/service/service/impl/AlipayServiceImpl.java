@@ -4,9 +4,13 @@ import com.alipay.api.AlipayApiException;
 import com.alipay.api.AlipayClient;
 import com.alipay.api.DefaultAlipayClient;
 import com.alipay.api.internal.util.AlipaySignature;
+import com.alipay.api.request.AlipayTradeFastpayRefundQueryRequest;
 import com.alipay.api.request.AlipayTradeQueryRequest;
+import com.alipay.api.request.AlipayTradeRefundRequest;
 import com.alipay.api.request.AlipayTradeWapPayRequest;
+import com.alipay.api.response.AlipayTradeFastpayRefundQueryResponse;
 import com.alipay.api.response.AlipayTradeQueryResponse;
+import com.alipay.api.response.AlipayTradeRefundResponse;
 import com.zhuxiang.service.config.AlipayProperties;
 import com.zhuxiang.service.service.AlipayService;
 import jakarta.annotation.PostConstruct;
@@ -140,6 +144,61 @@ public class AlipayServiceImpl implements AlipayService {
             );
         } catch (AlipayApiException e) {
             log.error("支付宝验签异常", e);
+            return null;
+        }
+    }
+
+    @Override
+    public AlipayRefundResult refund(String outTradeNo, String refundAmount, String outRequestNo) {
+        AlipayTradeRefundRequest request = new AlipayTradeRefundRequest();
+        Map<String, Object> bizContent = new java.util.LinkedHashMap<>();
+        bizContent.put("out_trade_no", outTradeNo);
+        bizContent.put("refund_amount", refundAmount);
+        bizContent.put("out_request_no", outRequestNo);
+        request.setBizContent(toJson(bizContent));
+
+        try {
+            AlipayTradeRefundResponse response = alipayClient.execute(request);
+            if (!response.isSuccess()) {
+                log.error("支付宝退款失败 outTradeNo={} outRequestNo={} subCode={} subMsg={}",
+                        outTradeNo, outRequestNo, response.getSubCode(), response.getSubMsg());
+                return null;
+            }
+            return new AlipayRefundResult(
+                    response.getTradeNo(),
+                    response.getOutTradeNo(),
+                    response.getRefundFee(),
+                    outRequestNo
+            );
+        } catch (AlipayApiException e) {
+            log.error("支付宝退款异常 outTradeNo={} outRequestNo={}", outTradeNo, outRequestNo, e);
+            return null;
+        }
+    }
+
+    @Override
+    public AlipayRefundResult queryRefund(String outTradeNo, String outRequestNo) {
+        AlipayTradeFastpayRefundQueryRequest request = new AlipayTradeFastpayRefundQueryRequest();
+        Map<String, Object> bizContent = new java.util.LinkedHashMap<>();
+        bizContent.put("out_trade_no", outTradeNo);
+        bizContent.put("out_request_no", outRequestNo);
+        request.setBizContent(toJson(bizContent));
+
+        try {
+            AlipayTradeFastpayRefundQueryResponse response = alipayClient.execute(request);
+            if (!response.isSuccess()) {
+                log.warn("支付宝退款查询失败 outTradeNo={} outRequestNo={} subCode={} subMsg={}",
+                        outTradeNo, outRequestNo, response.getSubCode(), response.getSubMsg());
+                return null;
+            }
+            return new AlipayRefundResult(
+                    response.getTradeNo(),
+                    response.getOutTradeNo(),
+                    response.getRefundAmount(),
+                    outRequestNo
+            );
+        } catch (AlipayApiException e) {
+            log.error("支付宝退款查询异常 outTradeNo={} outRequestNo={}", outTradeNo, outRequestNo, e);
             return null;
         }
     }

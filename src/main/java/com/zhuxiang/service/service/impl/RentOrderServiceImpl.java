@@ -47,6 +47,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
     private final PaymentRecordService paymentRecordService;
     private final RentBillService rentBillService;
     private final AlipayService alipayService;
+    private final DepositService depositService;
     private final ObjectMapper objectMapper;
 
     public RentOrderServiceImpl(
@@ -59,6 +60,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             PaymentRecordService paymentRecordService,
             RentBillService rentBillService,
             AlipayService alipayService,
+            DepositService depositService,
             ObjectMapper objectMapper
     ) {
         this.houseService = houseService;
@@ -69,6 +71,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         this.paymentRecordService = paymentRecordService;
         this.rentBillService = rentBillService;
         this.alipayService = alipayService;
+        this.depositService = depositService;
         this.objectMapper = objectMapper;
         this.landlordService=landlordService;
     }
@@ -457,6 +460,24 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         lease.setCreatedAt(now);
         lease.setUpdatedAt(now);
         leaseService.save(lease);
+
+        // 创建押金记录
+        PaymentRecord paymentRecord = paymentRecordService.getOne(
+                Wrappers.<PaymentRecord>lambdaQuery()
+                        .eq(PaymentRecord::getOrderId, orderId)
+                        .eq(PaymentRecord::getType, "rent")
+                        .eq(PaymentRecord::getStatus, "success")
+                        .last("LIMIT 1"),
+                false
+        );
+
+        DepositRecord depositRecord = new DepositRecord();
+        depositRecord.setLeaseId(lease.getId());
+        depositRecord.setUserId(userId);
+        depositRecord.setHouseId(order.getHouseId());
+        depositRecord.setAmount(order.getDeposit());
+        depositRecord.setPaymentRecordId(paymentRecord != null ? paymentRecord.getId() : null);
+        depositService.createDeposit(depositRecord);
 
         // 批量生成租金账单
         generateRentBills(lease, order);

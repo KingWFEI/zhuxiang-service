@@ -39,6 +39,25 @@ public interface AlipayService {
         return "h5";
     }
 
+    /**
+     * 支付宝退款。
+     *
+     * @param outTradeNo 原商户订单号
+     * @param refundAmount 退款金额，单位：分
+     * @param outRequestNo 退款请求号（幂等标识）
+     * @return 退款结果
+     */
+    AlipayRefundResult refund(String outTradeNo, String refundAmount, String outRequestNo);
+
+    /**
+     * 查询支付宝退款状态。
+     *
+     * @param outTradeNo 原商户订单号
+     * @param outRequestNo 退款请求号
+     * @return 退款结果，查询失败返回 null
+     */
+    AlipayRefundResult queryRefund(String outTradeNo, String outRequestNo);
+
     /** 支付宝异步通知解析结果 */
     record AlipayNotifyResult(
             String tradeNo,
@@ -46,5 +65,13 @@ public interface AlipayService {
             String totalAmount,
             String tradeStatus,
             String buyerLogonId
+    ) {}
+
+    /** 支付宝退款结果 */
+    record AlipayRefundResult(
+            String tradeNo,
+            String outTradeNo,
+            String refundFee,
+            String outRequestNo
     ) {}
 }

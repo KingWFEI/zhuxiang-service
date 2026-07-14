@@ -10,6 +10,8 @@ import com.zhuxiang.service.dto.LeaseTerminationDtos.*;
 import com.zhuxiang.service.entity.*;
 import com.zhuxiang.service.mapper.*;
 import com.zhuxiang.service.service.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,8 @@ import java.util.stream.Collectors;
 public class LeaseTerminationServiceImpl
         extends ServiceImpl<LeaseTerminationApplicationMapper, LeaseTerminationApplication>
         implements LeaseTerminationService {
+
+    private static final Logger log = LoggerFactory.getLogger(LeaseTerminationServiceImpl.class);
 
     private static final Map<String, String> STATUS_TEXT = Map.ofEntries(
             Map.entry("pending_review", "待审核"),
@@ -64,6 +68,7 @@ public class LeaseTerminationServiceImpl
     private final LockPermissionService lockPermissionService;
     private final LockPasscodePermissionService lockPasscodePermissionService;
     private final LeaseTerminationLogMapper logMapper;
+    private final DepositService depositService;
     private final ObjectMapper objectMapper;
 
     public LeaseTerminationServiceImpl(
@@ -76,6 +81,7 @@ public class LeaseTerminationServiceImpl
             LockPermissionService lockPermissionService,
             LockPasscodePermissionService lockPasscodePermissionService,
             LeaseTerminationLogMapper logMapper,
+            DepositService depositService,
             ObjectMapper objectMapper
     ) {
         this.rentContractMapper = rentContractMapper;
@@ -87,6 +93,7 @@ public class LeaseTerminationServiceImpl
         this.lockPermissionService = lockPermissionService;
         this.lockPasscodePermissionService = lockPasscodePermissionService;
         this.logMapper = logMapper;
+        this.depositService = depositService;
         this.objectMapper = objectMapper;
     }
 
@@ -360,6 +367,25 @@ public class LeaseTerminationServiceImpl
             app.setTotalDeduction(Optional.ofNullable(request.settlementAmount()).orElse(0));
             app.setRefundAmount(Optional.ofNullable(request.refundAmount()).orElse(0));
             app.setSettlementDetail(serializeSettlementDetail(request));
+
+            // 写入押金扣款明细
+            if (request.deductions() != null && !request.deductions().isEmpty() && app.getLeaseId() != null) {
+                DepositRecord depositRecord = depositService.getByLeaseId(app.getLeaseId());
+                if (depositRecord != null) {
+                    List<DepositDeduction> deductions = request.deductions().stream()
+                            .map(d -> {
+                                DepositDeduction dd = new DepositDeduction();
+                                dd.setDeductionType(d.deductionType());
+                                dd.setAmount(d.amount());
+                                dd.setDescription(d.description());
+                                dd.setEvidenceUrls(serializeEvidenceUrls(d.evidenceUrls()));
+                                return dd;
+                            })
+                            .toList();
+                    String settlementJson = app.getSettlementDetail();
+                    depositService.settle(depositRecord.getId(), deductions, settlementJson);
+                }
+            }
         }
 
         int refundAmount = Optional.ofNullable(app.getRefundAmount()).orElse(0);
@@ -402,6 +428,19 @@ public class LeaseTerminationServiceImpl
         app.setCompletedTime(now);
         app.setUpdatedAt(now);
         updateById(app);
+
+        // 执行押金退款
+        if (app.getLeaseId() != null) {
+            DepositRecord depositRecord = depositService.getByLeaseId(app.getLeaseId());
+            if (depositRecord != null && "deducted".equals(depositRecord.getStatus())) {
+                try {
+                    depositService.refund(depositRecord.getId());
+                } catch (Exception e) {
+                    log.warn("押金退款执行失败 applicationId={} depositRecordId={} err={}",
+                            applicationId, depositRecord.getId(), e.getMessage());
+                }
+            }
+        }
 
         terminateLeaseAndHouse(app, now);
 
@@ -639,6 +678,15 @@ public class LeaseTerminationServiceImpl
             return objectMapper.writeValueAsString(detail);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("序列化退租结算明细失败", exception);
+        }
+    }
+
+    private String serializeEvidenceUrls(List<String> urls) {
+        if (urls == null || urls.isEmpty()) return null;
+        try {
+            return objectMapper.writeValueAsString(urls);
+        } catch (JsonProcessingException e) {
+            return null;
         }
     }
 

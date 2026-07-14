@@ -127,7 +127,17 @@ public final class LeaseTerminationDtos {
     public record SettlementConfirmRequest(
             @Schema(description = "结算扣款金额(分)") Integer settlementAmount,
             @Schema(description = "应退金额(分)") Integer refundAmount,
-            @Schema(description = "结算备注") @Size(max = 1000) String remark
+            @Schema(description = "结算备注") @Size(max = 1000) String remark,
+            @Schema(description = "扣款明细") List<DeductionItem> deductions
+    ) {
+    }
+
+    @Schema(description = "押金扣款明细项")
+    public record DeductionItem(
+            @Schema(description = "扣款类型：damage/cleaning/rent_arrears/bill_arrears/other") @NotBlank String deductionType,
+            @Schema(description = "扣款金额(分)") @NotNull Integer amount,
+            @Schema(description = "扣款说明") @Size(max = 500) String description,
+            @Schema(description = "凭证图片URL列表") List<String> evidenceUrls
     ) {
     }
 }

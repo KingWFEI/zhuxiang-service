@@ -14,6 +14,7 @@ import com.zhuxiang.service.service.LeaseService;
 import com.zhuxiang.service.service.LockPasscodePermissionService;
 import com.zhuxiang.service.service.LockPermissionService;
 import com.zhuxiang.service.service.MessageService;
+import com.zhuxiang.service.service.DepositService;
 import com.zhuxiang.service.service.RentBillService;
 import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.mapper.RentContractMapper;
@@ -46,6 +47,7 @@ class LeaseTerminationServiceTests {
     private final LockPasscodePermissionService passcodePermissionService = mock(LockPasscodePermissionService.class);
     private final LeaseTerminationLogMapper logMapper = mock(LeaseTerminationLogMapper.class);
     private final LeaseTerminationApplicationMapper applicationMapper = mock(LeaseTerminationApplicationMapper.class);
+    private final DepositService depositService = mock(DepositService.class);
     private LeaseTerminationServiceImpl service;
 
     @BeforeEach
@@ -53,7 +55,7 @@ class LeaseTerminationServiceTests {
         service = new LeaseTerminationServiceImpl(
                 contractMapper, leaseService, billService, houseService,
                 messageService, userService, lockPermissionService,
-                passcodePermissionService, logMapper, new ObjectMapper()
+                passcodePermissionService, logMapper, depositService, new ObjectMapper()
         );
         ReflectionTestUtils.setField(service, "baseMapper", applicationMapper);
         when(applicationMapper.insert(any(LeaseTerminationApplication.class))).thenReturn(1);
@@ -133,7 +135,7 @@ class LeaseTerminationServiceTests {
         service.confirmSettlement(
                 "admin-1",
                 application.getId(),
-                new LeaseTerminationDtos.SettlementConfirmRequest(10000, 0, "扣除清洁费用")
+                new LeaseTerminationDtos.SettlementConfirmRequest(10000, 0, "扣除清洁费用", null)
         );
 
         assertThat(application.getStatus()).isEqualTo("completed");

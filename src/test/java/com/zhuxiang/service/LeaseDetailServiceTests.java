@@ -213,8 +213,8 @@ class LeaseDetailServiceTests {
     private House house() {
         House house = new House();
         house.setId("house-1");
-        house.setBuilding("3栋");
-        house.setUnit("2单元");
+        house.setBuilding("3");
+        house.setUnit("2");
         house.setRoom("1201");
         house.setAddress("重庆市渝北区中央公园悦居社区");
         house.setRoomType("温馨一居");
