@@ -7,7 +7,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username:   ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:wf010931}
+    password: ${DB_PASSWORD:132135}
 #    url: ${DB_URL:jdbc:mysql://10.143.183.205:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
 #    username: ${DB_USERNAME:zhuxiang_app_user}
 #    password: ${DB_PASSWORD:Zhuxiang@2026!}
@@ -109,6 +109,29 @@ ttlock:
   password: ${TTLOCK_PASSWORD:wf010931}
   access-token: ${TTLOCK_ACCESS_TOKEN:}
   base-url: ${TTLOCK_BASE_URL:https://api.sciener.com}
+
+# ========== e签宝人脸认证 ==========
+esign:
+  enabled: true
+  base-url: ${ESIGN_HOST:https://smlopenapi.esign.cn}
+  app-id: ${ESIGN_APP_ID:}
+  app-secret: ${ESIGN_APP_SECRET:}
+  doc-template-id: ${ESIGN_DOC_TEMPLATE_ID:170ea88a36d442a5ad4c46001a0623a9}
+  auto-finish: true
+  sign-order-mode: SIMULTANEOUS
+  notify-url: ${ESIGN_NOTIFY_URL:}
+  redirect-url: ${ESIGN_REDIRECT_URL:}
+  face:
+    host: ${ESIGN_FACE_HOST:https://smlopenapi.esign.cn}
+    app-id: ${ESIGN_FACE_APP_ID:}
+    app-secret: ${ESIGN_FACE_APP_SECRET:}
+    mode: ${ESIGN_FACE_MODE:ESIGN}
+    callback-url: ${ESIGN_FACE_CALLBACK_URL:}
+
+# ========== 安全加密 ==========
+security:
+  real-name:
+    id-card-key: ${REAL_NAME_ID_CARD_KEY:}
 
 # ========== 沉浸式看房 ==========
 features:

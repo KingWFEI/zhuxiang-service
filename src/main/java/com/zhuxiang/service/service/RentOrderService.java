@@ -25,9 +25,16 @@ public interface RentOrderService extends IService<RentOrder> {
 
     void confirmPayment(String recordId, String channelTradeNo);
 
-    RentOrderResponse sign(String userId, String orderId);
+    EsignSignResponse sign(String userId, String orderId);
+
+    EsignSignStatusResponse contractRefresh(String userId, String orderId);
+
+    ContractDownloadUrlResponse contractDownloadUrl(String userId, String orderId);
 
     RentOrderResponse cancelOrder(String userId, String orderId);
 
     void hideOrder(String userId, String orderId);
+
+    /** 处理 e签宝回调通知（非用户触发的后台状态同步） */
+    void processEsignCallback(EsignCallbackData callback);
 }

@@ -18,6 +18,8 @@ public class RentOrder implements Serializable {
 
     private String userId;
 
+    private String lessorUserId;
+
     private String houseId;
 
     private String status;

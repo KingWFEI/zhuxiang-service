@@ -1,25 +1,35 @@
 package com.zhuxiang.service.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zhuxiang.service.client.EsignV3Client;
 import com.zhuxiang.service.common.BusinessException;
+import com.zhuxiang.service.common.EsignException;
 import com.zhuxiang.service.common.PageData;
+import com.zhuxiang.service.config.EsignV3Properties;
 import com.zhuxiang.service.dto.*;
 import com.zhuxiang.service.entity.*;
 import com.zhuxiang.service.event.LeaseActivatedEvent;
 import com.zhuxiang.service.mapper.RentContractMapper;
 import com.zhuxiang.service.mapper.RentOrderMapper;
+import com.zhuxiang.service.mapper.UserRealNameAuthMapper;
 import com.zhuxiang.service.service.*;
+import com.zhuxiang.service.service.EsignCallbackData;
+import com.zhuxiang.service.service.IdCardCryptoService;
+import com.zhuxiang.service.service.RealNameAuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
@@ -49,6 +59,11 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
     private final AlipayService alipayService;
     private final DepositService depositService;
     private final ObjectMapper objectMapper;
+    private final RealNameAuthService realNameAuthService;
+    private final UserRealNameAuthMapper userRealNameAuthMapper;
+    private final IdCardCryptoService idCardCryptoService;
+    private final EsignV3Client esignV3Client;
+    private final EsignV3Properties esignV3Properties;
 
     public RentOrderServiceImpl(
             HouseService houseService,
@@ -61,7 +76,12 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             RentBillService rentBillService,
             AlipayService alipayService,
             DepositService depositService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            RealNameAuthService realNameAuthService,
+            UserRealNameAuthMapper userRealNameAuthMapper,
+            IdCardCryptoService idCardCryptoService,
+            EsignV3Client esignV3Client,
+            EsignV3Properties esignV3Properties
     ) {
         this.houseService = houseService;
         this.rentContractMapper = rentContractMapper;
@@ -73,21 +93,83 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         this.alipayService = alipayService;
         this.depositService = depositService;
         this.objectMapper = objectMapper;
-        this.landlordService=landlordService;
+        this.landlordService = landlordService;
+        this.realNameAuthService = realNameAuthService;
+        this.userRealNameAuthMapper = userRealNameAuthMapper;
+        this.idCardCryptoService = idCardCryptoService;
+        this.esignV3Client = esignV3Client;
+        this.esignV3Properties = esignV3Properties;
     }
 
     @Override
     @Transactional
     public RentOrderResponse createOrder(String userId, CreateRentOrderRequest request) {
-        // 用户对该房源没有进行中的订单
-        long pendingCount = count(Wrappers.<RentOrder>lambdaQuery()
-                .eq(RentOrder::getUserId, userId)
-                .eq(RentOrder::getHouseId, request.houseId())
-                .in(RentOrder::getStatus, "pendingRealName", "pendingContract", "pendingPayment", "pendingSign"));
-        if (pendingCount > 0) {
-            throw BusinessException.conflict("该房源已有进行中的订单");
+        // 1. 校验全局实名认证状态
+        if (!realNameAuthService.isVerified(userId)) {
+            throw BusinessException.realNameRequired();
         }
 
+        // 2. 读取已认证的租客信息
+        UserRealNameAuth verifiedAuth = userRealNameAuthMapper.selectOne(
+                new LambdaQueryWrapper<UserRealNameAuth>()
+                        .eq(UserRealNameAuth::getUserId, userId)
+                        .eq(UserRealNameAuth::getAuthStatus, "VERIFIED")
+                        .orderByDesc(UserRealNameAuth::getCreatedAt)
+                        .last("LIMIT 1"));
+        if (verifiedAuth == null) {
+            throw BusinessException.realNameRequired();
+        }
+
+        // 解密完整身份证号（仅在后端生成合同时短暂使用，不通过接口返回）
+        String fullIdCard = idCardCryptoService.decrypt(verifiedAuth.getIdCardCiphertext());
+
+        // 3. 查询该用户+房源下所有进行中/已完成订单（FOR UPDATE 防并发）
+        RentOrder existing = getBaseMapper().selectOne(
+                Wrappers.<RentOrder>lambdaQuery()
+                        .eq(RentOrder::getUserId, userId)
+                        .eq(RentOrder::getHouseId, request.houseId())
+                        .in(RentOrder::getStatus, "created", "pendingRealName",
+                                "pendingContract", "pendingPayment", "pendingEsign", "completed")
+                        .last("LIMIT 1 FOR UPDATE"));
+
+        if (existing != null) {
+            String status = existing.getStatus();
+
+            // completed → 不允许再申请
+            if ("completed".equals(status)) {
+                throw BusinessException.conflict("该房源已完成租住");
+            }
+
+            // pendingContract / pendingPayment / pendingSign → 直接返回
+            if ("pendingContract".equals(status) || "pendingPayment".equals(status)
+                    || "pendingEsign".equals(status)) {
+                House house = houseService.getById(existing.getHouseId());
+                return toResponse(existing, house);
+            }
+
+            // created / pendingRealName → 升级为 pendingContract + 补合同
+            House upgHouse = houseService.getById(existing.getHouseId());
+            existing.setTenantName(verifiedAuth.getRealName());
+            existing.setTenantPhone(verifiedAuth.getAccountMobile());
+            existing.setTenantIdCard(fullIdCard);
+            existing.setLessorUserId(getLessorUserId(upgHouse));
+            existing.setStatus("pendingContract");
+            existing.setRealNameAt(LocalDateTime.now());
+            existing.setUpdatedAt(LocalDateTime.now());
+            updateById(existing);
+
+            Long contractCount = rentContractMapper.selectCount(
+                    Wrappers.<RentContract>lambdaQuery()
+                            .eq(RentContract::getOrderId, existing.getId()));
+            if (contractCount == null || contractCount == 0) {
+                createContract(existing, verifiedAuth, fullIdCard);
+            }
+
+            House house = houseService.getById(existing.getHouseId());
+            return toResponse(existing, house);
+        }
+
+        // 4. 参数校验
         String paymentMethod = request.paymentMethod();
         Integer paymentMonths = PAYMENT_MONTHS_MAP.get(paymentMethod);
         if (paymentMonths == null) {
@@ -97,16 +179,16 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             throw BusinessException.badRequest("付款周期不能超过租期");
         }
 
-        // 原子锁房：只有 status = available 时才能成功更新为 reserved
+        // 6. 原子锁房
         LocalDateTime now = LocalDateTime.now();
         House house = houseService.getById(request.houseId());
         if (house == null) throw BusinessException.notFound("房源不存在");
 
-        // 其他用户有进行中订单
         long otherPendingCount = count(Wrappers.<RentOrder>lambdaQuery()
                 .eq(RentOrder::getHouseId, request.houseId())
                 .ne(RentOrder::getUserId, userId)
-                .in(RentOrder::getStatus, "pendingRealName", "pendingContract", "pendingPayment", "pendingSign"));
+                .in(RentOrder::getStatus, "created", "pendingRealName",
+                        "pendingContract", "pendingPayment", "pendingEsign"));
         if (otherPendingCount > 0) {
             throw BusinessException.conflict("该房源已有租客办理中，暂时无法发起新的租赁申请");
         }
@@ -120,10 +202,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         if (!locked) {
             throw BusinessException.conflict("该房源已被预定或已出租");
         }
-
         house.setStatus("reserved");
 
-        // 安全性检查：确认没有活跃租约
         long activeLeaseCount = leaseService.count(Wrappers.<Lease>lambdaQuery()
                 .eq(Lease::getHouseId, request.houseId())
                 .eq(Lease::getStatus, "active"));
@@ -143,17 +223,23 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         int firstPaymentAmount = monthlyRent * paymentMonths + deposit + serviceFee;
         int totalAmount = monthlyRent * request.leaseMonths() + deposit + serviceFee;
 
+        // 7. 创建订单（状态直接为 pendingContract）
         RentOrder order = new RentOrder();
         order.setId(UUID.randomUUID().toString());
         order.setUserId(userId);
+        order.setLessorUserId(getLessorUserId(house));
         order.setHouseId(request.houseId());
-        order.setStatus("pendingRealName");
+        order.setStatus("pendingContract");
         order.setStartDate(request.startDate());
         order.setEndDate(endDate);
         order.setLeaseMonths(request.leaseMonths());
         order.setPaymentMethod(paymentMethod);
         order.setPaymentMonths(paymentMonths);
         order.setTenantCount(request.tenantCount());
+        order.setTenantName(verifiedAuth.getRealName());
+        order.setTenantPhone(verifiedAuth.getAccountMobile());
+        order.setTenantIdCard(fullIdCard);
+        order.setRealNameAt(LocalDateTime.now());
         order.setMonthlyRent(monthlyRent);
         order.setDeposit(deposit);
         order.setServiceFee(serviceFee);
@@ -163,7 +249,74 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         order.setUpdatedAt(now);
         save(order);
 
+        // 8. 生成合同
+        createContract(order, verifiedAuth, fullIdCard);
+
         return toResponse(order, house);
+    }
+
+    /** 从认证记录生成租赁合同 —— 身份证以密文存储 */
+    private void createContract(RentOrder order, UserRealNameAuth auth, String fullIdCard) {
+        House house = houseService.getById(order.getHouseId());
+        String contractNo = generateContractNo();
+
+        // 租户身份证密文（从实名认证记录直接复制，不解密）
+        String tenantCiphertext = auth.getIdCardCiphertext();
+
+        // 房东信息：优先从实名认证获取，否则从 landlord 表读取基础信息
+        String landlordName = "";
+        String landlordPhone = "";
+        String landlordCiphertext = "";
+        if (order.getLessorUserId() != null) {
+            UserRealNameAuth lessorAuth = realNameAuthService.getVerifiedRecord(order.getLessorUserId());
+            if (lessorAuth != null) {
+                landlordName = lessorAuth.getRealName();
+                landlordPhone = lessorAuth.getAccountMobile();
+                landlordCiphertext = lessorAuth.getIdCardCiphertext();
+            }
+        }
+        // 兼容旧数据：lessorUserId 为空时从 landlord 表读取
+        if (landlordName.isBlank() && house != null && house.getLandlordId() != null) {
+            Landlord landlord = landlordService.getById(house.getLandlordId());
+            if (landlord != null) {
+                landlordName = landlord.getName() != null ? landlord.getName() : "";
+                landlordPhone = landlord.getPhone() != null ? landlord.getPhone() : "";
+                landlordCiphertext = landlord.getIdCardCiphertext() != null
+                        ? landlord.getIdCardCiphertext() : "";
+            }
+        }
+
+        RentContract contract = new RentContract();
+        contract.setId(UUID.randomUUID().toString());
+        contract.setOrderId(order.getId());
+        contract.setUserId(order.getUserId());
+        contract.setHouseId(order.getHouseId());
+        contract.setContractNo(contractNo);
+        contract.setStatus("draft");
+        contract.setTenantName(auth.getRealName());
+        contract.setTenantPhone(auth.getAccountMobile());
+        contract.setTenantIdCard(""); // 旧明文字段，后续迁移清空
+        contract.setTenantIdCardCiphertext(tenantCiphertext);
+        contract.setLandlordName(landlordName);
+        contract.setLandlordPhone(landlordPhone);
+        contract.setLandlordIdCard(""); // 旧明文字段
+        contract.setLandlordIdCardCiphertext(landlordCiphertext);
+        contract.setIdCardFrontUrl(null);
+        contract.setIdCardBackUrl(null);
+        contract.setStartDate(order.getStartDate());
+        contract.setEndDate(order.getEndDate());
+        contract.setLeaseMonths(order.getLeaseMonths());
+        contract.setMonthlyRent(order.getMonthlyRent());
+        contract.setDeposit(order.getDeposit());
+        contract.setServiceFee(order.getServiceFee());
+        contract.setPaymentMonths(order.getPaymentMonths());
+        contract.setFirstPaymentAmount(order.getFirstPaymentAmount());
+        contract.setHouseName(house.getTitle());
+        contract.setRoomName(formatRoomName(house));
+        contract.setHouseAddress(house.getAddress());
+        contract.setCreatedAt(LocalDateTime.now());
+        contract.setUpdatedAt(LocalDateTime.now());
+        rentContractMapper.insert(contract);
     }
 
     @Override
@@ -223,7 +376,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         contract.setStatus("draft");
         contract.setTenantName(request.tenantName());
         contract.setTenantPhone(request.tenantPhone());
-        contract.setTenantIdCard(request.tenantIdCard());
+        contract.setTenantIdCard(""); // 旧明文字段
+        contract.setTenantIdCardCiphertext(idCardCryptoService.encrypt(request.tenantIdCard()));
         contract.setIdCardFrontUrl(request.idCardFrontUrl());
         contract.setIdCardBackUrl(request.idCardBackUrl());
         contract.setStartDate(order.getStartDate());
@@ -246,7 +400,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
 
     @Override
     public ContractPreviewResponse getContractPreview(String userId, String orderId) {
-        RentOrder order = getOwnedOrder(userId, orderId);
+        RentOrder order = getRelatedOrder(userId, orderId);
         RentContract contract = rentContractMapper.selectOne(
                 Wrappers.<RentContract>lambdaQuery()
                         .eq(RentContract::getOrderId, orderId)
@@ -257,30 +411,69 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             throw BusinessException.notFound("合同尚未生成");
         }
 
-        // 获取房东名称
-        String landlordName = "";
-        House house = houseService.getById(contract.getHouseId());
-        if (house != null && house.getLandlordId() != null) {
-            Landlord landlord = landlordService.getById(house.getLandlordId());
-            if (landlord != null) {
-                landlordName = landlord.getName();
+        // 获取房东信息（优先使用合同内的，兼容旧合同从 landlord 表查）
+        String landlordName = contract.getLandlordName() != null && !contract.getLandlordName().isBlank()
+                ? contract.getLandlordName() : "";
+        String landlordPhone = contract.getLandlordPhone() != null
+                ? contract.getLandlordPhone() : "";
+        String landlordIdCard = "";
+        // 优先从密文列解密，兼容旧明文列
+        String lessorCiphertext = contract.getLandlordIdCardCiphertext();
+        if (lessorCiphertext != null && !lessorCiphertext.isBlank()) {
+            try {
+                landlordIdCard = idCardCryptoService.mask(idCardCryptoService.decrypt(lessorCiphertext));
+            } catch (Exception e) {
+                log.warn("合同房东身份证密文解密失败: orderId={}", orderId);
+            }
+        } else if (contract.getLandlordIdCard() != null && !contract.getLandlordIdCard().isBlank()) {
+            try {
+                landlordIdCard = idCardCryptoService.mask(idCardCryptoService.decrypt(contract.getLandlordIdCard()));
+            } catch (Exception e) {
+                log.warn("合同房东身份证解密失败: orderId={}", orderId);
+            }
+        }
+        if (landlordName.isBlank()) {
+            House house = houseService.getById(contract.getHouseId());
+            if (house != null && house.getLandlordId() != null) {
+                Landlord landlord = landlordService.getById(house.getLandlordId());
+                if (landlord != null) {
+                    landlordName = landlord.getName() != null ? landlord.getName() : "";
+                    landlordPhone = landlord.getPhone() != null ? landlord.getPhone() : "";
+                }
             }
         }
 
         // 生成合同条款
         List<String> clauses = buildContractClauses(contract);
 
+        // 租户身份证脱敏（从密文列解密，兼容旧明文列）
+        String tenantIdCardMasked = "";
+        String tenantCiphertext = contract.getTenantIdCardCiphertext();
+        if (tenantCiphertext != null && !tenantCiphertext.isBlank()) {
+            try {
+                tenantIdCardMasked = idCardCryptoService.mask(idCardCryptoService.decrypt(tenantCiphertext));
+            } catch (Exception e) {
+                log.warn("合同租户身份证密文解密失败: orderId={}", orderId);
+            }
+        } else if (contract.getTenantIdCard() != null && !contract.getTenantIdCard().isBlank()) {
+            tenantIdCardMasked = idCardCryptoService.mask(contract.getTenantIdCard());
+        }
+
         return new ContractPreviewResponse(
                 orderId,
                 contract.getContractNo(),
                 contract.getStatus(),
+                contract.getStatus(),
+                contract.getPreviewUrl(),
                 contract.getTenantName(),
                 contract.getTenantPhone(),
-                contract.getTenantIdCard(),
+                tenantIdCardMasked,
                 contract.getHouseName(),
                 contract.getRoomName(),
                 contract.getHouseAddress(),
                 landlordName,
+                landlordPhone,
+                landlordIdCard,
                 contract.getStartDate(),
                 contract.getEndDate(),
                 contract.getLeaseMonths(),
@@ -306,6 +499,17 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         order.setContractConfirmedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
         updateById(order);
+
+        // 同步更新合同状态为已确认
+        RentContract contract = rentContractMapper.selectOne(
+                Wrappers.<RentContract>lambdaQuery()
+                        .eq(RentContract::getOrderId, orderId)
+                        .last("LIMIT 1"), false);
+        if (contract != null && "generated".equals(contract.getStatus())) {
+            contract.setStatus("confirmed");
+            contract.setUpdatedAt(LocalDateTime.now());
+            rentContractMapper.updateById(contract);
+        }
 
         House house = houseService.getById(order.getHouseId());
         return toResponse(order, house);
@@ -409,10 +613,10 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         record.setUpdatedAt(now);
         paymentRecordService.updateById(record);
 
-        // 支付确认后推进订单状态
+        // 支付确认后推进订单状态 → pendingEsign
         RentOrder order = getById(record.getOrderId());
         if (order != null && "pendingPayment".equals(order.getStatus())) {
-            order.setStatus("pendingSign");
+            order.setStatus("pendingEsign");
             order.setPaidAt(now);
             order.setUpdatedAt(now);
             updateById(order);
@@ -421,94 +625,391 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
 
     @Override
     @Transactional
-    public RentOrderResponse sign(String userId, String orderId) {
-        RentOrder order = getOwnedOrder(userId, orderId);
+    public EsignSignResponse sign(String userId, String orderId) {
+        RentOrder order = getRelatedOrder(userId, orderId);
 
-        if (!"pendingSign".equals(order.getStatus())) {
+        // 已完成 → 直接返回
+        if ("completed".equals(order.getStatus())) {
+            return new EsignSignResponse("COMPLETED",
+                    userId.equals(order.getUserId()) ? "TENANT" : "LESSOR", true, null);
+        }
+
+        if (!"pendingEsign".equals(order.getStatus())) {
             throw BusinessException.badRequest("当前订单状态不允许签约");
         }
 
         RentContract contract = rentContractMapper.selectOne(
                 Wrappers.<RentContract>lambdaQuery()
                         .eq(RentContract::getOrderId, orderId)
-                        .last("LIMIT 1"),
-                false
-        );
+                        .last("LIMIT 1"), false);
+        if (contract == null) {
+            throw BusinessException.notFound("合同尚未生成");
+        }
+
+        // 合同已签署完成
+        if ("signed".equals(contract.getStatus())) {
+            return new EsignSignResponse("COMPLETED",
+                    userId.equals(order.getUserId()) ? "TENANT" : "LESSOR", true, null);
+        }
+
+        LeaseContractFillData fillData = buildFillData(order, contract);
+        if (fillData == null) {
+            throw BusinessException.badRequest("房东或租户尚未完成实名认证");
+        }
+
+        // 判断用户角色
+        boolean isTenant = userId.equals(order.getUserId());
+        if (!isTenant) {
+            // 房东签署：校验身份信息
+            if (order.getLessorUserId() == null) {
+                throw BusinessException.badRequest("房东未关联系统账号，无法签署。请联系管理员在房东管理中绑定账号。");
+            }
+            if (!realNameAuthService.isVerified(order.getLessorUserId())) {
+                throw BusinessException.badRequest("房东尚未完成实名认证");
+            }
+        }
+
+        // 生成合同文件（幂等）
+        if (contract.getContractFileId() == null || contract.getContractFileId().isBlank()) {
+            requireEsignConfigured();
+            EsignV3Client.CreateFileResponse fileResp =
+                    esignV3Client.createByDocTemplate(fillData, esignV3Properties.getDocTemplateId());
+            contract.setDocTemplateId(esignV3Properties.getDocTemplateId());
+            contract.setContractFileId(fileResp.getData().getFileId());
+            contract.setPreviewUrl(fileResp.getData().getFileDownloadUrl());
+            contract.setStatus("generated");
+            contract.setUpdatedAt(LocalDateTime.now());
+            rentContractMapper.updateById(contract);
+        }
+
+        // 发起签署流程（幂等）
+        if (contract.getSignFlowId() == null || contract.getSignFlowId().isBlank()) {
+            requireEsignConfigured();
+            EsignV3Client.CreateSignFlowResponse flowResp =
+                    esignV3Client.createSignFlow(contract.getContractFileId(), fillData);
+            contract.setSignFlowId(flowResp.getData().getSignFlowId());
+            contract.setStatus("signing");
+            contract.setUpdatedAt(LocalDateTime.now());
+            rentContractMapper.updateById(contract);
+            // 提交本地合同状态，不与 e签宝 HTTP 共用事务
+        }
+
+        // 获取当前用户的签署链接
+        String signerPhone = isTenant ? fillData.getTenantMobile() : fillData.getLessorMobile();
+        String userRole = isTenant ? "TENANT" : "LESSOR";
+
+        requireEsignConfigured();
+        EsignV3Client.SignUrlResponse signUrlResp =
+                esignV3Client.getSignUrl(contract.getSignFlowId(), signerPhone);
+
+        String signUrl = signUrlResp.getData().getShortUrl() != null
+                ? signUrlResp.getData().getShortUrl()
+                : signUrlResp.getData().getUrl();
+
+        // 检查当前用户是否已签
+        boolean currentUserSigned = isTenant
+                ? (contract.getTenantSigned() != null && contract.getTenantSigned() == 1)
+                : (contract.getLessorSigned() != null && contract.getLessorSigned() == 1);
+
+        return new EsignSignResponse("SIGNING", userRole, currentUserSigned, signUrl);
+    }
+
+    // ==================== e签宝回调处理 ====================
+
+    @Override
+    @Transactional
+    public void processEsignCallback(EsignCallbackData callback) {
+        // 根据 signFlowId 查找合同（利用唯一约束保证精准匹配）
+        RentContract contract = rentContractMapper.selectOne(
+                Wrappers.<RentContract>lambdaQuery()
+                        .eq(RentContract::getSignFlowId, callback.getSignFlowId())
+                        .last("LIMIT 1"), false);
+        if (contract == null) {
+            log.warn("e签宝回调：未找到对应合同 signFlowId={}", callback.getSignFlowId());
+            return;
+        }
+
+        // 幂等：已签署的不再处理
+        if ("signed".equals(contract.getStatus())) {
+            log.info("e签宝回调：合同已签署，忽略 signFlowId={}", callback.getSignFlowId());
+            return;
+        }
+
+        Integer status = callback.getSignFlowStatus();
+        if (status == null) return;
+
+        log.info("e签宝回调处理：signFlowId={}, status={}, contractNum={}",
+                callback.getSignFlowId(), status, callback.getContractNum());
+
+        if (status == 2) {
+            // 签署完成
+            contract.setStatus("signed");
+            if (callback.getContractNum() != null) {
+                contract.setContractNum(callback.getContractNum());
+            }
+            contract.setLessorSigned(1);
+            contract.setTenantSigned(1);
+            contract.setSignedAt(EsignCallbackData.toLocalDateTime(callback.getSignFlowFinishTime()));
+            contract.setUpdatedAt(LocalDateTime.now());
+            rentContractMapper.updateById(contract);
+
+            // 查找订单并完成
+            RentOrder order = getById(contract.getOrderId());
+            if (order != null && !"completed".equals(order.getStatus())) {
+                completeOrderAndCreateLease(order, contract);
+            }
+        } else if (status == 3 || status == 5) {
+            // 撤销(3) / 拒签(5)
+            contract.setStatus("canceled");
+            contract.setFailureCode("ESIGN_" + status);
+            contract.setUpdatedAt(LocalDateTime.now());
+            rentContractMapper.updateById(contract);
+        } else if (status == 4) {
+            // 过期
+            contract.setStatus("expired");
+            contract.setFailureCode("ESIGN_EXPIRED");
+            contract.setUpdatedAt(LocalDateTime.now());
+            rentContractMapper.updateById(contract);
+        } else {
+            // status == 0 或 1（草稿/签署中）：更新签署人状态
+            // 回调可能只包含部分签署人信息，保守更新
+            contract.setUpdatedAt(LocalDateTime.now());
+            rentContractMapper.updateById(contract);
+        }
+    }
+
+    private void requireEsignConfigured() {
+        if (!esignV3Properties.isConfigured()) {
+            throw BusinessException.badRequest("e签宝电子合同未配置：请设置 ESIGN_APP_ID 和 ESIGN_APP_SECRET 环境变量");
+        }
+    }
+
+    // ==================== 合同状态刷新 ====================
+
+    @Transactional
+    public EsignSignStatusResponse contractRefresh(String userId, String orderId) {
+        RentOrder order = getRelatedOrder(userId, orderId);
+        boolean isTenant = userId.equals(order.getUserId());
+
+        // 已完成 → 直接返回本地状态，不调 e签宝
+        if ("completed".equals(order.getStatus())) {
+            return new EsignSignStatusResponse("COMPLETED", true, true, true, true, order.getSignedAt());
+        }
+
+        RentContract contract = rentContractMapper.selectOne(
+                Wrappers.<RentContract>lambdaQuery()
+                        .eq(RentContract::getOrderId, orderId)
+                        .last("LIMIT 1"), false);
+        if (contract == null || contract.getSignFlowId() == null) {
+            throw BusinessException.notFound("合同签署流程不存在");
+        }
+
+        // 本地已签完 → 不重复调 e签宝
+        if ("signed".equals(contract.getStatus())) {
+            return new EsignSignStatusResponse("COMPLETED",
+                    contract.getLessorSigned() != null && contract.getLessorSigned() == 1,
+                    contract.getTenantSigned() != null && contract.getTenantSigned() == 1,
+                    isTenant ? (contract.getTenantSigned() != null && contract.getTenantSigned() == 1)
+                            : (contract.getLessorSigned() != null && contract.getLessorSigned() == 1),
+                    true, contract.getSignedAt());
+        }
+
+        EsignV3Client.SignFlowDetailResponse detail =
+                esignV3Client.getSignFlowDetail(contract.getSignFlowId());
+
+        boolean lessorSigned = false;
+        boolean tenantSigned = false;
+        if (detail.getData() != null && detail.getData().getSigners() != null) {
+            for (var s : detail.getData().getSigners()) {
+                boolean signed = s.getSignStatus() == 1;
+                if ("甲方".equals(s.getSignerRole())) lessorSigned = signed;
+                if ("乙方".equals(s.getSignerRole())) tenantSigned = signed;
+            }
+        }
+
+        contract.setLessorSigned(lessorSigned ? 1 : 0);
+        contract.setTenantSigned(tenantSigned ? 1 : 0);
+        contract.setUpdatedAt(LocalDateTime.now());
+
+        // 双方签完 → 完成签约
+        boolean completed = detail.getData() != null && detail.getData().getSignFlowStatus() == 2;
+        if (completed) {
+            contract.setStatus("signed");
+            if (detail.getData().getContractNum() != null) {
+                contract.setContractNum(detail.getData().getContractNum());
+            }
+            // 签署完成时间以 e签宝返回为准
+            LocalDateTime finishTime = detail.getData().getSignFlowFinishTime() != null
+                    ? Instant.ofEpochMilli(detail.getData().getSignFlowFinishTime())
+                              .atZone(ZoneId.of("Asia/Shanghai")).toLocalDateTime()
+                    : LocalDateTime.now();
+            contract.setSignedAt(finishTime);
+            rentContractMapper.updateById(contract);
+
+            // 创建租约（带 FOR UPDATE 防并发）
+            completeOrderAndCreateLease(order, contract);
+        } else {
+            rentContractMapper.updateById(contract);
+        }
+
+        return new EsignSignStatusResponse(
+                completed ? "COMPLETED" : "SIGNING",
+                lessorSigned, tenantSigned,
+                isTenant ? tenantSigned : lessorSigned,
+                completed, completed ? contract.getSignedAt() : null);
+    }
+
+    // ==================== 获取已签合同下载链接 ====================
+
+    public ContractDownloadUrlResponse contractDownloadUrl(String userId, String orderId) {
+        RentOrder order = getRelatedOrder(userId, orderId);
+
+        RentContract contract = rentContractMapper.selectOne(
+                Wrappers.<RentContract>lambdaQuery()
+                        .eq(RentContract::getOrderId, orderId)
+                        .last("LIMIT 1"), false);
+        if (contract == null || contract.getSignFlowId() == null) {
+            throw BusinessException.notFound("合同签署流程不存在");
+        }
+        if (!"signed".equals(contract.getStatus())) {
+            throw EsignException.notSigned();
+        }
+
+        EsignV3Client.FileDownloadResponse resp =
+                esignV3Client.getFileDownloadUrl(contract.getSignFlowId());
+
+        String downloadUrl = null;
+        String fileName = "租房合同.pdf";
+        if (resp.getData() != null && resp.getData().getFiles() != null
+                && !resp.getData().getFiles().isEmpty()) {
+            EsignV3Client.FileDownloadResponse.FileItem f = resp.getData().getFiles().get(0);
+            downloadUrl = f.getDownloadUrl();
+            fileName = f.getFileName() != null ? f.getFileName() : fileName;
+        }
+
+        return new ContractDownloadUrlResponse(fileName, downloadUrl,
+                resp.getData() != null ? resp.getData().getCertificateDownloadUrl() : null);
+    }
+
+    // ==================== 租约创建（双方签完后） ====================
+
+    @Transactional
+    public void completeOrderAndCreateLease(RentOrder order, RentContract contract) {
+        // 用 FOR UPDATE 重新加载订单，防止并发重复创建租约
+        RentOrder lockedOrder = getBaseMapper().selectOne(
+                Wrappers.<RentOrder>lambdaQuery()
+                        .eq(RentOrder::getId, order.getId())
+                        .last("LIMIT 1 FOR UPDATE"));
+        if (lockedOrder == null || "completed".equals(lockedOrder.getStatus())) return; // 幂等
 
         LocalDateTime now = LocalDateTime.now();
-
-        // 创建租约（补齐所有履约字段）
-        // 若入住日期还未到，租约状态为待生效（pending），反之为生效中（active）
         LocalDate today = LocalDate.now();
-        String leaseStatus = order.getStartDate().isAfter(today) ? "pending" : "active";
+        String leaseStatus = lockedOrder.getStartDate().isAfter(today) ? "pending" : "active";
 
         Lease lease = new Lease();
         lease.setId(UUID.randomUUID().toString());
-        lease.setUserId(userId);
-        lease.setHouseId(order.getHouseId());
+        lease.setUserId(lockedOrder.getUserId());
+        lease.setHouseId(lockedOrder.getHouseId());
         lease.setStatus(leaseStatus);
-        lease.setStartDate(order.getStartDate());
-        lease.setEndDate(order.getEndDate());
-        lease.setLeaseMonths(order.getLeaseMonths());
-        lease.setPaymentMethod(order.getPaymentMethod());
-        lease.setPaymentMonths(order.getPaymentMonths());
-        lease.setMonthlyRent(order.getMonthlyRent());
-        lease.setDeposit(order.getDeposit());
-        lease.setServiceFee(order.getServiceFee());
-        lease.setFirstPaymentAmount(order.getFirstPaymentAmount());
-        lease.setContractId(contract != null ? contract.getId() : null);
+        lease.setStartDate(lockedOrder.getStartDate());
+        lease.setEndDate(lockedOrder.getEndDate());
+        lease.setLeaseMonths(lockedOrder.getLeaseMonths());
+        lease.setPaymentMethod(lockedOrder.getPaymentMethod());
+        lease.setPaymentMonths(lockedOrder.getPaymentMonths());
+        lease.setMonthlyRent(lockedOrder.getMonthlyRent());
+        lease.setDeposit(lockedOrder.getDeposit());
+        lease.setServiceFee(lockedOrder.getServiceFee());
+        lease.setFirstPaymentAmount(lockedOrder.getFirstPaymentAmount());
+        lease.setContractId(contract.getId());
+        lease.setOrderId(lockedOrder.getId());
         lease.setCreatedAt(now);
         lease.setUpdatedAt(now);
         leaseService.save(lease);
 
-        // 创建押金记录
         PaymentRecord paymentRecord = paymentRecordService.getOne(
                 Wrappers.<PaymentRecord>lambdaQuery()
-                        .eq(PaymentRecord::getOrderId, orderId)
+                        .eq(PaymentRecord::getOrderId, lockedOrder.getId())
                         .eq(PaymentRecord::getType, "rent")
                         .eq(PaymentRecord::getStatus, "success")
-                        .last("LIMIT 1"),
-                false
-        );
+                        .last("LIMIT 1"), false);
 
         DepositRecord depositRecord = new DepositRecord();
         depositRecord.setLeaseId(lease.getId());
-        depositRecord.setUserId(userId);
-        depositRecord.setHouseId(order.getHouseId());
-        depositRecord.setAmount(order.getDeposit());
+        depositRecord.setUserId(lockedOrder.getUserId());
+        depositRecord.setHouseId(lockedOrder.getHouseId());
+        depositRecord.setAmount(lockedOrder.getDeposit());
         depositRecord.setPaymentRecordId(paymentRecord != null ? paymentRecord.getId() : null);
         depositService.createDeposit(depositRecord);
 
-        // 批量生成租金账单
-        generateRentBills(lease, order);
+        generateRentBills(lease, lockedOrder);
 
-        // 合同签署
-        if (contract != null) {
-            contract.setStatus("signed");
-            contract.setSignedAt(now);
-            contract.setUpdatedAt(now);
-            rentContractMapper.updateById(contract);
-        }
+        lockedOrder.setStatus("completed");
+        lockedOrder.setSignedAt(now);
+        lockedOrder.setUpdatedAt(now);
+        updateById(lockedOrder);
 
-        // 订单完成
-        order.setStatus("completed");
-        order.setSignedAt(now);
-        order.setUpdatedAt(now);
-        updateById(order);
-
-        // 房源置为已租
-        House house = houseService.getById(order.getHouseId());
+        House house = houseService.getById(lockedOrder.getHouseId());
         if (house != null) {
             house.setStatus("rented");
             house.setUpdatedAt(now);
             houseService.updateById(house);
         }
-        // 租约当即生效时事务提交后自动下发TTLock eKey，平台失败不会回滚租约。
         if ("active".equals(leaseStatus)) {
             eventPublisher.publishEvent(new LeaseActivatedEvent(lease.getId()));
         }
-        return toResponse(order, house);
+        log.info("eSign签约完成，租约已创建: orderId={}, leaseId={}", lockedOrder.getId(), lease.getId());
     }
+
+    // ==================== 构建合同填充数据 ====================
+
+    private LeaseContractFillData buildFillData(RentOrder order, RentContract contract) {
+        // 租户：从实名认证记录获取
+        UserRealNameAuth tenantAuth = realNameAuthService.getVerifiedRecord(order.getUserId());
+        if (tenantAuth == null) return null;
+        String tenantIdCard = idCardCryptoService.decrypt(tenantAuth.getIdCardCiphertext());
+
+        // 房东：必须绑定用户并完成实名认证，不允许 Landlord 表兜底
+        if (order.getLessorUserId() == null) {
+            log.warn("订单 {} 未关联房东用户ID，无法生成合同填充数据", order.getId());
+            return null;
+        }
+        UserRealNameAuth lessorAuth = realNameAuthService.getVerifiedRecord(order.getLessorUserId());
+        if (lessorAuth == null) return null; // 房东未完成实名认证
+        String lessorIdCard = idCardCryptoService.decrypt(lessorAuth.getIdCardCiphertext());
+
+        // 地址拼接（不截断，完整传入 e签宝）
+        House house = houseService.getById(order.getHouseId());
+        String addr = (house.getAddress() != null ? house.getAddress() : "")
+                + (house.getBuilding() != null ? house.getBuilding() + "栋" : "")
+                + (house.getUnit() != null ? house.getUnit() + "单元" : "")
+                + (house.getRoom() != null ? house.getRoom() : "");
+
+        return LeaseContractFillData.builder()
+                .lessorName(lessorAuth.getRealName())
+                .lessorMobile(lessorAuth.getAccountMobile())
+                .lessorIdCard(lessorIdCard)
+                .tenantName(tenantAuth.getRealName())
+                .tenantMobile(tenantAuth.getAccountMobile())
+                .tenantIdCard(tenantIdCard)
+                .houseAddress(addr)
+                .leaseMonths(order.getLeaseMonths() != null ? order.getLeaseMonths() : 1)  // 直接传月数
+                .leaseStartDate(order.getStartDate())
+                .leaseEndDate(order.getEndDate())
+                .noticeMonths(1)
+                .deposit(new java.math.BigDecimal(order.getDeposit()))
+                .monthlyRent(new java.math.BigDecimal(order.getMonthlyRent()))
+                .rentPaymentDate(order.getStartDate())
+                .lessorSignDate(null)   // 不预填，签署时由签署人填写
+                .tenantSignDate(null)   // 不预填
+                .build();
+    }
+
+    private String getUserVerifiedPhone(String userId) {
+        UserRealNameAuth auth = realNameAuthService.getVerifiedRecord(userId);
+        return auth != null ? auth.getAccountMobile() : null;
+    }
+
+    // ==================== 签约相关方法 ====================
 
     @Override
     @Transactional
@@ -626,6 +1127,28 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         return order;
     }
 
+    /** 允许租户或房东访问订单（签署和查看合同相关操作） */
+    private RentOrder getRelatedOrder(String userId, String orderId) {
+        RentOrder order = getById(orderId);
+        if (order == null) {
+            throw BusinessException.notFound("订单不存在");
+        }
+        if (userId.equals(order.getUserId())) {
+            return order;
+        }
+        if (order.getLessorUserId() != null && userId.equals(order.getLessorUserId())) {
+            return order;
+        }
+        throw BusinessException.forbidden("无权操作该订单");
+    }
+
+    /** 从房源的房东记录中获取关联系统用户ID，找不到返回 null */
+    private String getLessorUserId(House house) {
+        if (house == null || house.getLandlordId() == null) return null;
+        Landlord landlord = landlordService.getById(house.getLandlordId());
+        return landlord != null ? landlord.getUserId() : null;
+    }
+
     private RentOrderResponse toResponse(RentOrder order, House house) {
         String houseName = house != null ? house.getTitle() : "";
         String roomName = house != null ? formatRoomName(house) : "";
@@ -641,7 +1164,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
                 order.getServiceFee(), order.getFirstPaymentAmount(),
                 order.getTotalAmount(),
                 order.getTenantName(), order.getTenantPhone(),
-                order.getTenantIdCard(),
+                idCardCryptoService.mask(order.getTenantIdCard()),
                 order.getRealNameAt(), order.getContractConfirmedAt(),
                 order.getPaidAt(), order.getSignedAt(),
                 order.getCancelledAt(),

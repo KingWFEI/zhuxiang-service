@@ -5,6 +5,7 @@ import com.zhuxiang.service.auth.RequireAuth;
 import com.zhuxiang.service.common.ApiResponse;
 import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.*;
+import com.zhuxiang.service.service.impl.RentOrderServiceImpl;
 import com.zhuxiang.service.service.RentOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -124,14 +125,34 @@ public class RentOrderController {
     }
 
     @PostMapping("/rent-orders/{orderId}/sign")
-    @Operation(summary = "完成订单签约", description = "在合同确认并支付后完成签约，生成后续租约数据。")
-    public ApiResponse<RentOrderResponse> sign(
+    @Operation(summary = "发起电子签署", description = "支付成功后发起 e签宝电子签署，返回当前用户的签署网页链接。")
+    public ApiResponse<EsignSignResponse> sign(
+            HttpServletRequest request,
+            @Parameter(description = "租房订单 ID", example = "order_001") @PathVariable String orderId
+    ) {
+        return ApiResponse.success("请打开签署链接完成签名",
+                rentOrderService.sign(CurrentUser.id(request), orderId));
+    }
+
+    @PostMapping("/rent-orders/{orderId}/contract-refresh")
+    @Operation(summary = "刷新电子合同签署状态", description = "查询 e签宝最新签署状态，双方签完后自动创建租约完成订单。")
+    public ApiResponse<EsignSignStatusResponse> contractRefresh(
             HttpServletRequest request,
             @Parameter(description = "租房订单 ID", example = "order_001") @PathVariable String orderId
     ) {
         return ApiResponse.success(
-                "签约完成",
-                rentOrderService.sign(CurrentUser.id(request), orderId)
+                rentOrderService.contractRefresh(CurrentUser.id(request), orderId)
+        );
+    }
+
+    @GetMapping("/rent-orders/{orderId}/contract-download-url")
+    @Operation(summary = "获取已签合同下载链接", description = "合同签署完成后获取临时下载地址和签署证书地址。")
+    public ApiResponse<ContractDownloadUrlResponse> contractDownloadUrl(
+            HttpServletRequest request,
+            @Parameter(description = "租房订单 ID", example = "order_001") @PathVariable String orderId
+    ) {
+        return ApiResponse.success(
+                rentOrderService.contractDownloadUrl(CurrentUser.id(request), orderId)
         );
     }
 
