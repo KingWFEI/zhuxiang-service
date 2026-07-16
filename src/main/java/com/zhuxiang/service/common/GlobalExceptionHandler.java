@@ -29,6 +29,19 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(exception.getCode(), exception.getMessage()));
     }
 
+    @ExceptionHandler(EsignApiException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEsignApiException(
+            EsignApiException exception,
+            HttpServletRequest request
+    ) {
+        log.warn("e签宝接口调用失败: {} {} -> httpStatus={}, esignCode={}, path={}, message={}",
+                request.getMethod(), request.getRequestURI(),
+                exception.getHttpStatus(), exception.getEsignCode(),
+                exception.getPath(), exception.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(503, "实名认证服务暂时不可用，请稍后重试"));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidationException(
             MethodArgumentNotValidException exception,
@@ -57,6 +70,18 @@ public class GlobalExceptionHandler {
         log.warn("接口请求失败: {} {} -> code=400, message={}",
                 request.getMethod(), request.getRequestURI(), message);
         return ResponseEntity.badRequest().body(ApiResponse.error(400, message));
+    }
+
+    @ExceptionHandler(EsignException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEsignException(
+            EsignException exception,
+            HttpServletRequest request
+    ) {
+        log.warn("e签宝V3合同接口失败: {} {} -> code={}, message={}, path={}",
+                request.getMethod(), request.getRequestURI(),
+                exception.getEsignCode(), exception.getMessage(), exception.getPath());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error(503, exception.toUserMessage()));
     }
 
     @ExceptionHandler(Exception.class)

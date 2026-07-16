@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
+import lombok.ToString;
 
 import java.io.Serializable;
 import java.time.LocalDate;
@@ -26,11 +27,44 @@ public class RentContract implements Serializable {
 
     private String status;
 
+    private String docTemplateId;
+
+    private String contractFileId;
+
+    private String signFlowId;
+
+    private String contractNum;
+
+    private Integer lessorSigned;
+
+    private Integer tenantSigned;
+
+    private String previewUrl;
+
+    private String failureCode;
+
+    private String failureMessage;
+
+    private Integer version;
+
     private String tenantName;
 
     private String tenantPhone;
 
     private String tenantIdCard;
+
+    @ToString.Exclude
+    private String tenantIdCardCiphertext;
+
+    private String landlordName;
+
+    private String landlordPhone;
+
+    @ToString.Exclude
+    private String landlordIdCard;
+
+    @ToString.Exclude
+    private String landlordIdCardCiphertext;
 
     private LocalDate startDate;
 

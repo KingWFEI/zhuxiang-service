@@ -44,10 +44,8 @@
       "Bash(git reset *)",
       "Bash(git fetch *)",
       "Bash(git merge *)",
-<<<<<<< Updated upstream
       "Read(//d/java/**)",
-      "Read(//c/Program Files/**)"
-=======
+      "Read(//c/Program Files/**)",
       "Bash(mvn dependency:tree -Dincludes=com.baomidou:*)",
       "Read(//c/Users/86132/.m2/repository/com/baomidou/mybatis-plus-spring-boot3-starter/**)",
       "Read(//c/Users/86132/.m2/repository/com/baomidou/**)",
@@ -69,8 +67,11 @@
       "Bash(mv V20260707_01__create_immersive_tables.sql V20260708_01__create_immersive_tables.sql)",
       "Bash(mv V20260707_02__fix_immersive_user_id_columns.sql V20260708_02__fix_immersive_user_id_columns.sql)",
       "Bash(mv V20260708_01__create_immersive_tables.sql V20260707_03__create_immersive_tables.sql)",
-      "Bash(mv V20260708_02__fix_immersive_user_id_columns.sql V20260707_04__fix_immersive_user_id_columns.sql)"
->>>>>>> Stashed changes
+      "Bash(mv V20260708_02__fix_immersive_user_id_columns.sql V20260707_04__fix_immersive_user_id_columns.sql)",
+      "Bash(node *)",
+      "Bash(git mv *)",
+      "Bash(mvn flyway:repair -Dflyway.configFiles=src/main/resources/application.yml -q)",
+      "Bash(mvn flyway:repair -Dflyway.url='jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai' -Dflyway.user='root' -Dflyway.password='132135' -q)"
     ]
   }
 }

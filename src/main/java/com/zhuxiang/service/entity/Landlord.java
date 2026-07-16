@@ -8,6 +8,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Data;
+import lombok.ToString;
 
 /**
  * 房东与平台管家资料表
@@ -23,6 +24,11 @@ public class Landlord implements Serializable {
     private String id;
 
     /**
+     * 关联系统用户ID，房东本人签署合同时使用
+     */
+    private String userId;
+
+    /**
      * 房东或管家姓名
      */
     private String name;
@@ -36,6 +42,12 @@ public class Landlord implements Serializable {
      * 联系电话，前端展示时建议脱敏
      */
     private String phone;
+
+    /**
+     * 身份证号密文（AES-256-GCM 加密），用于生成合同时解密。
+     */
+    @ToString.Exclude
+    private String idCardCiphertext;
 
     /**
      * 是否已实名认证：0否，1是

@@ -36,4 +36,9 @@ public class BusinessException extends RuntimeException {
     public static BusinessException tooManyRequests(String message) {
         return new BusinessException(429, message);
     }
+
+    /** 用户未完成全局实名认证，不可创建租约订单 */
+    public static BusinessException realNameRequired() {
+        return new BusinessException(400, "请先完成实名认证");
+    }
 }
