@@ -111,4 +111,26 @@ public interface HouseService extends IService<House> {
      * 获取热门小区列表，基于社区房源数量聚合。
      */
     List<HouseDtos.HotCommunityItem> getHotCommunities(int limit);
+
+    // ---- 房东端房源管理 ----
+
+    /** 获取当前房东的房源列表，支持按状态筛选。 */
+    List<AdminHouseDtos.AdminHouseView> getLandlordHouses(String landlordId, String status);
+
+    /** 获取房东名下房源详情，校验归属权。 */
+    AdminHouseDtos.AdminHouseView getLandlordHouseById(String houseId, String landlordId);
+
+    /** 房东创建房源，landlordId 从 Token 自动获取。 */
+    AdminHouseDtos.AdminHouseView createLandlordHouse(
+            AdminHouseDtos.CreateHouseRequest request, String landlordId);
+
+    /** 房东修改房源，校验归属权，全字段可选。 */
+    AdminHouseDtos.AdminHouseView updateLandlordHouse(
+            String houseId, AdminHouseDtos.UpdateHouseRequest request, String landlordId);
+
+    /** 房东发布房源（draft → available），校验归属权。 */
+    AdminHouseDtos.AdminHouseView publishLandlordHouse(String houseId, String landlordId);
+
+    /** 房东下架房源（available → offline），校验归属权。 */
+    AdminHouseDtos.AdminHouseView offlineLandlordHouse(String houseId, String landlordId);
 }

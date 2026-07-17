@@ -1384,6 +1384,119 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         }
         return items;
     }
+
+    // ---- 房东端房源管理 ----
+
+    /** 校验房东角色。 */
+    private void requireLandlordRole(String operatorId) {
+        User operator = userService.requireActiveUser(operatorId);
+        if (operator.getRole() == null
+                || !"LANDLORD".equalsIgnoreCase(operator.getRole())) {
+            throw BusinessException.forbidden("当前账号无权操作房东房源");
+        }
+    }
+
+    /** 校验房源归属当前房东。 */
+    private House requireLandlordOwnership(String houseId, String landlordId) {
+        House house = getById(houseId);
+        if (house == null) {
+            throw BusinessException.notFound("房源不存在");
+        }
+        if (!landlordId.equals(house.getLandlordId())) {
+            throw BusinessException.forbidden("无权操作该房源");
+        }
+        return house;
+    }
+
+    @Override
+    public List<AdminHouseDtos.AdminHouseView> getLandlordHouses(String landlordId, String status) {
+        requireLandlordRole(landlordId);
+        List<House> houses = list(
+                Wrappers.<House>lambdaQuery()
+                        .eq(House::getLandlordId, landlordId)
+                        .eq(status != null, House::getStatus, status)
+                        .orderByDesc(House::getCreatedAt)
+        );
+        List<String> houseIds = houses.stream().map(House::getId).toList();
+        if (houseIds.isEmpty()) return List.of();
+        Map<String, SmartLock> smartLockMap = houseIds.isEmpty() ? Map.of()
+                : smartLockMapper.selectLatestByHouseIds(houseIds)
+                .stream().collect(Collectors.toMap(SmartLock::getHouseId, l -> l, (a, b) -> a));
+        Map<String, HouseLocation> locationMap = houseIds.isEmpty() ? Map.of()
+                : houseLocationMapper.selectList(
+                        Wrappers.<HouseLocation>lambdaQuery().in(HouseLocation::getHouseId, houseIds)
+                ).stream().collect(Collectors.toMap(HouseLocation::getHouseId, l -> l, (a, b) -> a));
+        return houses.stream()
+                .map(h -> toAdminHouseView(h, smartLockMap.get(h.getId()), locationMap.get(h.getId())))
+                .toList();
+    }
+
+    @Override
+    public AdminHouseDtos.AdminHouseView getLandlordHouseById(String houseId, String landlordId) {
+        requireLandlordRole(landlordId);
+        House house = requireLandlordOwnership(houseId, landlordId);
+        SmartLock smartLock = smartLockMapper.selectLatestByHouseId(houseId);
+        return toAdminHouseView(house, smartLock, findHouseLocation(houseId));
+    }
+
+    @Override
+    @Transactional
+    public AdminHouseDtos.AdminHouseView createLandlordHouse(
+            AdminHouseDtos.CreateHouseRequest request, String landlordId) {
+        requireLandlordRole(landlordId);
+        // 强制使用房东自己的 ID，忽略请求中的 landlordId
+        return createHouse(
+                new AdminHouseDtos.CreateHouseRequest(
+                        request.title(), request.coverImage(), request.imageUrls(),
+                        request.location(), request.communityId(), request.address(),
+                        request.longitude(), request.latitude(),
+                        request.province(), request.city(), request.district(),
+                        request.township(), request.neighborhood(),
+                        request.building(), request.unit(), request.room(),
+                        request.price(), request.deposit(), request.paymentMethod(),
+                        request.roomType(), request.area(), request.floor(),
+                        request.orientation(), request.decoration(),
+                        request.availableDate(), request.metro(), request.description(),
+                        request.rentType(), landlordId,
+                        request.isSmartLockSupported(), request.isSelfViewingSupported(),
+                        request.facilityIds(), request.tagIds()
+                ), landlordId);
+    }
+
+    @Override
+    @Transactional
+    public AdminHouseDtos.AdminHouseView updateLandlordHouse(
+            String houseId, AdminHouseDtos.UpdateHouseRequest request, String landlordId) {
+        requireLandlordRole(landlordId);
+        requireLandlordOwnership(houseId, landlordId);
+        return updateHouse(houseId, request, landlordId);
+    }
+
+    @Override
+    public AdminHouseDtos.AdminHouseView publishLandlordHouse(String houseId, String landlordId) {
+        requireLandlordRole(landlordId);
+        House house = requireLandlordOwnership(houseId, landlordId);
+        if (!"draft".equals(house.getStatus())) {
+            throw BusinessException.badRequest("只有草稿状态的房源才能发布，当前状态：" + house.getStatus());
+        }
+        house.setStatus("available");
+        house.setUpdatedAt(LocalDateTime.now());
+        updateById(house);
+        return toAdminHouseView(house, smartLockMapper.selectLatestByHouseId(houseId), findHouseLocation(houseId));
+    }
+
+    @Override
+    public AdminHouseDtos.AdminHouseView offlineLandlordHouse(String houseId, String landlordId) {
+        requireLandlordRole(landlordId);
+        House house = requireLandlordOwnership(houseId, landlordId);
+        if (!"available".equals(house.getStatus())) {
+            throw BusinessException.badRequest("只有可租状态的房源才能下架，当前状态：" + house.getStatus());
+        }
+        house.setStatus("offline");
+        house.setUpdatedAt(LocalDateTime.now());
+        updateById(house);
+        return toAdminHouseView(house, smartLockMapper.selectLatestByHouseId(houseId), findHouseLocation(houseId));
+    }
 }
 
 
