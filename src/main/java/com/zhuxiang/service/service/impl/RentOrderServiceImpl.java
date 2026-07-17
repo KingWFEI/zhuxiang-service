@@ -19,6 +19,7 @@ import com.zhuxiang.service.mapper.UserRealNameAuthMapper;
 import com.zhuxiang.service.service.*;
 import com.zhuxiang.service.service.EsignCallbackData;
 import com.zhuxiang.service.service.IdCardCryptoService;
+import com.zhuxiang.service.service.InspectionService;
 import com.zhuxiang.service.service.RealNameAuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,6 +59,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
     private final RentBillService rentBillService;
     private final AlipayService alipayService;
     private final DepositService depositService;
+    private final InspectionService inspectionService;
     private final ObjectMapper objectMapper;
     private final RealNameAuthService realNameAuthService;
     private final UserRealNameAuthMapper userRealNameAuthMapper;
@@ -81,7 +83,8 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
             UserRealNameAuthMapper userRealNameAuthMapper,
             IdCardCryptoService idCardCryptoService,
             EsignV3Client esignV3Client,
-            EsignV3Properties esignV3Properties
+            EsignV3Properties esignV3Properties,
+            InspectionService inspectionService
     ) {
         this.houseService = houseService;
         this.rentContractMapper = rentContractMapper;
@@ -99,6 +102,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         this.idCardCryptoService = idCardCryptoService;
         this.esignV3Client = esignV3Client;
         this.esignV3Properties = esignV3Properties;
+        this.inspectionService = inspectionService;
     }
 
     @Override
@@ -940,6 +944,15 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         depositRecord.setAmount(lockedOrder.getDeposit());
         depositRecord.setPaymentRecordId(paymentRecord != null ? paymentRecord.getId() : null);
         depositService.createDeposit(depositRecord);
+
+        // 创建验收快照（非致命：模板不存在时不影响签约）
+        try {
+            inspectionService.createSnapshotFromTemplate(
+                    contract.getId(), lease.getId(), lockedOrder.getHouseId());
+        } catch (Exception e) {
+            log.warn("创建验房快照失败，签约不受影响: contractId={}, err={}",
+                    contract.getId(), e.getMessage());
+        }
 
         generateRentBills(lease, lockedOrder);
 
