@@ -139,21 +139,42 @@ public class AdminCommunityController {
         return ApiResponse.success(communityService.list(q).stream().map(this::toMap).toList());
     }
 
+    /**
+     * 合并重复小区。
+     */
+    @PostMapping("/merge")
+    @Operation(summary = "合并小区", description = "将 sourceId 的所有房源迁移到 targetId，source 标记为 merged")
+    public ApiResponse<Void> merge(@RequestBody MergeRequest body) {
+        communityService.mergeCommunities(body.sourceId(), body.targetId());
+        return ApiResponse.success("合并完成", null);
+    }
+
+    public record MergeRequest(
+            @NotBlank String sourceId,
+            @NotBlank String targetId
+    ) {}
+
     private Map<String, Object> toMap(Community c) {
         String regionName = "";
         if (c.getRegionId() != null) {
             Region r = regionService.getById(c.getRegionId());
             regionName = r != null ? r.getName() : "";
         }
-        return Map.of(
-                "id", c.getId() != null ? c.getId() : "",
-                "name", c.getName() != null ? c.getName() : "",
-                "address", c.getAddress() != null ? c.getAddress() : "",
-                "regionId", c.getRegionId() != null ? c.getRegionId() : "",
-                "regionName", regionName,
-                "latitude", c.getLatitude() != null ? c.getLatitude() : BigDecimal.ZERO,
-                "longitude", c.getLongitude() != null ? c.getLongitude() : BigDecimal.ZERO,
-                "createdAt", c.getCreatedAt() != null ? c.getCreatedAt().toString() : ""
-        );
+        Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("id", c.getId() != null ? c.getId() : "");
+        map.put("name", c.getName() != null ? c.getName() : "");
+        map.put("address", c.getAddress() != null ? c.getAddress() : "");
+        map.put("regionId", c.getRegionId() != null ? c.getRegionId() : "");
+        map.put("regionName", regionName);
+        map.put("province", c.getProvince() != null ? c.getProvince() : "");
+        map.put("city", c.getCity() != null ? c.getCity() : "");
+        map.put("district", c.getDistrict() != null ? c.getDistrict() : "");
+        map.put("latitude", c.getLatitude() != null ? c.getLatitude() : BigDecimal.ZERO);
+        map.put("longitude", c.getLongitude() != null ? c.getLongitude() : BigDecimal.ZERO);
+        map.put("mapProvider", c.getMapProvider() != null ? c.getMapProvider() : "");
+        map.put("externalPoiId", c.getExternalPoiId() != null ? c.getExternalPoiId() : "");
+        map.put("status", c.getStatus() != null ? c.getStatus() : "approved");
+        map.put("createdAt", c.getCreatedAt() != null ? c.getCreatedAt().toString() : "");
+        return map;
     }
 }

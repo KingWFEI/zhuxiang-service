@@ -98,9 +98,10 @@ alipay:
   alipay-public-key: ${ALIPAY_ALIPAY_PUBLIC_KEY:}
   notify-url: ${ALIPAY_NOTIFY_URL:http://localhost:8000/api/payments/alipay/notify}
   return-url: ${ALIPAY_RETURN_URL:http://localhost/zhuxiang-payment-done}
-
+# 高德开放平台申请的 Web服务 API Key
 amap:
-  key: ${AMAP_KEY:34467f081797ade37c2eb007a8d0dbdc}
+  base-url: ${AMAP_BASE_URL:https://restapi.amap.com}
+  web-service-key: ${AMAP_WEB_SERVICE_KEY:34467f081797ade37c2eb007a8d0dbdc}
 
 ttlock:
   client-id: ${TTLOCK_CLIENT_ID:cb5534587e624eb59a9244cc14b8e281}

@@ -267,6 +267,32 @@ class AdminHouseImageCreationTests {
     }
 
     @Test
+    void returnsFacilityAndTagIdsInLandlordHouseDetail() {
+        User landlord = new User();
+        landlord.setId("landlord-1");
+        landlord.setRole("LANDLORD");
+        House house = new House();
+        house.setId("house-1");
+        house.setLandlordId("landlord-1");
+        HouseFacilityRelation facilityRelation = new HouseFacilityRelation();
+        facilityRelation.setHouseId("house-1");
+        facilityRelation.setFacilityId("facility_001");
+        HouseTagRelation tagRelation = new HouseTagRelation();
+        tagRelation.setHouseId("house-1");
+        tagRelation.setTagId("tag_001");
+        when(userService.requireActiveUser("landlord-1")).thenReturn(landlord);
+        when(houseMapper.selectById("house-1")).thenReturn(house);
+        when(facilityRelationService.list(any(Wrapper.class))).thenReturn(List.of(facilityRelation));
+        when(tagRelationService.list(any(Wrapper.class))).thenReturn(List.of(tagRelation));
+
+        AdminHouseDtos.AdminHouseView response =
+                service.getLandlordHouseById("house-1", "landlord-1");
+
+        assertThat(response.facilityIds()).containsExactly("facility_001");
+        assertThat(response.tagIds()).containsExactly("tag_001");
+    }
+
+    @Test
     void rejectsMissingAdminHouse() {
         when(houseMapper.selectById("missing-house")).thenReturn(null);
 

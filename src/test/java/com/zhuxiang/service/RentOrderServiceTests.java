@@ -50,6 +50,7 @@ class RentOrderServiceTests {
             mock(org.springframework.context.ApplicationEventPublisher.class);
     private final EsignV3Client esignV3Client = mock(EsignV3Client.class);
     private final EsignV3Properties esignV3Properties = mock(EsignV3Properties.class);
+    private final InspectionService inspectionService = mock(InspectionService.class);
 
     private RentOrderServiceImpl service;
 
@@ -61,7 +62,7 @@ class RentOrderServiceTests {
                 eventPublisher, fileRecordService, paymentRecordService,
                 rentBillService, alipayService, depositService, objectMapper,
                 realNameAuthService, userRealNameAuthMapper, idCardCryptoService,
-                esignV3Client, esignV3Properties
+                esignV3Client, esignV3Properties, inspectionService
         ));
         ReflectionTestUtils.setField(service, "baseMapper", rentOrderMapper);
 
