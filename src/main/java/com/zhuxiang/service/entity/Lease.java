@@ -88,6 +88,11 @@ public class Lease implements Serializable {
     private String contractId;
 
     /**
+     * 订单ID，与订单一一对应
+     */
+    private String orderId;
+
+    /**
      * 记录创建时间
      */
     private LocalDateTime createdAt;

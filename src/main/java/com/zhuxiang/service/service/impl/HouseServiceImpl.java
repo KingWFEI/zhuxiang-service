@@ -289,7 +289,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         List<HouseDtos.Option> roomTypes = list(
                         Wrappers.<House>lambdaQuery()
                                 .select(House::getRoomType)
-                                .eq(House::getStatus, "available")
+                                .in(House::getStatus, "available", "reserved")
                                 .groupBy(House::getRoomType)
                 ).stream()
                 .map(House::getRoomType)
@@ -342,7 +342,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         RentOrder activeOrder = rentOrderMapper.selectOne(
                 Wrappers.<RentOrder>lambdaQuery()
                         .eq(RentOrder::getHouseId, house.getId())
-                        .in(RentOrder::getStatus, "pendingRealName", "pendingContract", "pendingPayment", "pendingSign")
+                        .in(RentOrder::getStatus, "created", "pendingRealName", "pendingContract", "pendingPayment", "pendingSign")
                         .last("LIMIT 1")
         );
         if (activeOrder != null) {
@@ -427,7 +427,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         }
 
         LambdaQueryWrapper<House> wrapper = Wrappers.<House>lambdaQuery()
-                .eq(House::getStatus, "available")
+                .in(House::getStatus, "available", "reserved")
                 .apply("NOT EXISTS (SELECT 1 FROM lease WHERE lease.house_id = house.id AND lease.status = 'active')")
                 .eq(StringUtils.hasText(category), House::getRentType, category)
                 .ge(minPrice != null, House::getPrice, minPrice)
