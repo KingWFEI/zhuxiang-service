@@ -24,7 +24,8 @@ import java.util.Set;
 @SecurityRequirement(name = "bearerAuth")
 public class FileController {
 
-    private static final Set<String> ALLOWED_BIZ_TYPES = Set.of("id_card_front", "id_card_back");
+    private static final Set<String> ALLOWED_BIZ_TYPES = Set.of(
+            "id_card_front", "id_card_back", "move_in_inspection", "move_out_inspection");
 
     private final FileRecordService fileRecordService;
 
