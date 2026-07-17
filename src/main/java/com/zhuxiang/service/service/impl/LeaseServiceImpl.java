@@ -25,7 +25,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -224,8 +223,8 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 contract == null ? "" : textOrEmpty(contract.getTenantIdCard()),
                 lease.getStartDate(),
                 lease.getEndDate(),
-                centsToYuan(lease.getMonthlyRent()),
-                centsToYuan(lease.getDeposit()),
+                lease.getMonthlyRent(),
+                lease.getDeposit(),
                 house == null ? "" : textOrEmpty(house.getPaymentMethod()),
                 pendingBill != null && pendingBill.getDueDate() != null
                         ? pendingBill.getDueDate().getDayOfMonth()
@@ -239,7 +238,11 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 keeper == null ? "" : textOrEmpty(keeper.getName()),
                 keeper == null ? "" : textOrEmpty(keeper.getPhone()),
                 buildPendingBillTitle(pendingBill),
-                pendingBillAmount(pendingBill),
+                pendingBill == null ? null
+                        : Math.max(
+                                (pendingBill.getAmountDue() == null ? 0 : pendingBill.getAmountDue())
+                                        - (pendingBill.getAmountPaid() == null ? 0 : pendingBill.getAmountPaid()),
+                                0),
                 pendingBill == null ? null : pendingBill.getDueDate()
         );
     }
@@ -275,19 +278,6 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             return null;
         }
         return bill.getDueDate().getMonthValue() + "月租金待支付";
-    }
-
-    private BigDecimal centsToYuan(Integer cents) {
-        return cents == null ? BigDecimal.ZERO.setScale(2) : BigDecimal.valueOf(cents, 2);
-    }
-
-    private BigDecimal pendingBillAmount(RentBill bill) {
-        if (bill == null) {
-            return null;
-        }
-        int amountDue = bill.getAmountDue() == null ? 0 : bill.getAmountDue();
-        int amountPaid = bill.getAmountPaid() == null ? 0 : bill.getAmountPaid();
-        return centsToYuan(Math.max(amountDue - amountPaid, 0));
     }
 
     private String textOrEmpty(String value) {
