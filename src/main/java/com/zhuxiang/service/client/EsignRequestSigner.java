@@ -25,7 +25,11 @@ public class EsignRequestSigner {
      * 计算 Content-MD5：Base64(MD5(rawBody UTF-8 bytes))
      */
     public String computeContentMd5(String rawBody) {
-        byte[] md5 = md5(rawBody.getBytes(StandardCharsets.UTF_8));
+        return computeContentMd5(rawBody.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public String computeContentMd5(byte[] rawBody) {
+        byte[] md5 = md5(rawBody);
         return Base64.getEncoder().encodeToString(md5);
     }
 

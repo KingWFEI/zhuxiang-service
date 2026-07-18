@@ -35,7 +35,7 @@ class RentOrderServiceTests {
     private final HouseService houseService = mock(HouseService.class);
     private final RentContractMapper rentContractMapper = mock(RentContractMapper.class);
     private final LeaseService leaseService = mock(LeaseService.class);
-    private final LandlordService landlordService = mock(LandlordService.class);
+    private final UserService userService = mock(UserService.class);
     private final FileRecordService fileRecordService = mock(FileRecordService.class);
     private final PaymentRecordService paymentRecordService = mock(PaymentRecordService.class);
     private final RentBillService rentBillService = mock(RentBillService.class);
@@ -51,6 +51,7 @@ class RentOrderServiceTests {
     private final EsignV3Client esignV3Client = mock(EsignV3Client.class);
     private final EsignV3Properties esignV3Properties = mock(EsignV3Properties.class);
     private final InspectionService inspectionService = mock(InspectionService.class);
+    private final CommunityService communityService = mock(CommunityService.class);
 
     private RentOrderServiceImpl service;
 
@@ -58,11 +59,11 @@ class RentOrderServiceTests {
     @SuppressWarnings("unchecked")
     void setUp() {
         service = spy(new RentOrderServiceImpl(
-                houseService, rentContractMapper, leaseService, landlordService,
+                houseService, rentContractMapper, leaseService, userService,
                 eventPublisher, fileRecordService, paymentRecordService,
                 rentBillService, alipayService, depositService, objectMapper,
                 realNameAuthService, userRealNameAuthMapper, idCardCryptoService,
-                esignV3Client, esignV3Properties, inspectionService
+                esignV3Client, esignV3Properties, inspectionService, communityService
         ));
         ReflectionTestUtils.setField(service, "baseMapper", rentOrderMapper);
 
@@ -75,6 +76,22 @@ class RentOrderServiceTests {
 
         House house = buildHouse();
         when(houseService.getById(TEST_HOUSE_ID)).thenReturn(house);
+        com.zhuxiang.service.entity.Community community = new com.zhuxiang.service.entity.Community();
+        community.setId(house.getCommunityId());
+        community.setName("测试小区");
+        when(communityService.getById(house.getCommunityId())).thenReturn(community);
+        com.zhuxiang.service.entity.User landlordUser = new com.zhuxiang.service.entity.User();
+        landlordUser.setId("landlord-user-1");
+        landlordUser.setRole("LANDLORD");
+        when(userService.getById("landlord-user-1")).thenReturn(landlordUser);
+        UserRealNameAuth landlordAuth = new UserRealNameAuth();
+        landlordAuth.setUserId("landlord-user-1");
+        landlordAuth.setAuthStatus("VERIFIED");
+        landlordAuth.setRealName("测试房东");
+        landlordAuth.setAccountMobile("13900139000");
+        landlordAuth.setIdCardCiphertext("v1:landlordCiphertext");
+        when(realNameAuthService.getVerifiedRecord("landlord-user-1"))
+                .thenReturn(landlordAuth);
 
         // lambdaUpdate 链 mock：方法链返回自身，update() 返回 true
         @SuppressWarnings("unchecked")
@@ -88,6 +105,24 @@ class RentOrderServiceTests {
     }
 
     // ==================== 未实名 → REAL_NAME_REQUIRED ====================
+
+    @Test
+    void contractAddress_shouldUseCommunityNameBuildingUnitAndRoomOnly() {
+        House house = new House();
+        house.setCommunityId("community-jiangnan");
+        house.setAddress("经盛路与乐天路交叉口北140米 9 1 2708");
+        house.setBuilding("9");
+        house.setUnit("1");
+        house.setRoom("2708");
+        com.zhuxiang.service.entity.Community community = new com.zhuxiang.service.entity.Community();
+        community.setId("community-jiangnan");
+        community.setName("江南水岸二组团");
+        when(communityService.getById("community-jiangnan")).thenReturn(community);
+
+        String address = ReflectionTestUtils.invokeMethod(service, "buildContractHouseAddress", house);
+
+        assertThat(address).isEqualTo("江南水岸二组团 9栋1单元2708");
+    }
 
     @Test
     void createOrder_shouldThrowRealNameRequiredWhenNotVerified() {
@@ -134,6 +169,32 @@ class RentOrderServiceTests {
         service.createOrder(TEST_USER_ID, buildRequest());
 
         verify(rentContractMapper).insert(any(RentContract.class));
+    }
+
+    @Test
+    void createOrder_shouldBindHouseLandlordUserDirectly() {
+        setupNewOrderSuccess();
+
+        service.createOrder(TEST_USER_ID, buildRequest());
+
+        verify(rentOrderMapper).insert(argThat((RentOrder order) ->
+                "landlord-user-1".equals(order.getLessorUserId())));
+        verify(rentContractMapper).insert(argThat((RentContract contract) ->
+                "测试房东".equals(contract.getLandlordName())
+                        && "13900139000".equals(contract.getLandlordPhone())
+                        && "v1:landlordCiphertext".equals(
+                        contract.getLandlordIdCardCiphertext())));
+    }
+
+    @Test
+    void repairOldOrder_shouldUseHouseLandlordUserId() {
+        RentOrder oldOrder = buildPendingRealNameOrder();
+        oldOrder.setLessorUserId(null);
+
+        ReflectionTestUtils.invokeMethod(service, "repairOrderLessorUser", oldOrder);
+
+        assertThat(oldOrder.getLessorUserId()).isEqualTo("landlord-user-1");
+        verify(rentOrderMapper).updateById(oldOrder);
     }
 
     @Test
@@ -331,6 +392,7 @@ class RentOrderServiceTests {
         House house = new House();
         house.setId(TEST_HOUSE_ID);
         house.setTitle("测试房源");
+        house.setCommunityId("community-test-001");
         house.setBuilding("1");
         house.setUnit("2");
         house.setRoom("301");
@@ -338,6 +400,7 @@ class RentOrderServiceTests {
         house.setDeposit(200000);
         house.setStatus("available");
         house.setAddress("测试地址");
+        house.setLandlordId("landlord-user-1");
         return house;
     }
 }

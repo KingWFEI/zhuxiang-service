@@ -1,5 +1,6 @@
 package com.zhuxiang.service.client;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +12,7 @@ import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
@@ -19,8 +21,6 @@ import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -31,8 +31,6 @@ import java.util.List;
 public class EsignV3Client {
 
     private static final Logger log = LoggerFactory.getLogger(EsignV3Client.class);
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy年MM月dd日");
-
     private final RestTemplate restTemplate;
     private final EsignV3Properties properties;
     private final ObjectMapper objectMapper;
@@ -54,45 +52,96 @@ public class EsignV3Client {
         return get(path, TemplateDetailResponse.class);
     }
 
+    public FileUploadResult uploadLocalFile(byte[] fileBytes, String fileName, String contentType) {
+        requireConfigured();
+        String md5 = signer.computeContentMd5(fileBytes);
+        FileUploadUrlRequest request = new FileUploadUrlRequest();
+        request.setContentMd5(md5);
+        request.setContentType(contentType);
+        request.setFileName(fileName);
+        request.setFileSize(fileBytes.length);
+        request.setConvertToPDF(false);
+        String path = "/v3/files/file-upload-url";
+        FileUploadUrlResponse response = post(path, request, FileUploadUrlResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        if (response.getData() == null) throw BusinessException.badRequest("e签宝未返回文件上传地址");
+        try {
+            restTemplate.execute(URI.create(response.getData().getFileUploadUrl()), HttpMethod.PUT,
+                    clientRequest -> {
+                        clientRequest.getHeaders().setContentType(MediaType.parseMediaType(contentType));
+                        clientRequest.getHeaders().set("Content-MD5", md5);
+                        clientRequest.getBody().write(fileBytes);
+                    }, ignored -> null);
+        } catch (RestClientException e) {
+            throw new EsignException(0, "NETWORK", "合同源文件上传到e签宝失败", path);
+        }
+        return new FileUploadResult(response.getData().getFileId(), response.getData().getFileUploadUrl());
+    }
+
+    public FileStatusResponse getFileStatus(String fileId) {
+        requireConfigured();
+        String path = "/v3/files/" + fileId;
+        FileStatusResponse response = get(path, FileStatusResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        return response;
+    }
+
+    public TemplatePageResponse getCreateTemplateUrl(String fileId, String templateName) {
+        requireConfigured();
+        TemplateCreateUrlRequest request = new TemplateCreateUrlRequest();
+        request.setFileId(fileId);
+        request.setDocTemplateName(templateName);
+        request.setDocTemplateType(0);
+        request.setSignerRoles(List.of("甲方", "乙方"));
+        String path = "/v3/doc-templates/doc-template-create-url";
+        TemplatePageResponse response = post(path, request, TemplatePageResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        return response;
+    }
+
+    public TemplatePageResponse getEditTemplateUrl(String docTemplateId) {
+        requireConfigured();
+        String path = "/v3/doc-templates/" + docTemplateId + "/doc-template-edit-url";
+        TemplatePageResponse response = post(path, new TemplateEditUrlRequest(), TemplatePageResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        return response;
+    }
+
     // ==================== 接口二：填写模板生成合同 ====================
 
-    public CreateFileResponse createByDocTemplate(LeaseContractFillData data, String docTemplateId) {
+    public CreateFileResponse createByDocTemplateComponents(List<Component> components,
+                                                             String docTemplateId, String fileName) {
         requireConfigured();
-
-        List<Component> components = buildComponents(data);
         CreateFileRequest req = new CreateFileRequest();
         req.setDocTemplateId(docTemplateId);
-        req.setFileName("租房合同.pdf");
+        req.setFileName(fileName);
         req.setRequiredCheck(true);
         req.setComponents(components);
-
         String path = "/v3/files/create-by-doc-template";
-        CreateFileResponse resp = post(path, req, CreateFileResponse.class);
+        CreateFileResponse response = post(path, req, CreateFileResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        return response;
+    }
 
-        if (resp.getCode() != 0) {
-            throw EsignException.signingFailed(String.valueOf(resp.getCode()),
-                    resp.getMessage(), path);
-        }
-        log.info("e签宝生成合同成功: fileId={}", resp.getData() != null ? resp.getData().getFileId() : "null");
-        return resp;
+    public Component keyedComponent(String componentKey, String value) {
+        Component component = new Component();
+        component.setComponentKey(componentKey);
+        component.setComponentValue(value == null ? "" : value);
+        return component;
     }
 
     // ==================== 接口三：发起签署流程 ====================
 
-    public CreateSignFlowResponse createSignFlow(String contractFileId,
-                                                  LeaseContractFillData fillData) {
+    public CreateSignFlowResponse createSignFlow(String contractFileId, LeaseContractFillData fillData,
+                                                  int lessorPage, double lessorX, double lessorY,
+                                                  int tenantPage, double tenantX, double tenantY) {
         requireConfigured();
-
-        CreateSignFlowRequest req = buildSignFlowRequest(contractFileId, fillData);
+        CreateSignFlowRequest req = buildSignFlowRequest(contractFileId, fillData,
+                lessorPage, lessorX, lessorY, tenantPage, tenantX, tenantY);
         String path = "/v3/sign-flow/create-by-file";
-        CreateSignFlowResponse resp = post(path, req, CreateSignFlowResponse.class);
-
-        if (resp.getCode() != 0) {
-            throw EsignException.signingFailed(String.valueOf(resp.getCode()),
-                    resp.getMessage(), path);
-        }
-        log.info("e签宝发起签署成功: signFlowId={}", resp.getData() != null ? resp.getData().getSignFlowId() : "null");
-        return resp;
+        CreateSignFlowResponse response = post(path, req, CreateSignFlowResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        return response;
     }
 
     // ==================== 接口四：获取签署链接 ====================
@@ -224,7 +273,7 @@ public class EsignV3Client {
     }
 
     private void requireConfigured() {
-        if (!properties.isConfigured()) {
+        if (!properties.isCredentialsConfigured()) {
             throw BusinessException.badRequest(
                     "e签宝电子合同未配置：请设置 ESIGN_APP_ID 和 ESIGN_APP_SECRET 环境变量");
         }
@@ -235,50 +284,15 @@ public class EsignV3Client {
         return new String(bytes, StandardCharsets.UTF_8);
     }
 
-    // ==================== 控件填充 ====================
-
-    private List<Component> buildComponents(LeaseContractFillData d) {
-        List<Component> list = new ArrayList<>();
-        String signDate = d.getLessorSignDate() != null ? d.getLessorSignDate().format(DATE_FMT) : "";
-
-        // 1. 甲方手机号
-        list.add(comp("5a370264c031478881f3190bc57ed0d1", d.getLessorMobile()));
-        // 2. 乙方手机号
-        list.add(comp("4d9af6b5635a4ac1b3cac118dbdfc158", d.getTenantMobile()));
-        // 3. 甲方签字日期
-        list.add(comp("3f2828bb27ce428389b7705d8cee4583", signDate));
-        // 4. 乙方签字日期
-        list.add(comp("8db2c90bd40848f882e6a11e9e5b8ffb", signDate));
-        // 5. 甲方姓名
-        list.add(comp("4b7411bae10f4245bd3dcc8966d8aa96", d.getLessorName()));
-        // 6. 乙方姓名
-        list.add(comp("df752b99852c4dafb55053ed8dbccc4d", d.getTenantName()));
-        // 7. 甲方身份证号
-        list.add(comp("6076621c6ff841f9ba7785b7f2953c07", d.getLessorIdCard()));
-        // 8. 乙方身份证号
-        list.add(comp("b02f5f912f2444eaa049ea62e02c5304", d.getTenantIdCard()));
-        // 9. 房屋坐落地点（截断到 29 字符）
-        String addr = d.getHouseAddress();
-        if (addr != null && addr.length() > 29) addr = addr.substring(0, 29);
-        list.add(comp("18a756d26a24414394f07d0e0edfa7eb", addr));
-        // 10. 租期（月）
-        list.add(comp("088601e5dbb44977865b79d172d585c8", String.valueOf(d.getLeaseMonths() != null ? d.getLeaseMonths() : 1)));
-        // 11. 起租日期
-        list.add(comp("51841a2427d54eacaf98c129025ad8f0", d.getLeaseStartDate() != null ? d.getLeaseStartDate().format(DATE_FMT) : ""));
-        // 12. 租期截至日期
-        list.add(comp("28a5bc5ef0694366a264816bb196fb18", d.getLeaseEndDate() != null ? d.getLeaseEndDate().format(DATE_FMT) : ""));
-        // 13. 不续租提前告知
-        list.add(comp("c6830e38f7c14311aa0231c47f03f6cb", String.valueOf(d.getNoticeMonths() != null ? d.getNoticeMonths() : 1)));
-        // 14. 押金
-        list.add(comp("2cf9ab0ea4e24451b0758fce1e43809f", fmtFen(d.getDeposit())));
-        // 15. 租金
-        list.add(comp("74fea2206ae446dab401d4ad8782b89a", fmtFen(d.getMonthlyRent())));
-        // 16. 租金交付日
-        list.add(comp("51a4799042384cb095728c8f38e76a6f", d.getRentPaymentDate() != null ? d.getRentPaymentDate().format(DATE_FMT) : ""));
-        return list;
+    private void ensureSuccess(int code, String message, String path) {
+        if (code != 0) {
+            throw EsignException.signingFailed(String.valueOf(code), message, path);
+        }
     }
 
-    private CreateSignFlowRequest buildSignFlowRequest(String contractFileId, LeaseContractFillData d) {
+    private CreateSignFlowRequest buildSignFlowRequest(String contractFileId, LeaseContractFillData d,
+                                                        int lessorPage, double lessorX, double lessorY,
+                                                        int tenantPage, double tenantX, double tenantY) {
         CreateSignFlowRequest req = new CreateSignFlowRequest();
 
         // docs
@@ -295,10 +309,10 @@ public class EsignV3Client {
 
         // 甲方签署人
         CreateSignFlowRequest.Signer lessor = buildSigner(d.getLessorName(), d.getLessorMobile(), d.getLessorIdCard(),
-                "lessor_sign_001", contractFileId, 289.06412, 194.35297);
+                "lessor_sign_001", contractFileId, lessorPage, lessorX, lessorY);
         // 乙方签署人
         CreateSignFlowRequest.Signer tenant = buildSigner(d.getTenantName(), d.getTenantMobile(), d.getTenantIdCard(),
-                "tenant_sign_001", contractFileId, 459.49606, 193.78763);
+                "tenant_sign_001", contractFileId, tenantPage, tenantX, tenantY);
 
         req.setSigners(List.of(lessor, tenant));
         return req;
@@ -306,7 +320,7 @@ public class EsignV3Client {
 
     private CreateSignFlowRequest.Signer buildSigner(String name, String mobile, String idCard,
                                                       String customBizNum, String fileId,
-                                                      double posX, double posY) {
+                                                      int page, double posX, double posY) {
         CreateSignFlowRequest.Signer s = new CreateSignFlowRequest.Signer();
 
         CreateSignFlowRequest.SignConfig sc = new CreateSignFlowRequest.SignConfig();
@@ -336,7 +350,7 @@ public class EsignV3Client {
         nfc.setAutoSign(false);
         nfc.setSignFieldStyle(1);
         CreateSignFlowRequest.SignFieldPosition pos = new CreateSignFlowRequest.SignFieldPosition();
-        pos.setPositionPage("1");
+        pos.setPositionPage(String.valueOf(page));
         pos.setPositionX(posX);
         pos.setPositionY(posY);
         nfc.setSignFieldPosition(pos);
@@ -346,21 +360,29 @@ public class EsignV3Client {
         return s;
     }
 
-    private Component comp(String componentId, String value) {
-        Component c = new Component();
-        c.setComponentId(componentId);
-        c.setComponentValue(value != null ? value : "");
-        return c;
-    }
-
-    private String fmtFen(java.math.BigDecimal amountFen) {
-        if (amountFen == null) return "0";
-        return amountFen.divide(new java.math.BigDecimal("100"), 2, java.math.RoundingMode.HALF_UP).toString();
-    }
-
     // ==================== 内嵌 DTO ====================
 
     // ----- 请求 -----
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class FileUploadUrlRequest {
+        private String contentMd5;
+        private String contentType;
+        private String fileName;
+        private long fileSize;
+        private boolean convertToPDF;
+    }
+
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class TemplateCreateUrlRequest {
+        private String fileId;
+        private String docTemplateName;
+        private Integer docTemplateType;
+        private List<String> signerRoles;
+    }
+
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class TemplateEditUrlRequest {}
+
     @Data @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class CreateFileRequest {
         private String docTemplateId;
@@ -447,12 +469,67 @@ public class EsignV3Client {
         @Data @JsonIgnoreProperties(ignoreUnknown = true)
         public static class TemplateDetailData {
             private String docTemplateId; private String docTemplateName;
-            private List<StructComponent> structComponents;
+            private Long createTime; private Long updateTime;
+            private String fileDownloadUrl;
+            @JsonAlias("structComponents")
+            private List<StructComponent> components;
         }
         @Data @JsonIgnoreProperties(ignoreUnknown = true)
         public static class StructComponent {
             private String componentId; private String componentKey;
-            private String signerRole; private int componentType;
+            private String componentName; private boolean required; private int componentType;
+            private ComponentPosition componentPosition;
+            private ComponentSize componentSize;
+            private ComponentSpecialAttribute componentSpecialAttribute;
+        }
+        @Data @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class ComponentPosition {
+            @JsonAlias({"page", "positionPage", "componentPageNum"}) private Integer pageNum;
+            @JsonAlias({"positionX", "componentPositionX"}) private java.math.BigDecimal x;
+            @JsonAlias({"positionY", "componentPositionY"}) private java.math.BigDecimal y;
+        }
+        @Data @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class ComponentSize {
+            @JsonAlias("componentWidth") private java.math.BigDecimal width;
+            @JsonAlias("componentHeight") private java.math.BigDecimal height;
+        }
+        @Data @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class ComponentSpecialAttribute {
+            private String signerRole;
+            private String dateFormat;
+            private String numberFormat;
+            private Integer componentMaxLength;
+            private Integer componentMaxRows;
+            private String componentAssociatedId;
+        }
+    }
+
+    public record FileUploadResult(String fileId, String uploadUrl) {}
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class FileUploadUrlResponse {
+        private int code; private String message; private FileUploadUrlData data;
+        @Data @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class FileUploadUrlData { private String fileId; private String fileUploadUrl; }
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class FileStatusResponse {
+        private int code; private String message; private FileStatusData data;
+        @Data @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class FileStatusData {
+            private String fileId; private Integer fileStatus; private String fileDownloadUrl;
+        }
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TemplatePageResponse {
+        private int code; private String message; private TemplatePageData data;
+        @Data @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class TemplatePageData {
+            private String docTemplateId;
+            @JsonAlias({"docTemplateCreateUrl", "docTemplateEditUrl", "url"}) private String url;
+            @JsonAlias({"docTemplateCreateLongUrl", "docTemplateEditLongUrl", "longUrl"}) private String longUrl;
         }
     }
 

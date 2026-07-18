@@ -29,6 +29,12 @@ public class RentContract implements Serializable {
 
     private String docTemplateId;
 
+    private String templateConfigId;
+
+    private Integer templateVersion;
+
+    private String templateFingerprint;
+
     private String contractFileId;
 
     private String signFlowId;

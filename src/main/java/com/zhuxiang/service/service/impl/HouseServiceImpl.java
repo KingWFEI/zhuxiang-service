@@ -1377,7 +1377,57 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     public AdminHouseDtos.AdminHouseView createLandlordHouse(
             AdminHouseDtos.CreateHouseRequest request, String landlordId) {
         requireLandlordRole(landlordId);
-        return createHouse(request, landlordId);
+        if (!landlordId.equals(request.landlordId())) {
+            throw BusinessException.forbidden("只能将房源绑定到当前登录房东");
+        }
+
+        List<String> facilityIds = normalizeAttributeIds(request.facilityIds(), "设施");
+        List<String> tagIds = normalizeAttributeIds(request.tagIds(), "标签");
+        validateEnabledFacilities(facilityIds);
+        validateEnabledTags(tagIds);
+        List<String> imageUrls = normalizeAndValidateHouseImages(request, landlordId);
+        String coverImage = imageUrls.getFirst();
+        LocalDateTime now = LocalDateTime.now();
+
+        House house = new House();
+        house.setId(UUID.randomUUID().toString());
+        house.setTitle(request.title());
+        house.setCoverImage(coverImage);
+        house.setLocation(request.location());
+        house.setCommunityId(request.communityId());
+        house.setAddress(request.address());
+        house.setBuilding(request.building());
+        house.setUnit(request.unit());
+        house.setRoom(request.room());
+        house.setPrice(request.price());
+        house.setDeposit(request.deposit() != null ? request.deposit() : 0);
+        house.setPaymentMethod(request.paymentMethod());
+        house.setRoomType(request.roomType());
+        house.setArea(request.area());
+        house.setFloor(request.floor());
+        house.setOrientation(request.orientation());
+        house.setDecoration(request.decoration());
+        house.setAvailableDate(request.availableDate());
+        house.setMetro(request.metro());
+        house.setDescription(request.description());
+        house.setRentType(request.rentType());
+        house.setStatus("draft");
+        house.setIsSmartLockSupported(request.isSmartLockSupported() != null
+                && request.isSmartLockSupported() ? 1 : 0);
+        house.setIsSelfViewingSupported(request.isSelfViewingSupported() != null
+                && request.isSelfViewingSupported() ? 1 : 0);
+        // 房东端仍以请求体 landlordId 入库，但必须已经通过上方的当前用户一致性校验。
+        house.setLandlordId(request.landlordId());
+        house.setViewCount(0);
+        house.setFavoriteCount(0);
+        house.setCreatedAt(now);
+        house.setUpdatedAt(now);
+
+        save(house);
+        saveHouseImages(house.getId(), coverImage, imageUrls, now);
+        saveHouseFacilityRelations(house.getId(), facilityIds);
+        saveHouseTagRelations(house.getId(), tagIds);
+        return toAdminHouseView(house, null);
     }
 
     @Override

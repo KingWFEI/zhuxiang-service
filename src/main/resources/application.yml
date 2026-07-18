@@ -117,7 +117,6 @@ esign:
   base-url: ${ESIGN_HOST:https://smlopenapi.esign.cn}
   app-id: ${ESIGN_APP_ID:}
   app-secret: ${ESIGN_APP_SECRET:}
-  doc-template-id: ${ESIGN_DOC_TEMPLATE_ID:170ea88a36d442a5ad4c46001a0623a9}
   auto-finish: true
   sign-order-mode: SIMULTANEOUS
   notify-url: ${ESIGN_NOTIFY_URL:}
