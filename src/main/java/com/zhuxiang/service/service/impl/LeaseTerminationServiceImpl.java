@@ -497,6 +497,7 @@ public class LeaseTerminationServiceImpl
         return new TerminationCheckResponse(
                 canApply, hasProcessing, unpaidAmount,
                 Optional.ofNullable(contract.getDeposit()).orElse(0),
+                contract.getStartDate(),
                 contract.getEndDate(), tips
         );
     }

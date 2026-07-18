@@ -22,6 +22,7 @@ public final class LeaseTerminationDtos {
             @Schema(description = "是否存在进行中的退租申请") boolean hasProcessingApplication,
             @Schema(description = "欠费金额(分)") int unpaidAmount,
             @Schema(description = "押金金额(分)") int depositAmount,
+            @Schema(description = "合同开始日期") LocalDate contractStartDate,
             @Schema(description = "合同结束日期") LocalDate contractEndDate,
             @Schema(description = "提示信息") List<String> tips
     ) {

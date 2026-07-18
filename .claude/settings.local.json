@@ -71,7 +71,8 @@
       "Bash(node *)",
       "Bash(git mv *)",
       "Bash(mvn flyway:repair -Dflyway.configFiles=src/main/resources/application.yml -q)",
-      "Bash(mvn flyway:repair -Dflyway.url='jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai' -Dflyway.user='root' -Dflyway.password='132135' -q)"
+      "Bash(mvn flyway:repair -Dflyway.url='jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai' -Dflyway.user='root' -Dflyway.password='132135' -q)",
+      "Bash(where python *)"
     ]
   }
 }
