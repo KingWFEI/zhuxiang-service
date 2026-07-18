@@ -53,6 +53,12 @@ class EsignRequestSignerTests {
     }
 
     @Test
+    void computeContentMd5_shouldSupportBinaryPdfBytes() {
+        byte[] bytes = new byte[]{0x25, 0x50, 0x44, 0x46, 0x00, (byte) 0xff};
+        assertThat(signer.computeContentMd5(bytes)).isEqualTo("0IRiwpHwMuVbGlsn1z1n4w==");
+    }
+
+    @Test
     void postStringToSign_shouldHaveCorrectNewlineCount() {
         String path = "/v2/identity/auth/api/individual/face";
         String contentMd5 = "test-md5";

@@ -67,7 +67,7 @@ public class EsignCallbackController {
         String timestamp  = request.getHeader("X-Tsign-Open-TIMESTAMP");
         String algorithm  = request.getHeader("X-Tsign-Open-SIGNATURE-ALGORITHM");
 
-        if (!properties.isConfigured()) {
+        if (!properties.isCredentialsConfigured()) {
             log.warn("e签宝回调：e签宝未配置");
             return ResponseEntity.ok("OK");
         }

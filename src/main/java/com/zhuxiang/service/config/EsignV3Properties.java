@@ -11,7 +11,6 @@ public class EsignV3Properties {
     private String baseUrl = "https://smlopenapi.esign.cn";
     private String appId;
     private String appSecret;
-    private String docTemplateId = "170ea88a36d442a5ad4c46001a0623a9";
     private boolean autoFinish = true;
     private String signOrderMode = "SIMULTANEOUS";
     private String notifyUrl;
@@ -29,9 +28,6 @@ public class EsignV3Properties {
     public String getAppSecret() { return appSecret; }
     public void setAppSecret(String appSecret) { this.appSecret = appSecret; }
 
-    public String getDocTemplateId() { return docTemplateId; }
-    public void setDocTemplateId(String docTemplateId) { this.docTemplateId = docTemplateId; }
-
     public boolean isAutoFinish() { return autoFinish; }
     public void setAutoFinish(boolean autoFinish) { this.autoFinish = autoFinish; }
 
@@ -44,9 +40,8 @@ public class EsignV3Properties {
     public String getRedirectUrl() { return redirectUrl; }
     public void setRedirectUrl(String redirectUrl) { this.redirectUrl = redirectUrl; }
 
-    public boolean isConfigured() {
+    public boolean isCredentialsConfigured() {
         return enabled && appId != null && !appId.isBlank()
-                && appSecret != null && !appSecret.isBlank()
-                && docTemplateId != null && !docTemplateId.isBlank();
+                && appSecret != null && !appSecret.isBlank();
     }
 }

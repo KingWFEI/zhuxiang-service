@@ -9,7 +9,7 @@ import java.time.LocalDate;
 @Data
 @Builder
 public class LeaseContractFillData {
-    // 甲方（房东）—— 来自 Landlord 表 + Landlord.idCardCiphertext 解密
+    // 甲方（房东）——来自 users 对应的 UserRealNameAuth 实名认证记录
     private String lessorName;
     private String lessorMobile;
     private String lessorIdCard;
