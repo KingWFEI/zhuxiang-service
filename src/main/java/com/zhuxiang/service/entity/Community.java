@@ -22,30 +22,39 @@ public class Community implements Serializable {
     @TableId
     private String id;
 
-    /**
-     * 所属区域ID
-     */
     private String regionId;
 
-    /**
-     * 小区名称
-     */
     private String name;
 
-    /**
-     * 小区详细地址
-     */
+    /** 标准化名称（去空格去括号，用于去重） */
+    private String normalizedName;
+
     private String address;
 
-    /**
-     * 小区纬度
-     */
+    private String province;
+
+    private String city;
+
+    private String district;
+
+    /** 高德行政区划代码 */
+    private String adCode;
+
     private BigDecimal latitude;
 
-    /**
-     * 小区经度
-     */
     private BigDecimal longitude;
+
+    /** 坐标系：GCJ02/WGS84 */
+    private String coordinateSystem;
+
+    /** 地图供应商：amap/tencent/baidu */
+    private String mapProvider;
+
+    /** 地图平台POI ID */
+    private String externalPoiId;
+
+    /** pending待审核/approved已通过/merged已合并 */
+    private String status;
 
     /**
      * 记录创建时间

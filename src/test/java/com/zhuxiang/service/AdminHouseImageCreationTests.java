@@ -142,6 +142,50 @@ class AdminHouseImageCreationTests {
     }
 
     @Test
+    void landlordCreatesHouseWithRequestLandlordIdWithoutAdminRole() {
+        User landlord = new User();
+        landlord.setId("landlord-1");
+        landlord.setRole("LANDLORD");
+        when(userService.requireActiveUser("landlord-1")).thenReturn(landlord);
+        when(imageService.list(any(Wrapper.class))).thenReturn(List.of(
+                image("https://cdn.example.com/cover.jpg"),
+                image("https://cdn.example.com/bedroom.jpg")
+        ));
+        when(facilityService.list(any(Wrapper.class))).thenReturn(
+                List.of(facility("wifi"), facility("air_conditioner")));
+        when(tagService.list(any(Wrapper.class))).thenReturn(
+                List.of(tag("near_metro"), tag("direct_rent")));
+
+        AdminHouseDtos.AdminHouseView response =
+                service.createLandlordHouse(request(), "landlord-1");
+
+        ArgumentCaptor<House> houseCaptor = ArgumentCaptor.forClass(House.class);
+        verify(houseMapper).insert(houseCaptor.capture());
+        assertThat(houseCaptor.getValue().getLandlordId()).isEqualTo("landlord-1");
+        assertThat(houseCaptor.getValue().getStatus()).isEqualTo("draft");
+        assertThat(response.landlordId()).isEqualTo("landlord-1");
+    }
+
+    @Test
+    void landlordCannotBindNewHouseToAnotherUser() {
+        User landlord = new User();
+        landlord.setId("other-landlord");
+        landlord.setRole("LANDLORD");
+        when(userService.requireActiveUser("other-landlord")).thenReturn(landlord);
+
+        assertThatThrownBy(() -> service.createLandlordHouse(request(), "other-landlord"))
+                .isInstanceOfSatisfying(BusinessException.class, exception -> {
+                    assertThat(exception.getCode()).isEqualTo(403);
+                    assertThat(exception.getMessage()).contains("当前登录房东");
+                });
+
+        verify(houseMapper, never()).insert(any(House.class));
+        verify(fileRecordService, never()).validateFileOwnership(
+                any(String.class), any(String.class), any(String.class)
+        );
+    }
+
+    @Test
     void invalidFacilityPreventsHouseFromBeingCreated() {
         User admin = new User();
         admin.setId("admin-1");
@@ -264,6 +308,32 @@ class AdminHouseImageCreationTests {
                 "https://cdn.example.com/cover.jpg",
                 "https://cdn.example.com/room.jpg"
         );
+    }
+
+    @Test
+    void returnsFacilityAndTagIdsInLandlordHouseDetail() {
+        User landlord = new User();
+        landlord.setId("landlord-1");
+        landlord.setRole("LANDLORD");
+        House house = new House();
+        house.setId("house-1");
+        house.setLandlordId("landlord-1");
+        HouseFacilityRelation facilityRelation = new HouseFacilityRelation();
+        facilityRelation.setHouseId("house-1");
+        facilityRelation.setFacilityId("facility_001");
+        HouseTagRelation tagRelation = new HouseTagRelation();
+        tagRelation.setHouseId("house-1");
+        tagRelation.setTagId("tag_001");
+        when(userService.requireActiveUser("landlord-1")).thenReturn(landlord);
+        when(houseMapper.selectById("house-1")).thenReturn(house);
+        when(facilityRelationService.list(any(Wrapper.class))).thenReturn(List.of(facilityRelation));
+        when(tagRelationService.list(any(Wrapper.class))).thenReturn(List.of(tagRelation));
+
+        AdminHouseDtos.AdminHouseView response =
+                service.getLandlordHouseById("house-1", "landlord-1");
+
+        assertThat(response.facilityIds()).containsExactly("facility_001");
+        assertThat(response.tagIds()).containsExactly("tag_001");
     }
 
     @Test

@@ -7,7 +7,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username:   ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:132135}
+    password: ${DB_PASSWORD:wf010931}
 #    url: ${DB_URL:jdbc:mysql://10.143.183.205:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
 #    username: ${DB_USERNAME:zhuxiang_app_user}
 #    password: ${DB_PASSWORD:Zhuxiang@2026!}
@@ -98,9 +98,10 @@ alipay:
   alipay-public-key: ${ALIPAY_ALIPAY_PUBLIC_KEY:}
   notify-url: ${ALIPAY_NOTIFY_URL:http://localhost:8000/api/payments/alipay/notify}
   return-url: ${ALIPAY_RETURN_URL:http://localhost/zhuxiang-payment-done}
-
+# 高德开放平台申请的 Web服务 API Key
 amap:
-  key: ${AMAP_KEY:34467f081797ade37c2eb007a8d0dbdc}
+  base-url: ${AMAP_BASE_URL:https://restapi.amap.com}
+  web-service-key: ${AMAP_WEB_SERVICE_KEY:34467f081797ade37c2eb007a8d0dbdc}
 
 ttlock:
   client-id: ${TTLOCK_CLIENT_ID:cb5534587e624eb59a9244cc14b8e281}
@@ -116,7 +117,6 @@ esign:
   base-url: ${ESIGN_HOST:https://smlopenapi.esign.cn}
   app-id: ${ESIGN_APP_ID:}
   app-secret: ${ESIGN_APP_SECRET:}
-  doc-template-id: ${ESIGN_DOC_TEMPLATE_ID:170ea88a36d442a5ad4c46001a0623a9}
   auto-finish: true
   sign-order-mode: SIMULTANEOUS
   notify-url: ${ESIGN_NOTIFY_URL:}

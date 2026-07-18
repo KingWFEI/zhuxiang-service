@@ -97,13 +97,13 @@ class LeaseDetailServiceTests {
         assertThat(result.houseName()).isEqualTo("3栋2单元1201");
         assertThat(result.houseSummary()).isEqualTo("温馨一居 · 42㎡ · 朝南");
         assertThat(result.tenantName()).isEqualTo("王小明");
-        assertThat(result.monthlyRent()).isEqualByComparingTo("2680.00");
-        assertThat(result.deposit()).isEqualByComparingTo("2680.00");
+        assertThat(result.monthlyRent()).isEqualTo(268000);
+        assertThat(result.deposit()).isEqualTo(268000);
         assertThat(result.paymentDay()).isEqualTo(5);
         assertThat(result.billStatus()).isEqualTo("unpaid");
         assertThat(result.lockPermissionStatus()).isEqualTo("active");
         assertThat(result.pendingBillTitle()).isEqualTo("3月租金待支付");
-        assertThat(result.pendingBillAmount()).isEqualByComparingTo("2680.00");
+        assertThat(result.pendingBillAmount()).isEqualTo(268000);
         assertThat(result.pendingBillDueDate()).isEqualTo(LocalDate.of(2026, 3, 5));
     }
 

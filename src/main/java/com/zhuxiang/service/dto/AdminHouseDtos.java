@@ -30,21 +30,14 @@ public final class AdminHouseDtos {
             @NotBlank(message = "位置不能为空")
             @Schema(description = "区域或商圈展示位置", example = "高新区金融城") String location,
             @NotBlank(message = "小区ID不能为空")
-            @Schema(description = "小区 ID", example = "community_001") String communityId,
-            @Schema(description = "详细地址", example = "天府大道中段 1 号") String address,
-            @Schema(description = "经度", example = "106.60") BigDecimal longitude,
-            @Schema(description = "纬度", example = "29.53") BigDecimal latitude,
-            @Schema(description = "省/直辖市", example = "重庆市") String province,
-            @Schema(description = "城市", example = "重庆市") String city,
-            @Schema(description = "区县", example = "南岸区") String district,
-            @Schema(description = "街道/镇", example = "南山街道") String township,
-            @Schema(description = "社区/小区名称", example = "重庆邮电大学") String neighborhood,
+            @Schema(description = "小区 ID（由小区选择器返回）", example = "community_001") String communityId,
+            @Schema(description = "门牌号", example = "18楼1801室") String address,
             @Schema(description = "楼栋", example = "2栋") String building,
             @Schema(description = "单元", example = "1单元") String unit,
             @Schema(description = "房号", example = "1801") String room,
             @NotNull(message = "月租金不能为空") @Min(0)
-            @Schema(description = "月租金，单位元", example = "2800") Integer price,
-            @Min(0) @Schema(description = "押金，单位元", example = "2800") Integer deposit,
+            @Schema(description = "月租金，单位分", example = "280000") Integer price,
+            @Min(0) @Schema(description = "押金，单位分", example = "280000") Integer deposit,
             @Schema(description = "付款方式", example = "押一付三") String paymentMethod,
             @Schema(description = "户型", example = "1室1厅1卫") String roomType,
             @Schema(description = "建筑面积，单位平方米", example = "45.5") BigDecimal area,
@@ -57,7 +50,7 @@ public final class AdminHouseDtos {
             @NotBlank(message = "租赁类型不能为空")
             @Schema(description = "租赁类型，如整租或合租", example = "整租") String rentType,
             @NotBlank(message = "房东ID不能为空")
-            @Schema(description = "房东用户 ID", example = "user_001") String landlordId,
+            @Schema(description = "房东用户 ID（管理端手动指定，房东端自动取 Token）", example = "user_001") String landlordId,
             @Schema(description = "是否支持智能门锁", example = "true") Boolean isSmartLockSupported,
             @Schema(description = "是否支持自助看房", example = "true") Boolean isSelfViewingSupported,
             @NotEmpty(message = "房源设施不能为空")
@@ -115,7 +108,11 @@ public final class AdminHouseDtos {
             LocalDateTime createdAt,
             LocalDateTime updatedAt,
             BigDecimal longitude,
-            BigDecimal latitude
+            BigDecimal latitude,
+            @Schema(description = "房源绑定的设施 ID 列表", example = "[\"facility_001\"]")
+            List<String> facilityIds,
+            @Schema(description = "房源绑定的标签 ID 列表", example = "[\"tag_001\"]")
+            List<String> tagIds
     ) {
     }
 
@@ -127,19 +124,12 @@ public final class AdminHouseDtos {
             List<String> imageUrls,
             @Schema(description = "区域或商圈展示位置", example = "高新区金融城") String location,
             @Schema(description = "小区 ID", example = "community_001") String communityId,
-            @Schema(description = "详细地址", example = "天府大道中段 1 号") String address,
-            @Schema(description = "经度", example = "106.60") BigDecimal longitude,
-            @Schema(description = "纬度", example = "29.53") BigDecimal latitude,
-            @Schema(description = "省/直辖市", example = "重庆市") String province,
-            @Schema(description = "城市", example = "重庆市") String city,
-            @Schema(description = "区县", example = "南岸区") String district,
-            @Schema(description = "街道/镇", example = "南山街道") String township,
-            @Schema(description = "社区/小区名称", example = "重庆邮电大学") String neighborhood,
+            @Schema(description = "门牌号", example = "18楼1801室") String address,
             @Schema(description = "楼栋", example = "2栋") String building,
             @Schema(description = "单元", example = "1单元") String unit,
             @Schema(description = "房号", example = "1801") String room,
-            @Min(0) @Schema(description = "月租金，单位元", example = "2800") Integer price,
-            @Min(0) @Schema(description = "押金，单位元", example = "2800") Integer deposit,
+            @Min(0) @Schema(description = "月租金，单位分", example = "280000") Integer price,
+            @Min(0) @Schema(description = "押金，单位分", example = "280000") Integer deposit,
             @Schema(description = "付款方式", example = "押一付三") String paymentMethod,
             @Schema(description = "户型", example = "1室1厅1卫") String roomType,
             @Schema(description = "建筑面积，单位平方米", example = "45.5") BigDecimal area,

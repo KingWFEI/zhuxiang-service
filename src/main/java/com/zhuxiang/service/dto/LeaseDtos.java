@@ -2,7 +2,6 @@ package com.zhuxiang.service.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -60,8 +59,8 @@ public final class LeaseDtos {
             @Schema(description = "租客身份证号") String tenantIdCard,
             @Schema(description = "租约开始日期") LocalDate startDate,
             @Schema(description = "租约结束日期") LocalDate endDate,
-            @Schema(description = "月租金，单位元") BigDecimal monthlyRent,
-            @Schema(description = "押金，单位元") BigDecimal deposit,
+            @Schema(description = "月租金，单位分") Integer monthlyRent,
+            @Schema(description = "押金，单位分") Integer deposit,
             @Schema(description = "付款方式") String paymentMethod,
             @Schema(description = "每月付款日") Integer paymentDay,
             @Schema(description = "租约状态") String status,
@@ -71,7 +70,7 @@ public final class LeaseDtos {
             @Schema(description = "管家姓名") String keeperName,
             @Schema(description = "管家联系电话") String keeperPhone,
             @Schema(description = "待支付账单标题；没有待支付账单时为空") String pendingBillTitle,
-            @Schema(description = "待支付账单金额，单位元；没有时为空") BigDecimal pendingBillAmount,
+            @Schema(description = "待支付账单金额，单位分；没有时为空") Integer pendingBillAmount,
             @Schema(description = "待支付账单截止日期；没有时为空") LocalDate pendingBillDueDate
     ) {
     }
