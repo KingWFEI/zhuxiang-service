@@ -86,7 +86,7 @@ class LeaseDetailServiceTests {
         when(leaseMapper.selectById("lease-1")).thenReturn(lease);
         when(houseService.getById("house-1")).thenReturn(house);
         when(contractMapper.selectById("contract-1")).thenReturn(contract);
-        when(landlordService.getById("keeper-1")).thenReturn(keeper);
+        when(landlordService.findByUserId("keeper-1")).thenReturn(keeper);
         when(billService.getOne(any(Wrapper.class), eq(false))).thenReturn(bill);
         when(smartLockMapper.selectLatestByHouseId("house-1")).thenReturn(smartLock);
         when(lockPermissionService.getOne(any(Wrapper.class), eq(false))).thenReturn(permission);

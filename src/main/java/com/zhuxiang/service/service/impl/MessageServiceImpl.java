@@ -188,7 +188,7 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message>
         sendMessage(
                 userId,
                 "system",
-                "欢迎使用住享",
+                "欢迎使用勿忧管家",
                 "欢迎来到你的安心居住空间",
                 "none",
                 ""

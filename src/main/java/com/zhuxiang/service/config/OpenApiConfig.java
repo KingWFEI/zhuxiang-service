@@ -21,10 +21,10 @@ public class OpenApiConfig {
     public OpenAPI zhuxiangOpenApi() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("筑享租房平台接口文档")
-                        .description("筑享移动端和管理端后端接口。除明确标注为公开接口外，受保护接口需在 Authorization 请求头中携带 Bearer 访问令牌。")
+                        .title("勿忧管家租房平台接口文档")
+                        .description("勿忧管家移动端和管理端后端接口。除明确标注为公开接口外，受保护接口需在 Authorization 请求头中携带 Bearer 访问令牌。")
                         .version("v1")
-                        .contact(new Contact().name("筑享开发团队"))
+                        .contact(new Contact().name("勿忧管家开发团队"))
                         .license(new License().name("内部使用")))
                 .components(new Components().addSecuritySchemes(
                         BEARER_AUTH,

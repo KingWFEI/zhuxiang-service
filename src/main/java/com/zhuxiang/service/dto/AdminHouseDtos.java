@@ -37,8 +37,12 @@ public final class AdminHouseDtos {
             @Schema(description = "房号", example = "1801") String room,
             @NotNull(message = "月租金不能为空") @Min(0)
             @Schema(description = "月租金，单位分", example = "280000") Integer price,
-            @Min(0) @Schema(description = "押金，单位分", example = "280000") Integer deposit,
-            @Schema(description = "付款方式", example = "押一付三") String paymentMethod,
+            @Min(0)
+            @Schema(description = "兼容旧客户端的押金字段，服务端会忽略并按付款方式自动计算", example = "280000")
+            Integer deposit,
+            @NotBlank(message = "付款方式不能为空")
+            @Schema(description = "付款方式，决定付款周期和押金月数", example = "押一付三")
+            String paymentMethod,
             @Schema(description = "户型", example = "1室1厅1卫") String roomType,
             @Schema(description = "建筑面积，单位平方米", example = "45.5") BigDecimal area,
             @Schema(description = "楼层描述", example = "18/32层") String floor,
@@ -49,8 +53,6 @@ public final class AdminHouseDtos {
             @Schema(description = "房源详细介绍") String description,
             @NotBlank(message = "租赁类型不能为空")
             @Schema(description = "租赁类型，如整租或合租", example = "整租") String rentType,
-            @NotBlank(message = "房东ID不能为空")
-            @Schema(description = "房东用户 ID（管理端手动指定，房东端自动取 Token）", example = "user_001") String landlordId,
             @Schema(description = "是否支持智能门锁", example = "true") Boolean isSmartLockSupported,
             @Schema(description = "是否支持自助看房", example = "true") Boolean isSelfViewingSupported,
             @NotEmpty(message = "房源设施不能为空")
@@ -98,6 +100,16 @@ public final class AdminHouseDtos {
             String description,
             String rentType,
             String status,
+            @Schema(
+                    description = "房源发布来源：LANDLORD房东发布，PLATFORM平台自营",
+                    allowableValues = {"LANDLORD", "PLATFORM"}
+            )
+            String sourceType,
+            @Schema(
+                    description = "创建房源的用户 ID；历史平台房源无法追溯时可能为 null",
+                    example = "user_001"
+            )
+            String createdBy,
             boolean isSmartLockSupported,
             boolean isSelfViewingSupported,
             boolean smartLockBound,
@@ -112,7 +124,9 @@ public final class AdminHouseDtos {
             @Schema(description = "房源绑定的设施 ID 列表", example = "[\"facility_001\"]")
             List<String> facilityIds,
             @Schema(description = "房源绑定的标签 ID 列表", example = "[\"tag_001\"]")
-            List<String> tagIds
+            List<String> tagIds,
+            @Schema(description = "当前有效的房产证明材料；未上传时为 null")
+            HousePropertyCertificateDtos.CertificateView propertyCertificate
     ) {
     }
 
@@ -129,8 +143,11 @@ public final class AdminHouseDtos {
             @Schema(description = "单元", example = "1单元") String unit,
             @Schema(description = "房号", example = "1801") String room,
             @Min(0) @Schema(description = "月租金，单位分", example = "280000") Integer price,
-            @Min(0) @Schema(description = "押金，单位分", example = "280000") Integer deposit,
-            @Schema(description = "付款方式", example = "押一付三") String paymentMethod,
+            @Min(0)
+            @Schema(description = "兼容旧客户端的押金字段，服务端会忽略并按付款方式自动计算", example = "280000")
+            Integer deposit,
+            @Schema(description = "付款方式，传入后服务端重新计算押金", example = "押一付三")
+            String paymentMethod,
             @Schema(description = "户型", example = "1室1厅1卫") String roomType,
             @Schema(description = "建筑面积，单位平方米", example = "45.5") BigDecimal area,
             @Schema(description = "楼层描述", example = "18/32层") String floor,
@@ -142,7 +159,6 @@ public final class AdminHouseDtos {
             @Schema(description = "租赁类型，如整租或合租", example = "整租") String rentType,
             @Schema(description = "是否支持智能门锁", example = "true") Boolean isSmartLockSupported,
             @Schema(description = "是否支持自助看房", example = "true") Boolean isSelfViewingSupported,
-            @Schema(description = "房东用户 ID", example = "user_001") String landlordId,
             @Size(max = 100, message = "房源设施不能超过100项")
             @Schema(description = "完整替换房源设施的启用设施 ID 列表；不传保持不变，空数组清空")
             List<@NotBlank(message = "设施ID不能为空") String> facilityIds,

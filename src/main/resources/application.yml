@@ -65,8 +65,10 @@ app:
       session-token: ${TENCENT_COS_SESSION_TOKEN:}
       region: ${TENCENT_COS_REGION:}
       bucket: ${TENCENT_COS_BUCKET:}
+      private-bucket: ${TENCENT_COS_PRIVATE_BUCKET:${TENCENT_COS_BUCKET:}}
       public-base-url: ${TENCENT_COS_PUBLIC_BASE_URL:}
       key-prefix: ${TENCENT_COS_KEY_PREFIX:zhuxiang}
+      private-key-prefix: ${TENCENT_COS_PRIVATE_KEY_PREFIX:easenest-private}
   lock-passcode:
     encryption-key: ${LOCK_PASSCODE_ENCRYPTION_KEY:}
     key-version: ${LOCK_PASSCODE_KEY_VERSION:1}
@@ -90,6 +92,13 @@ app:
     phone: ${SUPER_ADMIN_PHONE:13800000000}
     password: ${SUPER_ADMIN_PASSWORD:admin123}
     nickname: ${SUPER_ADMIN_NICKNAME:超级管理员}
+  platform-landlord:
+    enabled: ${PLATFORM_LANDLORD_ENABLED:true}
+    id: ${PLATFORM_LANDLORD_ID:00000000-0000-0000-0000-000000000001}
+    phone: ${PLATFORM_LANDLORD_PHONE:00000000000}
+    name: ${PLATFORM_LANDLORD_NAME:勿忧管家}
+    avatar-url: ${PLATFORM_LANDLORD_AVATAR_URL:}
+    response-description: ${PLATFORM_LANDLORD_RESPONSE_DESCRIPTION:平台自营房源}
 
 alipay:
   gateway-url: ${ALIPAY_GATEWAY_URL:https://openapi-sandbox.dl.alipaydev.com/gateway.do}

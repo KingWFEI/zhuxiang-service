@@ -187,7 +187,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 : rentContractMapper.selectById(lease.getContractId());
         Landlord keeper = house == null || house.getLandlordId() == null
                 ? null
-                : landlordService.getById(house.getLandlordId());
+                : landlordService.findByUserId(house.getLandlordId());
 
         RentBill pendingBill = rentBillService.getOne(
                 Wrappers.<RentBill>lambdaQuery()
@@ -521,7 +521,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             houseImageUrl = house.getCoverImage() != null ? house.getCoverImage() : "";
             paymentMethod = house.getPaymentMethod() != null ? house.getPaymentMethod() : "";
 
-            Landlord landlord = landlordService.getById(house.getLandlordId());
+            Landlord landlord = landlordService.findByUserId(house.getLandlordId());
             if (landlord != null) {
                 keeperName = landlord.getName() != null ? landlord.getName() : "";
                 keeperPhone = landlord.getPhone() != null ? landlord.getPhone() : "";

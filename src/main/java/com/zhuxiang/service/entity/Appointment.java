@@ -32,10 +32,23 @@ public class Appointment implements Serializable {
      */
     private String houseId;
 
+    /** 创建预约时的房东 ID 快照。 */
+    private String landlordId;
+
+    /** 房源来源快照：LANDLORD/PLATFORM。 */
+    private String sourceType;
+
+    /** 看房履约方式。 */
+    private String viewingMode;
+
     /**
      * 预约看房日期
      */
     private LocalDate appointmentDate;
+
+    private LocalDateTime appointmentStartAt;
+
+    private LocalDateTime appointmentEndAt;
 
     /**
      * 预约时间段，例如10:00-11:00
@@ -61,6 +74,27 @@ public class Appointment implements Serializable {
      * 预约状态：pending待确认，confirmed已确认，cancelled已取消，completed已完成，no_show爽约
      */
     private String status;
+
+    private LocalDateTime confirmDeadlineAt;
+    private String confirmedBy;
+    private LocalDateTime confirmedAt;
+    private String hostUserId;
+    private String meetingPoint;
+    private String viewingInstruction;
+    private String rejectReason;
+    private String cancelReason;
+    private String cancelledBy;
+    private LocalDateTime cancelledAt;
+    private LocalDateTime proposedStartAt;
+    private LocalDateTime proposedEndAt;
+    private String rescheduleReason;
+    private LocalDateTime rescheduleDeadlineAt;
+    private String checkinCodeCiphertext;
+    private LocalDateTime checkedInAt;
+    private LocalDateTime completedAt;
+    private String activeSlotKey;
+    private String idempotencyKey;
+    private Integer version;
 
     /**
      * 记录创建时间

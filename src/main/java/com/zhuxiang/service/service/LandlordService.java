@@ -1,23 +1,23 @@
 package com.zhuxiang.service.service;
 
+import com.zhuxiang.service.dto.LandlordDtos;
 import com.zhuxiang.service.entity.Landlord;
-import com.baomidou.mybatisplus.extension.service.IService;
-import com.zhuxiang.service.dto.HouseDtos;
+import com.zhuxiang.service.entity.User;
 
-/**
-* @author king-wang
-* @description 针对表【landlord(房东与平台管家资料表)】的数据库操作Service
-* @createDate 2026-06-12 19:57:34
-*/
-public interface LandlordService extends IService<Landlord> {
+public interface LandlordService {
 
-    /**
-     * 获取指定房东资料。
-     */
-    HouseDtos.LandlordView getLandlordDetail(String landlordId);
+    Landlord findByUserId(String userId);
 
-    /**
-     * 获取存在的房东实体。
-     */
-    Landlord requireLandlord(String landlordId);
+    Landlord requireByUserId(String userId);
+
+    Landlord ensureProfile(User user);
+
+    LandlordDtos.ProfileView getPublicProfile(String userId);
+
+    LandlordDtos.ProfileView getMyProfile(String userId);
+
+    LandlordDtos.ProfileView updateMyProfile(
+            String userId,
+            LandlordDtos.UpdateLandlordProfileRequest request
+    );
 }

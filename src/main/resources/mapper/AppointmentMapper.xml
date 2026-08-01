@@ -8,18 +8,88 @@
             <id property="id" column="id" />
             <result property="userId" column="user_id" />
             <result property="houseId" column="house_id" />
+            <result property="landlordId" column="landlord_id" />
+            <result property="sourceType" column="source_type" />
+            <result property="viewingMode" column="viewing_mode" />
             <result property="appointmentDate" column="appointment_date" />
+            <result property="appointmentStartAt" column="appointment_start_at" />
+            <result property="appointmentEndAt" column="appointment_end_at" />
             <result property="timeSlot" column="time_slot" />
             <result property="contactName" column="contact_name" />
             <result property="contactPhone" column="contact_phone" />
             <result property="remark" column="remark" />
             <result property="status" column="status" />
+            <result property="confirmDeadlineAt" column="confirm_deadline_at" />
+            <result property="confirmedBy" column="confirmed_by" />
+            <result property="confirmedAt" column="confirmed_at" />
+            <result property="hostUserId" column="host_user_id" />
+            <result property="meetingPoint" column="meeting_point" />
+            <result property="viewingInstruction" column="viewing_instruction" />
+            <result property="rejectReason" column="reject_reason" />
+            <result property="cancelReason" column="cancel_reason" />
+            <result property="cancelledBy" column="cancelled_by" />
+            <result property="cancelledAt" column="cancelled_at" />
+            <result property="proposedStartAt" column="proposed_start_at" />
+            <result property="proposedEndAt" column="proposed_end_at" />
+            <result property="rescheduleReason" column="reschedule_reason" />
+            <result property="rescheduleDeadlineAt" column="reschedule_deadline_at" />
+            <result property="checkinCodeCiphertext" column="checkin_code_ciphertext" />
+            <result property="checkedInAt" column="checked_in_at" />
+            <result property="completedAt" column="completed_at" />
+            <result property="activeSlotKey" column="active_slot_key" />
+            <result property="idempotencyKey" column="idempotency_key" />
+            <result property="version" column="version" />
             <result property="createdAt" column="created_at" />
             <result property="updatedAt" column="updated_at" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,user_id,house_id,appointment_date,time_slot,contact_name,
-        contact_phone,remark,status,created_at,updated_at
+        id,user_id,house_id,landlord_id,source_type,viewing_mode,
+        appointment_date,appointment_start_at,appointment_end_at,time_slot,
+        contact_name,contact_phone,remark,status,confirm_deadline_at,
+        confirmed_by,confirmed_at,host_user_id,meeting_point,viewing_instruction,
+        reject_reason,cancel_reason,cancelled_by,cancelled_at,proposed_start_at,
+        proposed_end_at,reschedule_reason,reschedule_deadline_at,
+        checkin_code_ciphertext,checked_in_at,completed_at,active_slot_key,
+        idempotency_key,version,created_at,updated_at
     </sql>
+
+    <update id="updateWithStatusAndVersion">
+        UPDATE appointment
+        SET landlord_id = #{appointment.landlordId},
+            source_type = #{appointment.sourceType},
+            viewing_mode = #{appointment.viewingMode},
+            appointment_date = #{appointment.appointmentDate},
+            appointment_start_at = #{appointment.appointmentStartAt},
+            appointment_end_at = #{appointment.appointmentEndAt},
+            time_slot = #{appointment.timeSlot},
+            contact_name = #{appointment.contactName},
+            contact_phone = #{appointment.contactPhone},
+            remark = #{appointment.remark},
+            status = #{appointment.status},
+            confirm_deadline_at = #{appointment.confirmDeadlineAt},
+            confirmed_by = #{appointment.confirmedBy},
+            confirmed_at = #{appointment.confirmedAt},
+            host_user_id = #{appointment.hostUserId},
+            meeting_point = #{appointment.meetingPoint},
+            viewing_instruction = #{appointment.viewingInstruction},
+            reject_reason = #{appointment.rejectReason},
+            cancel_reason = #{appointment.cancelReason},
+            cancelled_by = #{appointment.cancelledBy},
+            cancelled_at = #{appointment.cancelledAt},
+            proposed_start_at = #{appointment.proposedStartAt},
+            proposed_end_at = #{appointment.proposedEndAt},
+            reschedule_reason = #{appointment.rescheduleReason},
+            reschedule_deadline_at = #{appointment.rescheduleDeadlineAt},
+            checkin_code_ciphertext = #{appointment.checkinCodeCiphertext},
+            checked_in_at = #{appointment.checkedInAt},
+            completed_at = #{appointment.completedAt},
+            active_slot_key = #{appointment.activeSlotKey},
+            idempotency_key = #{appointment.idempotencyKey},
+            version = #{appointment.version},
+            updated_at = #{appointment.updatedAt}
+        WHERE id = #{appointment.id}
+          AND status = #{expectedStatus}
+          AND version = #{expectedVersion}
+    </update>
 </mapper>

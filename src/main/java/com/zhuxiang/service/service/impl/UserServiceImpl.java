@@ -11,6 +11,7 @@ import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.entity.RefreshToken;
 import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.service.MessageService;
+import com.zhuxiang.service.service.LandlordService;
 import com.zhuxiang.service.service.ObjectStorageService;
 import com.zhuxiang.service.service.RefreshTokenService;
 import com.zhuxiang.service.service.SmsCodeService;
@@ -51,6 +52,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     private final MessageService messageService;
     private final TokenProvider tokenProvider;
     private final ObjectStorageService objectStorageService;
+    private final LandlordService landlordService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public UserServiceImpl(
@@ -58,13 +60,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             RefreshTokenService refreshTokenService,
             MessageService messageService,
             TokenProvider tokenProvider,
-            ObjectStorageService objectStorageService
+            ObjectStorageService objectStorageService,
+            LandlordService landlordService
     ) {
         this.smsCodeService = smsCodeService;
         this.refreshTokenService = refreshTokenService;
         this.messageService = messageService;
         this.tokenProvider = tokenProvider;
         this.objectStorageService = objectStorageService;
+        this.landlordService = landlordService;
     }
 
     /**
@@ -76,7 +80,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         smsCodeService.consumeSmsCode(request.phone(), "login", request.code());
         User user = findByPhone(request.phone());
         if (user == null) {
-            user = createUser(request.phone(), null, "住享用户");
+            user = createUser(request.phone(), null, "勿忧管家用户");
         }
         requireActiveUser(user.getId());
         updateLoginTime(user);
@@ -221,6 +225,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
         save(user);
+        if ("LANDLORD".equals(user.getRole())) {
+            landlordService.ensureProfile(user);
+        }
         messageService.createWelcomeMessage(user.getId());
         updateLoginTime(user);
         return createSession(user);
@@ -313,7 +320,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         user.setId(UUID.randomUUID().toString());
         user.setPhone(phone);
         user.setPasswordHash(password == null ? null : passwordEncoder.encode(password));
-        user.setNickname(StringUtils.hasText(nickname) ? nickname : "住享用户");
+        user.setNickname(StringUtils.hasText(nickname) ? nickname : "勿忧管家用户");
         user.setAvatarUrl("");
         user.setRole("TENANT");
         user.setIsVerified(0);

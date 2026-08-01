@@ -6,9 +6,23 @@
 
     <resultMap id="BaseResultMap" type="com.zhuxiang.service.entity.Landlord">
             <id property="id" column="id" />
+            <result property="userId" column="user_id" />
             <result property="name" column="name" />
             <result property="avatarUrl" column="avatar_url" />
+            <result property="coverImageUrl" column="cover_image_url" />
+            <result property="slogan" column="slogan" />
+            <result property="introduction" column="introduction" />
+            <result property="serviceArea" column="service_area" />
+            <result property="serviceYears" column="service_years" />
+            <result property="profileTags" column="profile_tags" />
             <result property="phone" column="phone" />
+            <result property="wechat" column="wechat" />
+            <result property="email" column="email" />
+            <result property="contactTime" column="contact_time" />
+            <result property="showPhone" column="show_phone" />
+            <result property="showWechat" column="show_wechat" />
+            <result property="showEmail" column="show_email" />
+            <result property="idCardCiphertext" column="id_card_ciphertext" />
             <result property="isVerified" column="is_verified" />
             <result property="rating" column="rating" />
             <result property="rentedCount" column="rented_count" />
@@ -18,7 +32,9 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,name,avatar_url,phone,is_verified,rating,
+        id,user_id,name,avatar_url,cover_image_url,slogan,introduction,
+        service_area,service_years,profile_tags,phone,wechat,email,contact_time,
+        show_phone,show_wechat,show_email,id_card_ciphertext,is_verified,rating,
         rented_count,response_description,created_at,updated_at
     </sql>
 </mapper>

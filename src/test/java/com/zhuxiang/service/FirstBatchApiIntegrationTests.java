@@ -184,7 +184,7 @@ class FirstBatchApiIntegrationTests {
         String messagesResponse = mockMvc.perform(get("/messages")
                         .header("Authorization", bearer(accessToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.items[0].title").value("欢迎使用住享"))
+                .andExpect(jsonPath("$.data.items[0].title").value("欢迎使用勿忧管家"))
                 .andReturn().getResponse().getContentAsString();
         String messageId = objectMapper.readTree(messagesResponse)
                 .path("data").path("items").path(0).path("id").asText();

@@ -50,7 +50,7 @@ public class ConversationServiceImpl extends ServiceImpl<ConversationMapper, Con
                 throw BusinessException.badRequest("房源会话必须提供 houseId 和 landlordId");
             }
             houseService.requireAvailableHouse(request.houseId());
-            landlordService.requireLandlord(request.landlordId());
+            landlordService.requireByUserId(request.landlordId());
         }
         Conversation existing = getOne(
                 Wrappers.<Conversation>lambdaQuery()

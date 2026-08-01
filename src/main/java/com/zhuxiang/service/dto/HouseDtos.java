@@ -30,6 +30,11 @@ public final class HouseDtos {
             String metro,
             String decoration,
             LocalDate availableDate,
+            @io.swagger.v3.oas.annotations.media.Schema(
+                    description = "房源发布来源：LANDLORD房东发布，PLATFORM平台自营",
+                    allowableValues = {"LANDLORD", "PLATFORM"}
+            )
+            String sourceType,
             String status,
             boolean isRented,
             String rentAvailability,
@@ -49,18 +54,28 @@ public final class HouseDtos {
             Integer price,
             Integer deposit,
             String paymentMethod,
+            String rentType,
             String roomType,
             Integer area,
             String floor,
             String orientation,
             List<String> tags,
             List<String> facilities,
+            @io.swagger.v3.oas.annotations.media.Schema(
+                    description = "带管理端图标配置的设施列表"
+            )
+            List<FacilityView> facilityItems,
             String description,
             boolean isSmartLockSupported,
             boolean isFavorite,
             String metro,
             String decoration,
             LocalDate availableDate,
+            @io.swagger.v3.oas.annotations.media.Schema(
+                    description = "房源发布来源：LANDLORD房东发布，PLATFORM平台自营",
+                    allowableValues = {"LANDLORD", "PLATFORM"}
+            )
+            String sourceType,
             String landlordId,
             String landlordName,
             String avatarUrl,
@@ -74,7 +89,22 @@ public final class HouseDtos {
             String activeOrderId,
             boolean activeOrderBelongsToMe,
             BigDecimal longitude,
-            BigDecimal latitude
+            BigDecimal latitude,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "房东公开资料")
+            LandlordDtos.ProfileView landlordProfile
+    ) {
+    }
+
+    public record FacilityView(
+            @io.swagger.v3.oas.annotations.media.Schema(description = "设施ID")
+            String id,
+            @io.swagger.v3.oas.annotations.media.Schema(description = "设施名称")
+            String name,
+            @io.swagger.v3.oas.annotations.media.Schema(
+                    description = "管理端配置的跨端图标键",
+                    example = "wifi"
+            )
+            String iconKey
     ) {
     }
 
@@ -123,17 +153,6 @@ public final class HouseDtos {
             List<Option> roomTypes,
             List<Option> facilities,
             List<Option> sortOptions
-    ) {
-    }
-
-    public record LandlordView(
-            String id,
-            String name,
-            String avatarUrl,
-            boolean isVerified,
-            BigDecimal rating,
-            Integer rentedCount,
-            String responseDescription
     ) {
     }
 

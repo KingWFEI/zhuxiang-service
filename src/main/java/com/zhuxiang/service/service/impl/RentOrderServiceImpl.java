@@ -591,7 +591,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         if ("mock".equals(channel)) {
             confirmPayment(record.getId(), null);
         } else if ("alipay".equals(channel)) {
-            String subject = "住享租房-" + houseName;
+            String subject = "勿忧管家租房-" + houseName;
             try {
                 paymentUrl = alipayService.buildH5PayUrl(record.getPaymentNo(), record.getAmount(), subject);
                 payType = alipayService.getPayType();

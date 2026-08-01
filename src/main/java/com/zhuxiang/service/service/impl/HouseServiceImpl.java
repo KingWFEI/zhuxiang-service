@@ -6,9 +6,14 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhuxiang.service.common.BusinessException;
+import com.zhuxiang.service.common.HousePaymentRule;
+import com.zhuxiang.service.common.HouseSourceType;
 import com.zhuxiang.service.common.PageData;
+import com.zhuxiang.service.config.PlatformLandlordProperties;
 import com.zhuxiang.service.dto.AdminHouseDtos;
 import com.zhuxiang.service.dto.HouseDtos;
+import com.zhuxiang.service.dto.HousePropertyCertificateDtos;
+import com.zhuxiang.service.dto.LandlordDtos;
 import com.zhuxiang.service.entity.Advertisement;
 import com.zhuxiang.service.entity.Community;
 import com.zhuxiang.service.entity.House;
@@ -35,6 +40,7 @@ import com.zhuxiang.service.service.HouseFacilityService;
 import com.zhuxiang.service.service.HouseImageService;
 import com.zhuxiang.service.service.FileRecordService;
 import com.zhuxiang.service.service.HouseService;
+import com.zhuxiang.service.service.HousePropertyCertificateService;
 import com.zhuxiang.service.service.HouseTagRelationService;
 import com.zhuxiang.service.service.HouseTagService;
 import com.zhuxiang.service.service.LandlordService;
@@ -50,6 +56,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -89,6 +96,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     private final RentOrderMapper rentOrderMapper;
     private final UserService userService;
     private final FileRecordService fileRecordService;
+    private final HousePropertyCertificateService propertyCertificateService;
+    private final PlatformLandlordProperties platformLandlordProperties;
 
     public HouseServiceImpl(
             CommunityService communityService,
@@ -104,7 +113,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             UserFavoriteHouseMapper favoriteHouseMapper,
             RentOrderMapper rentOrderMapper,
             UserService userService,
-            FileRecordService fileRecordService
+            FileRecordService fileRecordService,
+            HousePropertyCertificateService propertyCertificateService,
+            PlatformLandlordProperties platformLandlordProperties
     ) {
         this.communityService = communityService;
         this.imageService = imageService;
@@ -120,6 +131,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         this.rentOrderMapper = rentOrderMapper;
         this.userService = userService;
         this.fileRecordService = fileRecordService;
+        this.propertyCertificateService = propertyCertificateService;
+        this.platformLandlordProperties = platformLandlordProperties;
     }
 
     /**
@@ -213,7 +226,10 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             updateById(house);
         }
         Community community = communityService.getById(house.getCommunityId());
-        Landlord landlord = landlordService.getById(house.getLandlordId());
+        Landlord landlord = landlordService.findByUserId(house.getLandlordId());
+        LandlordDtos.ProfileView landlordProfile = landlord == null
+                ? null
+                : landlordService.getPublicProfile(house.getLandlordId());
         List<String> images = imageService.list(
                         Wrappers.<HouseImage>lambdaQuery()
                                 .eq(HouseImage::getHouseId, houseId)
@@ -221,6 +237,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 ).stream()
                 .map(HouseImage::getImageUrl)
                 .toList();
+        List<HouseDtos.FacilityView> facilityItems = getFacilityItems(houseId);
         RentAvailabilityData rent = loadRentAvailability(house, userId);
         return new HouseDtos.HouseDetail(
                 house.getId(),
@@ -233,32 +250,36 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getPrice(),
                 house.getDeposit(),
                 house.getPaymentMethod(),
+                house.getRentType(),
                 house.getRoomType(),
                 areaAsInteger(house.getArea()),
                 house.getFloor(),
                 house.getOrientation(),
                 getTags(houseId),
-                getFacilities(houseId),
+                facilityItems.stream().map(HouseDtos.FacilityView::name).toList(),
+                facilityItems,
                 house.getDescription(),
                 integerBoolean(house.getIsSmartLockSupported()),
                 isFavorite(userId, houseId),
                 house.getMetro(),
                 house.getDecoration(),
                 house.getAvailableDate(),
-                landlord == null ? null : landlord.getId(),
-                landlord == null ? "" : landlord.getName(),
-                landlord == null ? "" : landlord.getAvatarUrl(),
-                landlord != null && integerBoolean(landlord.getIsVerified()),
-                landlord == null ? BigDecimal.ZERO : landlord.getRating(),
-                landlord == null ? 0 : landlord.getRentedCount(),
-                landlord == null ? "" : landlord.getResponseDescription(),
+                sourceTypeOf(house),
+                house.getLandlordId(),
+                landlordProfile == null ? "" : landlordProfile.name(),
+                landlordProfile == null ? "" : landlordProfile.avatarUrl(),
+                landlordProfile != null && landlordProfile.isVerified(),
+                landlordProfile == null ? BigDecimal.ZERO : landlordProfile.rating(),
+                landlordProfile == null ? 0 : landlordProfile.rentedCount(),
+                landlordProfile == null ? "" : landlordProfile.responseDescription(),
                 house.getStatus(),
                 "rented".equals(house.getStatus()),
                 rent.rentAvailability(),
                 rent.activeOrderId(),
                 rent.activeOrderBelongsToMe(),
                 community != null ? community.getLongitude() : null,
-                community != null ? community.getLatitude() : null
+                community != null ? community.getLatitude() : null,
+                landlordProfile
         );
     }
 
@@ -382,6 +403,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getMetro(),
                 house.getDecoration(),
                 house.getAvailableDate(),
+                sourceTypeOf(house),
                 house.getStatus(),
                 "rented".equals(house.getStatus()),
                 rent.rentAvailability(),
@@ -596,9 +618,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     }
 
     /**
-     * 查询指定房源的设施名称。
+     * 查询指定房源的设施展示信息，按管理端配置的排序值返回。
      */
-    private List<String> getFacilities(String houseId) {
+    private List<HouseDtos.FacilityView> getFacilityItems(String houseId) {
         List<String> ids = facilityRelationService.list(
                         Wrappers.<HouseFacilityRelation>lambdaQuery()
                                 .eq(HouseFacilityRelation::getHouseId, houseId)
@@ -608,7 +630,20 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         return ids.isEmpty()
                 ? List.of()
                 : facilityService.listByIds(ids).stream()
-                .map(HouseFacility::getName)
+                .sorted(Comparator.comparingInt(
+                        facility -> Objects.requireNonNullElse(facility.getSortOrder(), 0)
+                ))
+                .map(facility -> new HouseDtos.FacilityView(
+                        facility.getId(),
+                        facility.getName(),
+                        facility.getIconKey()
+                ))
+                .toList();
+    }
+
+    private List<String> getFacilities(String houseId) {
+        return getFacilityItems(houseId).stream()
+                .map(HouseDtos.FacilityView::name)
                 .toList();
     }
 
@@ -686,8 +721,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setUnit(request.unit());
         house.setRoom(request.room());
         house.setPrice(request.price());
-        house.setDeposit(request.deposit() != null ? request.deposit() : 0);
-        house.setPaymentMethod(request.paymentMethod());
+        house.setPaymentMethod(HousePaymentRule.normalize(request.paymentMethod()));
+        house.setDeposit(HousePaymentRule.calculateDeposit(
+                house.getPrice(), house.getPaymentMethod()));
         house.setRoomType(request.roomType());
         house.setArea(request.area());
         house.setFloor(request.floor());
@@ -702,7 +738,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 && request.isSmartLockSupported() ? 1 : 0);
         house.setIsSelfViewingSupported(request.isSelfViewingSupported() != null
                 && request.isSelfViewingSupported() ? 1 : 0);
-        house.setLandlordId(request.landlordId());
+        house.setLandlordId(platformLandlordProperties.getId());
+        house.setSourceType(HouseSourceType.PLATFORM.name());
+        house.setCreatedBy(operatorId);
         house.setViewCount(0);
         house.setFavoriteCount(0);
         house.setCreatedAt(now);
@@ -886,6 +924,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         if (house == null) {
             throw BusinessException.notFound("房源不存在");
         }
+        if (isIndividualLandlordHouse(house)) {
+            throw BusinessException.badRequest("房东房源必须由房东提交并通过管理员审核");
+        }
         if (!"draft".equals(house.getStatus())) {
             throw BusinessException.badRequest("只有草稿状态的房源才能发布，当前状态：" + house.getStatus());
         }
@@ -928,6 +969,13 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         if (!"offline".equals(house.getStatus())) {
             throw BusinessException.badRequest("只有已下架房源才能重新上架，当前状态：" + house.getStatus());
         }
+        if (isIndividualLandlordHouse(house)) {
+            HousePropertyCertificateDtos.CertificateView certificate =
+                    propertyCertificateService.getCurrentView(houseId);
+            if (certificate == null || !"approved".equals(certificate.auditStatus())) {
+                throw BusinessException.badRequest("房东房源缺少已审核通过的房产证，不能重新上架");
+            }
+        }
         house.setStatus("available");
         house.setUpdatedAt(LocalDateTime.now());
         updateById(house);
@@ -945,9 +993,21 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             String operatorId
     ) {
         requireAdminRole(operatorId);
+        return updateHouseInternal(houseId, request, false);
+    }
+
+    private AdminHouseDtos.AdminHouseView updateHouseInternal(
+            String houseId,
+            AdminHouseDtos.UpdateHouseRequest request,
+            boolean landlordEdit
+    ) {
         House house = getById(houseId);
         if (house == null) {
             throw BusinessException.notFound("房源不存在");
+        }
+        if (landlordEdit
+                && ("reserved".equals(house.getStatus()) || "rented".equals(house.getStatus()))) {
+            throw BusinessException.badRequest("已被预订或已出租的房源不能修改");
         }
         LocalDateTime now = LocalDateTime.now();
         if (request.title() != null) {
@@ -974,11 +1034,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         if (request.price() != null) {
             house.setPrice(request.price());
         }
-        if (request.deposit() != null) {
-            house.setDeposit(request.deposit());
-        }
         if (request.paymentMethod() != null) {
-            house.setPaymentMethod(request.paymentMethod());
+            house.setPaymentMethod(HousePaymentRule.normalize(request.paymentMethod()));
         }
         if (request.roomType() != null) {
             house.setRoomType(request.roomType());
@@ -1013,9 +1070,6 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         if (request.isSelfViewingSupported() != null) {
             house.setIsSelfViewingSupported(request.isSelfViewingSupported() ? 1 : 0);
         }
-        if (request.landlordId() != null) {
-            house.setLandlordId(request.landlordId());
-        }
         if (request.facilityIds() != null) {
             List<String> facilityIds = normalizeOptionalAttributeIds(request.facilityIds(), "设施");
             validateEnabledFacilities(facilityIds);
@@ -1045,6 +1099,12 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             // 全量替换：删除旧图片，写入新图片
             replaceHouseImages(houseId, coverImage, requestedUrls, now);
             house.setCoverImage(coverImage);
+        }
+        house.setPaymentMethod(HousePaymentRule.normalize(house.getPaymentMethod()));
+        house.setDeposit(HousePaymentRule.calculateDeposit(
+                house.getPrice(), house.getPaymentMethod()));
+        if (landlordEdit && !"draft".equals(house.getStatus())) {
+            house.setStatus("draft");
         }
         house.setUpdatedAt(now);
         updateById(house);
@@ -1151,7 +1211,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
      */
     @Override
     public List<AdminHouseDtos.AdminHouseView> getAllHousesWithLockInfo() {
-        List<House> houses = list(Wrappers.<House>lambdaQuery().orderByDesc(House::getCreatedAt));
+        List<House> houses = list(Wrappers.<House>lambdaQuery()
+                .ne(House::getStatus, "deleted")
+                .orderByDesc(House::getCreatedAt));
         List<String> houseIds = houses.stream().map(House::getId).toList();
         Map<String, SmartLock> smartLockMap = smartLockMapper.selectLatestByHouseIds(houseIds)
                 .stream()
@@ -1167,7 +1229,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     @Override
     public AdminHouseDtos.AdminHouseView getAdminHouseById(String houseId) {
         House house = getById(houseId);
-        if (house == null) {
+        if (house == null || "deleted".equals(house.getStatus())) {
             throw BusinessException.notFound("房源不存在");
         }
         SmartLock smartLock = smartLockMapper.selectLatestByHouseId(houseId);
@@ -1220,6 +1282,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getDescription(),
                 house.getRentType(),
                 house.getStatus(),
+                sourceTypeOf(house),
+                house.getCreatedBy(),
                 integerBoolean(house.getIsSmartLockSupported()),
                 integerBoolean(house.getIsSelfViewingSupported()),
                 smartLockBound,
@@ -1232,7 +1296,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 community != null ? community.getLongitude() : null,
                 community != null ? community.getLatitude() : null,
                 getHouseFacilityIds(house.getId()),
-                getHouseTagIds(house.getId())
+                getHouseTagIds(house.getId()),
+                propertyCertificateService.getCurrentView(house.getId())
         );
     }
 
@@ -1336,7 +1401,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     /** 校验房源归属当前房东。 */
     private House requireLandlordOwnership(String houseId, String landlordId) {
         House house = getById(houseId);
-        if (house == null) {
+        if (house == null || "deleted".equals(house.getStatus())) {
             throw BusinessException.notFound("房源不存在");
         }
         if (!landlordId.equals(house.getLandlordId())) {
@@ -1351,6 +1416,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         List<House> houses = list(
                 Wrappers.<House>lambdaQuery()
                         .eq(House::getLandlordId, landlordId)
+                        .ne(House::getStatus, "deleted")
                         .eq(status != null, House::getStatus, status)
                         .orderByDesc(House::getCreatedAt)
         );
@@ -1377,9 +1443,6 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     public AdminHouseDtos.AdminHouseView createLandlordHouse(
             AdminHouseDtos.CreateHouseRequest request, String landlordId) {
         requireLandlordRole(landlordId);
-        if (!landlordId.equals(request.landlordId())) {
-            throw BusinessException.forbidden("只能将房源绑定到当前登录房东");
-        }
 
         List<String> facilityIds = normalizeAttributeIds(request.facilityIds(), "设施");
         List<String> tagIds = normalizeAttributeIds(request.tagIds(), "标签");
@@ -1400,8 +1463,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setUnit(request.unit());
         house.setRoom(request.room());
         house.setPrice(request.price());
-        house.setDeposit(request.deposit() != null ? request.deposit() : 0);
-        house.setPaymentMethod(request.paymentMethod());
+        house.setPaymentMethod(HousePaymentRule.normalize(request.paymentMethod()));
+        house.setDeposit(HousePaymentRule.calculateDeposit(
+                house.getPrice(), house.getPaymentMethod()));
         house.setRoomType(request.roomType());
         house.setArea(request.area());
         house.setFloor(request.floor());
@@ -1416,8 +1480,10 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 && request.isSmartLockSupported() ? 1 : 0);
         house.setIsSelfViewingSupported(request.isSelfViewingSupported() != null
                 && request.isSelfViewingSupported() ? 1 : 0);
-        // 房东端仍以请求体 landlordId 入库，但必须已经通过上方的当前用户一致性校验。
-        house.setLandlordId(request.landlordId());
+        // 房东归属只取当前 Token，不能由请求体指定。
+        house.setLandlordId(landlordId);
+        house.setSourceType(HouseSourceType.LANDLORD.name());
+        house.setCreatedBy(landlordId);
         house.setViewCount(0);
         house.setFavoriteCount(0);
         house.setCreatedAt(now);
@@ -1430,25 +1496,43 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         return toAdminHouseView(house, null);
     }
 
+    /**
+     * 兼容迁移前或测试中尚未设置来源的房源。
+     */
+    private String sourceTypeOf(House house) {
+        return StringUtils.hasText(house.getSourceType())
+                ? house.getSourceType()
+                : HouseSourceType.PLATFORM.name();
+    }
+
     @Override
     @Transactional
     public AdminHouseDtos.AdminHouseView updateLandlordHouse(
             String houseId, AdminHouseDtos.UpdateHouseRequest request, String landlordId) {
         requireLandlordRole(landlordId);
         requireLandlordOwnership(houseId, landlordId);
-        return updateHouse(houseId, request, landlordId);
+        return updateHouseInternal(houseId, request, true);
     }
 
     @Override
     public AdminHouseDtos.AdminHouseView publishLandlordHouse(String houseId, String landlordId) {
         requireLandlordRole(landlordId);
-        House house = requireLandlordOwnership(houseId, landlordId);
-        if (!"draft".equals(house.getStatus())) {
-            throw BusinessException.badRequest("只有草稿状态的房源才能发布，当前状态：" + house.getStatus());
-        }
-        house.setStatus("available");
-        house.setUpdatedAt(LocalDateTime.now());
-        updateById(house);
+        requireLandlordOwnership(houseId, landlordId);
+        House house = propertyCertificateService.submitForReview(houseId, landlordId);
+        return toAdminHouseView(house, smartLockMapper.selectLatestByHouseId(houseId));
+    }
+
+    private boolean isIndividualLandlordHouse(House house) {
+        return HouseSourceType.LANDLORD.name().equalsIgnoreCase(sourceTypeOf(house));
+    }
+
+    @Override
+    public AdminHouseDtos.AdminHouseView reviewLandlordHouse(
+            String houseId,
+            HousePropertyCertificateDtos.ReviewRequest request,
+            String operatorId
+    ) {
+        House house = propertyCertificateService.review(houseId, request, operatorId);
         return toAdminHouseView(house, smartLockMapper.selectLatestByHouseId(houseId));
     }
 
@@ -1463,6 +1547,19 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setUpdatedAt(LocalDateTime.now());
         updateById(house);
         return toAdminHouseView(house, smartLockMapper.selectLatestByHouseId(houseId));
+    }
+
+    @Override
+    @Transactional
+    public boolean deleteLandlordHouse(String houseId, String landlordId) {
+        requireLandlordRole(landlordId);
+        House house = requireLandlordOwnership(houseId, landlordId);
+        if (!"offline".equals(house.getStatus())) {
+            throw BusinessException.badRequest("房源下架后才能删除，当前状态：" + house.getStatus());
+        }
+        house.setStatus("deleted");
+        house.setUpdatedAt(LocalDateTime.now());
+        return updateById(house);
     }
 }
 

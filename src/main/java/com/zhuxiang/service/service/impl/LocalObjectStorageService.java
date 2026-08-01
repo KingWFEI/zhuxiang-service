@@ -1,6 +1,7 @@
 package com.zhuxiang.service.service.impl;
 
 import com.zhuxiang.service.service.ObjectStorageService;
+import com.zhuxiang.service.service.PrivateObjectStorageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,8 @@ import java.nio.file.StandardCopyOption;
  */
 @Service
 @ConditionalOnMissingBean(ObjectStorageService.class)
-public class LocalObjectStorageService implements ObjectStorageService {
+public class LocalObjectStorageService
+        implements ObjectStorageService, PrivateObjectStorageService {
 
     private final Path uploadDirectory;
     private final String contextPath;
@@ -43,5 +45,47 @@ public class LocalObjectStorageService implements ObjectStorageService {
         } catch (IOException exception) {
             throw new IllegalStateException("本地文件保存失败", exception);
         }
+    }
+
+    @Override
+    public String storePrivate(
+            String objectKey, InputStream input, long size, String contentType) {
+        Path target = privateDirectory().resolve(objectKey).normalize();
+        if (!target.startsWith(privateDirectory())) {
+            throw new IllegalArgumentException("私有对象路径无效");
+        }
+        try {
+            Files.createDirectories(target.getParent());
+            Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
+            return objectKey.replace('\\', '/');
+        } catch (IOException exception) {
+            throw new IllegalStateException("本地敏感文件保存失败", exception);
+        }
+    }
+
+    @Override
+    public StoredPrivateObject openPrivate(String objectKey) {
+        Path target = privateDirectory().resolve(objectKey).normalize();
+        if (!target.startsWith(privateDirectory()) || !Files.isRegularFile(target)) {
+            throw new IllegalArgumentException("私有文件不存在");
+        }
+        try {
+            String contentType = Files.probeContentType(target);
+            return new StoredPrivateObject(
+                    Files.newInputStream(target),
+                    Files.size(target),
+                    contentType
+            );
+        } catch (IOException exception) {
+            throw new IllegalStateException("本地敏感文件读取失败", exception);
+        }
+    }
+
+    private Path privateDirectory() {
+        Path directoryName = uploadDirectory.getFileName();
+        String privateName = directoryName == null
+                ? "private-uploads"
+                : directoryName + "-private";
+        return uploadDirectory.resolveSibling(privateName).normalize();
     }
 }

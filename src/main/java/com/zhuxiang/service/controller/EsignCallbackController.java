@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhuxiang.service.config.EsignV3Properties;
 import com.zhuxiang.service.service.EsignCallbackData;
 import com.zhuxiang.service.service.RentOrderService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 必须读取原始 Body 字节验签，不能先反序列化 JSON 再序列化。
  */
 @RestController
+@Tag(name = "e签宝回调", description = "接收并验证 e签宝电子合同签署状态通知")
 public class EsignCallbackController {
 
     private static final Logger log = LoggerFactory.getLogger(EsignCallbackController.class);
@@ -49,6 +52,7 @@ public class EsignCallbackController {
     }
 
     @PostMapping("/esign/callback")
+    @Operation(summary = "接收 e签宝签署回调", description = "验证 e签宝回调签名、防重放并更新合同、订单和租约状态。")
     public ResponseEntity<String> handleCallback(HttpServletRequest request) {
         // ── 0. 读取原始 Body 字节（只读一次，用于验签 + 后续反序列化） ──
         byte[] rawBodyBytes;
