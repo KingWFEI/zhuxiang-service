@@ -37,8 +37,10 @@ public class ObjectStorageProperties {
         private String sessionToken;
         private String region;
         private String bucket;
+        private String privateBucket;
         private String publicBaseUrl;
         private String keyPrefix;
+        private String privateKeyPrefix = "private";
 
         public String getSecretId() {
             return secretId;
@@ -80,6 +82,14 @@ public class ObjectStorageProperties {
             this.bucket = bucket;
         }
 
+        public String getPrivateBucket() {
+            return privateBucket;
+        }
+
+        public void setPrivateBucket(String privateBucket) {
+            this.privateBucket = privateBucket;
+        }
+
         public String getPublicBaseUrl() {
             return publicBaseUrl;
         }
@@ -94,6 +104,14 @@ public class ObjectStorageProperties {
 
         public void setKeyPrefix(String keyPrefix) {
             this.keyPrefix = keyPrefix;
+        }
+
+        public String getPrivateKeyPrefix() {
+            return privateKeyPrefix;
+        }
+
+        public void setPrivateKeyPrefix(String privateKeyPrefix) {
+            this.privateKeyPrefix = privateKeyPrefix;
         }
     }
 }

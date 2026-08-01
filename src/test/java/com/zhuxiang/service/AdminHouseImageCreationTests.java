@@ -2,7 +2,10 @@ package com.zhuxiang.service;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.zhuxiang.service.common.BusinessException;
+import com.zhuxiang.service.common.HouseSourceType;
+import com.zhuxiang.service.config.PlatformLandlordProperties;
 import com.zhuxiang.service.dto.AdminHouseDtos;
+import com.zhuxiang.service.dto.HouseDtos;
 import com.zhuxiang.service.entity.House;
 import com.zhuxiang.service.entity.HouseFacility;
 import com.zhuxiang.service.entity.HouseFacilityRelation;
@@ -20,6 +23,7 @@ import com.zhuxiang.service.service.FileRecordService;
 import com.zhuxiang.service.service.HouseFacilityRelationService;
 import com.zhuxiang.service.service.HouseFacilityService;
 import com.zhuxiang.service.service.HouseImageService;
+import com.zhuxiang.service.service.HousePropertyCertificateService;
 import com.zhuxiang.service.service.HouseTagRelationService;
 import com.zhuxiang.service.service.HouseTagService;
 import com.zhuxiang.service.service.LandlordService;
@@ -34,11 +38,13 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -60,16 +66,22 @@ class AdminHouseImageCreationTests {
     private final RentOrderMapper rentOrderMapper = mock(RentOrderMapper.class);
     private final UserService userService = mock(UserService.class);
     private final FileRecordService fileRecordService = mock(FileRecordService.class);
+    private final HousePropertyCertificateService propertyCertificateService =
+            mock(HousePropertyCertificateService.class);
     private final HouseMapper houseMapper = mock(HouseMapper.class);
+    private final PlatformLandlordProperties platformLandlordProperties =
+            new PlatformLandlordProperties();
     private HouseServiceImpl service;
 
     @BeforeEach
     void setUp() {
+        platformLandlordProperties.setId("platform-landlord-1");
         service = new HouseServiceImpl(
                 communityService, imageService, tagService, tagRelationService,
                 facilityService, facilityRelationService, landlordService,
                 advertisementService, regionService, smartLockMapper,
-                favoriteHouseMapper, rentOrderMapper, userService, fileRecordService
+                favoriteHouseMapper, rentOrderMapper, userService, fileRecordService,
+                propertyCertificateService, platformLandlordProperties
         );
         ReflectionTestUtils.setField(service, "baseMapper", houseMapper);
         when(houseMapper.insert(any(House.class))).thenReturn(1);
@@ -110,6 +122,15 @@ class AdminHouseImageCreationTests {
                 "https://cdn.example.com/cover.jpg",
                 "https://cdn.example.com/bedroom.jpg"
         );
+        assertThat(response.deposit()).isEqualTo(2800);
+        assertThat(response.sourceType()).isEqualTo(HouseSourceType.PLATFORM.name());
+
+        ArgumentCaptor<House> houseCaptor = ArgumentCaptor.forClass(House.class);
+        verify(houseMapper).insert(houseCaptor.capture());
+        assertThat(houseCaptor.getValue().getSourceType())
+                .isEqualTo(HouseSourceType.PLATFORM.name());
+        assertThat(houseCaptor.getValue().getLandlordId()).isEqualTo("platform-landlord-1");
+        assertThat(houseCaptor.getValue().getCreatedBy()).isEqualTo("admin-1");
 
         ArgumentCaptor<Collection<HouseFacilityRelation>> facilitiesCaptor = collectionCaptor();
         verify(facilityRelationService).saveBatch(facilitiesCaptor.capture());
@@ -163,25 +184,98 @@ class AdminHouseImageCreationTests {
         verify(houseMapper).insert(houseCaptor.capture());
         assertThat(houseCaptor.getValue().getLandlordId()).isEqualTo("landlord-1");
         assertThat(houseCaptor.getValue().getStatus()).isEqualTo("draft");
+        assertThat(houseCaptor.getValue().getSourceType())
+                .isEqualTo(HouseSourceType.LANDLORD.name());
+        assertThat(houseCaptor.getValue().getCreatedBy()).isEqualTo("landlord-1");
         assertThat(response.landlordId()).isEqualTo("landlord-1");
+        assertThat(response.sourceType()).isEqualTo(HouseSourceType.LANDLORD.name());
     }
 
     @Test
-    void landlordCannotBindNewHouseToAnotherUser() {
+    void publicListAndDetailDtosReturnServerControlledSourceType() {
+        House house = new House();
+        house.setId("house-source-1");
+        house.setTitle("房东直租房源");
+        house.setCoverImage("https://cdn.example.com/cover.jpg");
+        house.setCommunityId("community-1");
+        house.setLocation("渝北区");
+        house.setStatus("reserved");
+        house.setLandlordId("landlord-1");
+        house.setSourceType(HouseSourceType.LANDLORD.name());
+        house.setPrice(280000);
+        house.setViewCount(0);
+
+        when(houseMapper.selectById("house-source-1")).thenReturn(house);
+
+        HouseDtos.HouseView listItem = service.toHouseView(house, null);
+        HouseDtos.HouseDetail detail = service.getHouseDetail("house-source-1", null);
+
+        assertThat(listItem.sourceType()).isEqualTo(HouseSourceType.LANDLORD.name());
+        assertThat(detail.sourceType()).isEqualTo(HouseSourceType.LANDLORD.name());
+    }
+
+    @Test
+    void publicHouseDetailReturnsConfiguredFacilityIcons() {
+        House house = new House();
+        house.setId("house-facilities-1");
+        house.setTitle("设施图标测试房源");
+        house.setCoverImage("https://cdn.example.com/cover.jpg");
+        house.setStatus("reserved");
+        house.setViewCount(0);
+
+        HouseFacilityRelation relation = new HouseFacilityRelation();
+        relation.setHouseId(house.getId());
+        relation.setFacilityId("facility-wifi");
+
+        HouseFacility facility = facility("facility-wifi");
+        facility.setName("Wi-Fi");
+        facility.setIconKey("wifi");
+        facility.setSortOrder(10);
+
+        when(houseMapper.selectById(house.getId())).thenReturn(house);
+        when(facilityRelationService.list(any(Wrapper.class))).thenReturn(List.of(relation));
+        when(facilityService.listByIds(anyList())).thenReturn(List.of(facility));
+
+        HouseDtos.HouseDetail detail = service.getHouseDetail(house.getId(), null);
+
+        assertThat(detail.facilities()).containsExactly("Wi-Fi");
+        assertThat(detail.facilityItems()).containsExactly(
+                new HouseDtos.FacilityView("facility-wifi", "Wi-Fi", "wifi")
+        );
+    }
+
+    @Test
+    void createAndUpdateRequestsCannotAcceptSourceAuditFields() {
+        assertThat(Arrays.stream(AdminHouseDtos.CreateHouseRequest.class.getRecordComponents())
+                .map(component -> component.getName()))
+                .doesNotContain("landlordId", "sourceType", "createdBy");
+        assertThat(Arrays.stream(AdminHouseDtos.UpdateHouseRequest.class.getRecordComponents())
+                .map(component -> component.getName()))
+                .doesNotContain("landlordId", "sourceType", "createdBy");
+    }
+
+    @Test
+    void landlordIdentityComesFromAuthenticatedUser() {
         User landlord = new User();
         landlord.setId("other-landlord");
         landlord.setRole("LANDLORD");
         when(userService.requireActiveUser("other-landlord")).thenReturn(landlord);
+        when(imageService.list(any(Wrapper.class))).thenReturn(List.of(
+                image("https://cdn.example.com/cover.jpg"),
+                image("https://cdn.example.com/bedroom.jpg")
+        ));
+        when(facilityService.list(any(Wrapper.class))).thenReturn(
+                List.of(facility("wifi"), facility("air_conditioner")));
+        when(tagService.list(any(Wrapper.class))).thenReturn(
+                List.of(tag("near_metro"), tag("direct_rent")));
 
-        assertThatThrownBy(() -> service.createLandlordHouse(request(), "other-landlord"))
-                .isInstanceOfSatisfying(BusinessException.class, exception -> {
-                    assertThat(exception.getCode()).isEqualTo(403);
-                    assertThat(exception.getMessage()).contains("当前登录房东");
-                });
+        service.createLandlordHouse(request(), "other-landlord");
 
-        verify(houseMapper, never()).insert(any(House.class));
-        verify(fileRecordService, never()).validateFileOwnership(
-                any(String.class), any(String.class), any(String.class)
+        ArgumentCaptor<House> houseCaptor = ArgumentCaptor.forClass(House.class);
+        verify(houseMapper).insert(houseCaptor.capture());
+        assertThat(houseCaptor.getValue().getLandlordId()).isEqualTo("other-landlord");
+        verify(fileRecordService).validateFileOwnership(
+                "other-landlord", "https://cdn.example.com/cover.jpg", "house_image"
         );
     }
 
@@ -293,6 +387,8 @@ class AdminHouseImageCreationTests {
         House house = new House();
         house.setId("house-1");
         house.setTitle("高新区精装一居室");
+        house.setSourceType(HouseSourceType.PLATFORM.name());
+        house.setCreatedBy("admin-1");
         HouseImage cover = image("https://cdn.example.com/cover.jpg");
         cover.setSortOrder(0);
         HouseImage room = image("https://cdn.example.com/room.jpg");
@@ -304,10 +400,37 @@ class AdminHouseImageCreationTests {
 
         assertThat(response.id()).isEqualTo("house-1");
         assertThat(response.title()).isEqualTo("高新区精装一居室");
+        assertThat(response.sourceType()).isEqualTo("PLATFORM");
+        assertThat(response.createdBy()).isEqualTo("admin-1");
         assertThat(response.imageUrls()).containsExactly(
                 "https://cdn.example.com/cover.jpg",
                 "https://cdn.example.com/room.jpg"
         );
+    }
+
+    @Test
+    void adminHouseListReturnsCreatorAndSourceMarkers() {
+        House platformHouse = new House();
+        platformHouse.setId("platform-house");
+        platformHouse.setSourceType(HouseSourceType.PLATFORM.name());
+        platformHouse.setCreatedBy("admin-1");
+        House landlordHouse = new House();
+        landlordHouse.setId("landlord-house");
+        landlordHouse.setSourceType(HouseSourceType.LANDLORD.name());
+        landlordHouse.setCreatedBy("landlord-1");
+        when(houseMapper.selectList(any(Wrapper.class)))
+                .thenReturn(List.of(platformHouse, landlordHouse));
+        when(smartLockMapper.selectLatestByHouseIds(anyList())).thenReturn(List.of());
+
+        List<AdminHouseDtos.AdminHouseView> response =
+                service.getAllHousesWithLockInfo();
+
+        assertThat(response)
+                .extracting(AdminHouseDtos.AdminHouseView::sourceType)
+                .containsExactly("PLATFORM", "LANDLORD");
+        assertThat(response)
+                .extracting(AdminHouseDtos.AdminHouseView::createdBy)
+                .containsExactly("admin-1", "landlord-1");
     }
 
     @Test
@@ -386,10 +509,10 @@ class AdminHouseImageCreationTests {
                         "https://cdn.example.com/bedroom.jpg"
                 ),
                 "高新区金融城", "community-1", "天府大道1号",
-                "2栋", "1单元", "1801", 2800, 2800,
+                "2栋", "1单元", "1801", 2800, 999,
                 "押一付三", "1室1厅1卫", new BigDecimal("45.5"),
                 "18/32层", "南", "精装", LocalDate.of(2026, 7, 1),
-                "距地铁500米", "房源介绍", "long_rent", "landlord-1",
+                "距地铁500米", "房源介绍", "long_rent",
                 true, true,
                 List.of("wifi", "air_conditioner"),
                 List.of("near_metro", "direct_rent")
@@ -405,7 +528,7 @@ class AdminHouseImageCreationTests {
         return new AdminHouseDtos.UpdateHouseRequest(
                 null, coverImage, imageUrls, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, facilityIds, tagIds
+                null, null, null, facilityIds, tagIds
         );
     }
 

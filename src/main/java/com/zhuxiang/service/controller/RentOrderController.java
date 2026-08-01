@@ -43,6 +43,7 @@ public class RentOrderController {
     }
 
     @GetMapping("/rent-orders/my")
+    @Operation(summary = "分页查询我的租房订单", description = "分页查询当前租客创建的租房订单及其流程状态。")
     public ApiResponse<PageData<RentOrderResponse>> listMyOrders(
             HttpServletRequest request,
             @RequestParam(defaultValue = "1") @Min(1) long page,
@@ -157,6 +158,7 @@ public class RentOrderController {
     }
 
     @PostMapping("/rent-orders/{orderId}/cancel")
+    @Operation(summary = "取消租房订单", description = "取消当前用户尚未完成的租房订单，并按订单阶段释放房源。")
     public ApiResponse<RentOrderResponse> cancelOrder(
             HttpServletRequest request,
             @PathVariable String orderId
@@ -168,6 +170,7 @@ public class RentOrderController {
     }
 
     @PostMapping("/rent-orders/{orderId}/hide")
+    @Operation(summary = "隐藏租房订单", description = "从当前用户的订单列表中隐藏已结束订单，不删除后台业务数据。")
     public ApiResponse<Object> hideOrder(
             HttpServletRequest request,
             @PathVariable String orderId

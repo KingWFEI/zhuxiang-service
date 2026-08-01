@@ -154,6 +154,16 @@ public class House implements Serializable {
     private String landlordId;
 
     /**
+     * 房源发布来源：LANDLORD房东发布，PLATFORM平台自营
+     */
+    private String sourceType;
+
+    /**
+     * 创建该房源的用户ID
+     */
+    private String createdBy;
+
+    /**
      * 浏览次数
      */
     private Integer viewCount;
@@ -213,6 +223,8 @@ public class House implements Serializable {
             && (this.getIsSmartLockSupported() == null ? other.getIsSmartLockSupported() == null : this.getIsSmartLockSupported().equals(other.getIsSmartLockSupported()))
             && (this.getIsSelfViewingSupported() == null ? other.getIsSelfViewingSupported() == null : this.getIsSelfViewingSupported().equals(other.getIsSelfViewingSupported()))
             && (this.getLandlordId() == null ? other.getLandlordId() == null : this.getLandlordId().equals(other.getLandlordId()))
+            && (this.getSourceType() == null ? other.getSourceType() == null : this.getSourceType().equals(other.getSourceType()))
+            && (this.getCreatedBy() == null ? other.getCreatedBy() == null : this.getCreatedBy().equals(other.getCreatedBy()))
             && (this.getViewCount() == null ? other.getViewCount() == null : this.getViewCount().equals(other.getViewCount()))
             && (this.getFavoriteCount() == null ? other.getFavoriteCount() == null : this.getFavoriteCount().equals(other.getFavoriteCount()))
             && (this.getCreatedAt() == null ? other.getCreatedAt() == null : this.getCreatedAt().equals(other.getCreatedAt()))
@@ -248,6 +260,8 @@ public class House implements Serializable {
         result = prime * result + ((getIsSmartLockSupported() == null) ? 0 : getIsSmartLockSupported().hashCode());
         result = prime * result + ((getIsSelfViewingSupported() == null) ? 0 : getIsSelfViewingSupported().hashCode());
         result = prime * result + ((getLandlordId() == null) ? 0 : getLandlordId().hashCode());
+        result = prime * result + ((getSourceType() == null) ? 0 : getSourceType().hashCode());
+        result = prime * result + ((getCreatedBy() == null) ? 0 : getCreatedBy().hashCode());
         result = prime * result + ((getViewCount() == null) ? 0 : getViewCount().hashCode());
         result = prime * result + ((getFavoriteCount() == null) ? 0 : getFavoriteCount().hashCode());
         result = prime * result + ((getCreatedAt() == null) ? 0 : getCreatedAt().hashCode());
@@ -286,6 +300,8 @@ public class House implements Serializable {
         sb.append(", isSmartLockSupported=").append(isSmartLockSupported);
         sb.append(", isSelfViewingSupported=").append(isSelfViewingSupported);
         sb.append(", landlordId=").append(landlordId);
+        sb.append(", sourceType=").append(sourceType);
+        sb.append(", createdBy=").append(createdBy);
         sb.append(", viewCount=").append(viewCount);
         sb.append(", favoriteCount=").append(favoriteCount);
         sb.append(", createdAt=").append(createdAt);

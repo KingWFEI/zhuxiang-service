@@ -3,6 +3,7 @@ package com.zhuxiang.service.controller;
 import com.zhuxiang.service.auth.CurrentUser;
 import com.zhuxiang.service.auth.RequireAuth;
 import com.zhuxiang.service.common.ApiResponse;
+import com.zhuxiang.service.dto.AppointmentDtos;
 import com.zhuxiang.service.dto.BookingDtos;
 import com.zhuxiang.service.service.AppointmentService;
 import com.zhuxiang.service.service.ConversationService;
@@ -13,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -40,13 +42,17 @@ public class BookingController {
      */
     @PostMapping("/appointments")
     @Operation(summary = "预约看房", description = "为指定房源提交预约日期、时间段和联系人信息。")
-    public ApiResponse<BookingDtos.AppointmentResult> createAppointment(
+    public ApiResponse<AppointmentDtos.CreateResult> createAppointment(
             HttpServletRequest servletRequest,
-            @Valid @RequestBody BookingDtos.AppointmentRequest request
+            @RequestHeader(value = "Idempotency-Key", required = false)
+            String idempotencyKey,
+            @Valid @RequestBody AppointmentDtos.CreateRequest request
     ) {
         return ApiResponse.success(
                 "预约提交成功",
-                appointmentService.createAppointment(CurrentUser.id(servletRequest), request)
+                appointmentService.createAppointment(
+                        CurrentUser.id(servletRequest), idempotencyKey, request
+                )
         );
     }
 

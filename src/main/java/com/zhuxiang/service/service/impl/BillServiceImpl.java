@@ -170,7 +170,7 @@ public class BillServiceImpl extends ServiceImpl<RentBillMapper, RentBill>
         String paymentUrl = null;
 
         if ("alipay".equals(channel)) {
-            String subject = "住享租房-第" + bill.getPeriodNo() + "期租金-" + houseName;
+            String subject = "勿忧管家租房-第" + bill.getPeriodNo() + "期租金-" + houseName;
             try {
                 paymentUrl = alipayService.buildH5PayUrl(record.getPaymentNo(), totalAmount, subject);
                 payType = alipayService.getPayType();

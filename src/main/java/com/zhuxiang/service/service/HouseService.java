@@ -7,6 +7,7 @@ import com.zhuxiang.service.common.PageData;
 import java.util.List;
 import com.zhuxiang.service.dto.AdminHouseDtos;
 import com.zhuxiang.service.dto.HouseDtos;
+import com.zhuxiang.service.dto.HousePropertyCertificateDtos;
 
 /**
 * @author king-wang
@@ -99,6 +100,15 @@ public interface HouseService extends IService<House> {
     AdminHouseDtos.AdminHouseView onlineHouse(String houseId);
 
     /**
+     * 管理员审核房东提交的房源，审核通过后公开，驳回后退回房东修改。
+     */
+    AdminHouseDtos.AdminHouseView reviewLandlordHouse(
+            String houseId,
+            HousePropertyCertificateDtos.ReviewRequest request,
+            String operatorId
+    );
+
+    /**
      * 修改房源信息，返回管理端视图。
      */
     AdminHouseDtos.AdminHouseView updateHouse(
@@ -128,9 +138,12 @@ public interface HouseService extends IService<House> {
     AdminHouseDtos.AdminHouseView updateLandlordHouse(
             String houseId, AdminHouseDtos.UpdateHouseRequest request, String landlordId);
 
-    /** 房东发布房源（draft → available），校验归属权。 */
+    /** 房东提交房源审核（draft/rejected/offline → pendingReview），校验归属权及房产证。 */
     AdminHouseDtos.AdminHouseView publishLandlordHouse(String houseId, String landlordId);
 
     /** 房东下架房源（available → offline），校验归属权。 */
     AdminHouseDtos.AdminHouseView offlineLandlordHouse(String houseId, String landlordId);
+
+    /** 房东删除已下架房源（offline → deleted），保留历史关联数据。 */
+    boolean deleteLandlordHouse(String houseId, String landlordId);
 }

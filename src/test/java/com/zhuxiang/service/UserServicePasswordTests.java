@@ -6,6 +6,7 @@ import com.zhuxiang.service.dto.ProfileDtos;
 import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.mapper.UserMapper;
 import com.zhuxiang.service.service.MessageService;
+import com.zhuxiang.service.service.LandlordService;
 import com.zhuxiang.service.service.ObjectStorageService;
 import com.zhuxiang.service.service.RefreshTokenService;
 import com.zhuxiang.service.service.SmsCodeService;
@@ -42,7 +43,8 @@ class UserServicePasswordTests {
                 mock(RefreshTokenService.class),
                 mock(MessageService.class),
                 mock(TokenProvider.class),
-                objectStorageService
+                objectStorageService,
+                mock(LandlordService.class)
         );
         ReflectionTestUtils.setField(userService, "baseMapper", userMapper);
     }

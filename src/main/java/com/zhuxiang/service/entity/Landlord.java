@@ -1,6 +1,5 @@
 package com.zhuxiang.service.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -11,25 +10,27 @@ import lombok.Data;
 import lombok.ToString;
 
 /**
- * 房东与平台管家资料表
+ * 房东公开资料表。
+ *
+ * <p>业务关联必须使用 {@code userId}；{@code id} 只是资料记录主键。</p>
  * @TableName landlord
  */
 @TableName(value ="landlord")
 @Data
 public class Landlord implements Serializable {
     /**
-     * 房东或管家ID，主键
+     * 资料记录 ID
      */
     @TableId
     private String id;
 
     /**
-     * 关联系统用户ID，房东本人签署合同时使用
+     * 关联的房东用户 ID，一名房东仅有一份资料
      */
     private String userId;
 
     /**
-     * 房东或管家姓名
+     * 对租客展示的名称
      */
     private String name;
 
@@ -38,19 +39,55 @@ public class Landlord implements Serializable {
      */
     private String avatarUrl;
 
+    /** 公开主页封面图 URL。 */
+    private String coverImageUrl;
+
+    /** 一句话个性签名。 */
+    private String slogan;
+
+    /** 房东个人介绍。 */
+    private String introduction;
+
+    /** 主要服务区域。 */
+    private String serviceArea;
+
+    /** 从业或出租服务年限。 */
+    private Integer serviceYears;
+
+    /** 个性化服务标签，服务端以换行分隔存储。 */
+    private String profileTags;
+
     /**
-     * 联系电话，前端展示时建议脱敏
+     * 联系电话，是否对租客公开由 showPhone 控制
      */
     private String phone;
 
+    /** 微信号。 */
+    private String wechat;
+
+    /** 联系邮箱。 */
+    private String email;
+
+    /** 方便联系的时间说明。 */
+    private String contactTime;
+
+    /** 是否向租客公开手机号。 */
+    private Integer showPhone;
+
+    /** 是否向租客公开微信号。 */
+    private Integer showWechat;
+
+    /** 是否向租客公开邮箱。 */
+    private Integer showEmail;
+
     /**
-     * 身份证号密文（AES-256-GCM 加密），用于生成合同时解密。
+     * 历史身份证号密文，仅保留兼容，不得通过资料接口暴露
      */
     @ToString.Exclude
     private String idCardCiphertext;
 
     /**
-     * 是否已实名认证：0否，1是
+     * 历史认证快照；对外展示以 user.is_verified 为准
      */
     private Integer isVerified;
 

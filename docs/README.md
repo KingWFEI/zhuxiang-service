@@ -1,4 +1,4 @@
-# 筑享接口文档
+# 勿忧管家接口文档
 
 - `openapi.yaml`：推荐用于导入 Apifox、Postman、YApi 等接口工具。
 - `openapi.json`：与 YAML 内容等价，适合程序读取和校验。

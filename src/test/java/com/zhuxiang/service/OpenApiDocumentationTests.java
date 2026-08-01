@@ -40,7 +40,7 @@ class OpenApiDocumentationTests {
                 .getContentAsString();
         JsonNode document = objectMapper.readTree(content);
 
-        assertThat(document.path("info").path("title").asText()).isEqualTo("筑享租房平台接口文档");
+        assertThat(document.path("info").path("title").asText()).isEqualTo("勿忧管家租房平台接口文档");
         assertThat(document.path("components").path("securitySchemes").has("bearerAuth")).isTrue();
 
         document.path("paths").properties().forEach(path ->
