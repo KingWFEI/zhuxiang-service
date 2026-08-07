@@ -32,6 +32,9 @@ public interface LeaseService extends IService<Lease> {
     /** 根据租约 ID 查询当前租客自己的单条租约详情。 */
     LeaseDtos.LeaseDetail getLeaseDetail(String leaseId, String currentUserId);
 
+    /** 校验租约归属后返回电子合同摘要及已签文件地址。 */
+    LeaseDtos.LeaseContractDocument getLeaseContract(String leaseId, String currentUserId);
+
     /**
      * 校验租约归属后，获取租约关联的门锁权限摘要及蓝牙 SDK lockData。
      */

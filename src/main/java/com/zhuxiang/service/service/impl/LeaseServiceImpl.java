@@ -2,6 +2,7 @@ package com.zhuxiang.service.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.zhuxiang.service.client.EsignV3Client;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.config.AutoUnlockProperties;
 import com.zhuxiang.service.dto.LeaseLockPasscodeResponse;
@@ -13,6 +14,8 @@ import com.zhuxiang.service.mapper.LeaseMapper;
 import com.zhuxiang.service.mapper.RentContractMapper;
 import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.service.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +41,8 @@ import java.util.Set;
 public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
     implements LeaseService{
 
+    private static final Logger log = LoggerFactory.getLogger(LeaseServiceImpl.class);
+
     private final HouseService houseService;
     private final CommunityService communityService;
     private final SmartLockMapper smartLockMapper;
@@ -48,6 +53,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
     private final LandlordService landlordService;
     private final AutoUnlockProperties autoUnlockProperties;
     private final ApplicationEventPublisher eventPublisher;
+    private final EsignV3Client esignV3Client;
     private Clock clock = Clock.system(ZoneId.of("Asia/Shanghai"));
 
     public LeaseServiceImpl(
@@ -60,7 +66,8 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             RentBillService rentBillService,
             LandlordService landlordService,
             AutoUnlockProperties autoUnlockProperties,
-            ApplicationEventPublisher eventPublisher
+            ApplicationEventPublisher eventPublisher,
+            EsignV3Client esignV3Client
     ) {
         this.houseService = houseService;
         this.communityService = communityService;
@@ -72,6 +79,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         this.landlordService = landlordService;
         this.autoUnlockProperties = autoUnlockProperties;
         this.eventPublisher = eventPublisher;
+        this.esignV3Client = esignV3Client;
     }
 
     /**
@@ -244,6 +252,72 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                                         - (pendingBill.getAmountPaid() == null ? 0 : pendingBill.getAmountPaid()),
                                 0),
                 pendingBill == null ? null : pendingBill.getDueDate()
+        );
+    }
+
+    @Override
+    public LeaseDtos.LeaseContractDocument getLeaseContract(String leaseId, String currentUserId) {
+        Lease lease = getById(leaseId);
+        if (lease == null) {
+            throw BusinessException.notFound("租约不存在");
+        }
+        if (!currentUserId.equals(lease.getUserId())) {
+            throw BusinessException.forbidden("无权查看该租约合同");
+        }
+        if (!StringUtils.hasText(lease.getContractId())) {
+            throw BusinessException.notFound("租约尚未关联合同");
+        }
+
+        RentContract contract = rentContractMapper.selectById(lease.getContractId());
+        if (contract == null) {
+            throw BusinessException.notFound("电子合同不存在");
+        }
+        if (!"signed".equals(contract.getStatus())) {
+            throw BusinessException.badRequest("电子合同尚未完成签署");
+        }
+
+        String fileUrl = textOrEmpty(contract.getPreviewUrl());
+        if (StringUtils.hasText(contract.getSignFlowId())) {
+            try {
+                EsignV3Client.FileDownloadResponse response =
+                        esignV3Client.getFileDownloadUrl(contract.getSignFlowId());
+                if (response.getData() != null
+                        && response.getData().getFiles() != null
+                        && !response.getData().getFiles().isEmpty()
+                        && StringUtils.hasText(
+                        response.getData().getFiles().get(0).getDownloadUrl())) {
+                    fileUrl = response.getData().getFiles().get(0).getDownloadUrl();
+                }
+            } catch (RuntimeException ex) {
+                log.warn("获取 e签宝已签合同地址失败，使用合同预览地址兜底: leaseId={}, contractId={}",
+                        leaseId, contract.getId(), ex);
+            }
+        }
+
+        String houseName = textOrEmpty(contract.getHouseName());
+        if (StringUtils.hasText(contract.getRoomName())) {
+            houseName = houseName + contract.getRoomName();
+        }
+        List<String> clauses = List.of(
+                "租赁房屋：" + textOrEmpty(contract.getHouseAddress()),
+                "租赁期限：" + contract.getStartDate() + " 至 " + contract.getEndDate(),
+                "月租金及押金以双方签署的电子合同文件为准。"
+        );
+        return new LeaseDtos.LeaseContractDocument(
+                contract.getId(),
+                textOrEmpty(contract.getContractNo()),
+                houseName,
+                textOrEmpty(contract.getTenantName()),
+                contract.getStartDate(),
+                contract.getEndDate(),
+                contract.getMonthlyRent(),
+                contract.getDeposit(),
+                textOrEmpty(lease.getPaymentMethod()),
+                "已签约",
+                "",
+                fileUrl,
+                clauses,
+                contract.getSignedAt()
         );
     }
 

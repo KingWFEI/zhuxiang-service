@@ -136,7 +136,7 @@ class LandlordContractServiceTests {
         order.setUserId("tenant-1");
         order.setLessorUserId(lessorUserId);
         order.setHouseId("house-1");
-        order.setStatus("pendingEsign");
+        order.setStatus("pendingLandlordSign");
         return order;
     }
 

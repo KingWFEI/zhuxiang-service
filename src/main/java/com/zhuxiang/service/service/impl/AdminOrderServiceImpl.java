@@ -21,7 +21,8 @@ import java.util.stream.Collectors;
 public class AdminOrderServiceImpl implements AdminOrderService {
     private static final Set<String> ROLES = Set.of("ADMIN", "HOUSEKEEPER");
     private static final Set<String> STATUSES = Set.of("created", "pendingRealName", "pendingContract",
-            "pendingPayment", "pendingEsign", "completed", "cancelled");
+            "pendingTenantSign", "pendingPayment", "pendingLandlordSign",
+            "paymentExpired", "completed", "cancelled");
 
     private final RentOrderMapper orderMapper;
     private final RentContractMapper contractMapper;

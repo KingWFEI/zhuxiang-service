@@ -3,6 +3,7 @@ package com.zhuxiang.service.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public final class LeaseDtos {
@@ -96,6 +97,25 @@ public final class LeaseDtos {
             String lockId,
             String keeperName,
             String keeperPhone
+    ) {
+    }
+
+    @Schema(description = "租客电子合同详情")
+    public record LeaseContractDocument(
+            String id,
+            String contractNo,
+            String houseName,
+            String tenantName,
+            LocalDate startDate,
+            LocalDate endDate,
+            Integer monthlyRent,
+            Integer deposit,
+            String paymentMethod,
+            String statusText,
+            String content,
+            String fileUrl,
+            List<String> clauses,
+            LocalDateTime signedAt
     ) {
     }
 }

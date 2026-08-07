@@ -37,4 +37,10 @@ public interface RentOrderService extends IService<RentOrder> {
 
     /** 处理 e签宝回调通知（非用户触发的后台状态同步） */
     void processEsignCallback(EsignCallbackData callback);
+
+    /** 将租客签署后超过支付时限的订单置为失效并释放房源。 */
+    void processPaymentTimeout(String orderId);
+
+    /** 将支付前长期未继续办理的订单原子关闭，并释放房源。 */
+    void processPrePaymentTimeout(String orderId, java.time.LocalDateTime now);
 }

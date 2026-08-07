@@ -27,6 +27,8 @@ public record RentOrderResponse(
         LocalDateTime contractConfirmedAt,
         LocalDateTime paidAt,
         LocalDateTime signedAt,
+        LocalDateTime paymentDeadlineAt,
+        LocalDateTime prePaymentDeadlineAt,
         LocalDateTime cancelledAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
