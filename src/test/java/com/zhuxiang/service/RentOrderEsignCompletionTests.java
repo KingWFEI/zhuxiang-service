@@ -1,6 +1,7 @@
 package com.zhuxiang.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.baomidou.mybatisplus.extension.conditions.update.LambdaUpdateChainWrapper;
 import com.zhuxiang.service.client.EsignV3Client;
 import com.zhuxiang.service.config.EsignV3Properties;
 import com.zhuxiang.service.entity.House;
@@ -30,11 +31,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,8 +48,10 @@ class RentOrderEsignCompletionTests {
     void repeatedCompletedCallbackRepairsSignedPartyFlags() {
         RentOrderMapper orderMapper = mock(RentOrderMapper.class);
         RentContractMapper contractMapper = mock(RentContractMapper.class);
+        HouseService houseService = mock(HouseService.class);
+        mockHouseUpdate(houseService);
         RentOrderServiceImpl service = new RentOrderServiceImpl(
-                mock(HouseService.class), contractMapper, mock(LeaseService.class), mock(UserService.class),
+                houseService, contractMapper, mock(LeaseService.class), mock(UserService.class),
                 mock(ApplicationEventPublisher.class), mock(FileRecordService.class),
                 mock(PaymentRecordService.class), mock(RentBillService.class), mock(AlipayService.class),
                 mock(DepositService.class), new ObjectMapper(), mock(RealNameAuthService.class),
@@ -62,6 +67,11 @@ class RentOrderEsignCompletionTests {
         contract.setLessorSigned(0);
         contract.setTenantSigned(0);
         when(contractMapper.selectOne(any(), eq(false))).thenReturn(contract);
+        RentOrder order = new RentOrder();
+        order.setId("order-1");
+        order.setStatus("pendingTenantSign");
+        when(orderMapper.selectByIdForUpdate("order-1")).thenReturn(order);
+        when(contractMapper.selectByOrderIdForUpdate("order-1")).thenReturn(contract);
 
         EsignCallbackData callback = new EsignCallbackData();
         callback.setSignFlowId("flow-1");
@@ -79,6 +89,7 @@ class RentOrderEsignCompletionTests {
         RentOrderMapper orderMapper = mock(RentOrderMapper.class);
         RentContractMapper contractMapper = mock(RentContractMapper.class);
         HouseService houseService = mock(HouseService.class);
+        mockHouseUpdate(houseService);
         LeaseService leaseService = mock(LeaseService.class);
         RentBillService rentBillService = mock(RentBillService.class);
         EsignV3Client esignClient = mock(EsignV3Client.class);
@@ -95,7 +106,7 @@ class RentOrderEsignCompletionTests {
         order.setId("order-1");
         order.setUserId("tenant-1");
         order.setHouseId("house-1");
-        order.setStatus("pendingEsign");
+        order.setStatus("pendingPayment");
         order.setStartDate(LocalDate.now().plusDays(10));
         order.setEndDate(LocalDate.now().plusMonths(2));
         order.setLeaseMonths(2);
@@ -107,13 +118,14 @@ class RentOrderEsignCompletionTests {
         order.setFirstPaymentAmount(620000);
         when(orderMapper.selectById("order-1")).thenReturn(order);
         when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.selectByIdForUpdate("order-1")).thenReturn(order);
 
         RentContract contract = new RentContract();
         contract.setId("contract-1");
         contract.setOrderId("order-1");
         contract.setSignFlowId("flow-1");
         contract.setStatus("signing");
-        when(contractMapper.selectOne(any(), eq(false))).thenReturn(contract);
+        when(contractMapper.selectByOrderIdForUpdate("order-1")).thenReturn(contract);
 
         EsignV3Client.SignFlowDetailResponse detail = new EsignV3Client.SignFlowDetailResponse();
         EsignV3Client.SignFlowDetailResponse.SignFlowDetailData data =
@@ -138,7 +150,7 @@ class RentOrderEsignCompletionTests {
     }
 
     @Test
-    void completedSignFlowFinishesOrderAndCreatesPendingLease() {
+    void landlordSignatureAfterPaymentCompletesOrderAndCreatesLease() {
         RentOrderMapper orderMapper = mock(RentOrderMapper.class);
         RentContractMapper contractMapper = mock(RentContractMapper.class);
         HouseService houseService = mock(HouseService.class);
@@ -174,12 +186,14 @@ class RentOrderEsignCompletionTests {
         contract.setSignFlowId("flow-1");
         contract.setStatus("signing");
         when(contractMapper.selectOne(any(), eq(false))).thenReturn(contract);
+        when(contractMapper.selectByOrderIdForUpdate("order-1")).thenReturn(contract);
 
         RentOrder order = new RentOrder();
         order.setId("order-1");
         order.setUserId("tenant-1");
         order.setHouseId("house-1");
-        order.setStatus("pendingEsign");
+        order.setStatus("pendingLandlordSign");
+        order.setPaidAt(LocalDateTime.now());
         order.setStartDate(LocalDate.now().plusDays(10));
         order.setEndDate(LocalDate.now().plusMonths(2));
         order.setLeaseMonths(2);
@@ -191,6 +205,7 @@ class RentOrderEsignCompletionTests {
         order.setFirstPaymentAmount(620000);
         when(orderMapper.selectById("order-1")).thenReturn(order);
         when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.selectByIdForUpdate("order-1")).thenReturn(order);
 
         House house = new House();
         house.setId("house-1");
@@ -210,10 +225,19 @@ class RentOrderEsignCompletionTests {
         assertThat(contract.getTenantSigned()).isEqualTo(1);
         assertThat(contract.getLessorSigned()).isEqualTo(1);
         assertThat(order.getStatus()).isEqualTo("completed");
+        assertThat(order.getSignedAt()).isNotNull();
         assertThat(house.getStatus()).isEqualTo("rented");
         verify(leaseService).save(any(Lease.class));
         verify(rentBillService, times(2)).save(any());
         verify(inspectionService).createSnapshotFromTemplate(
                 eq("contract-1"), any(String.class), eq("house-1"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void mockHouseUpdate(HouseService houseService) {
+        LambdaUpdateChainWrapper<House> update = mock(LambdaUpdateChainWrapper.class,
+                invocation -> "update".equals(invocation.getMethod().getName())
+                        ? true : invocation.getMock());
+        when(houseService.lambdaUpdate()).thenReturn(update);
     }
 }

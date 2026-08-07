@@ -59,6 +59,17 @@ public class LeaseController {
         return ApiResponse.success(leaseService.getLeaseDetail(leaseId, CurrentUser.id(request)));
     }
 
+    @GetMapping("/leases/{leaseId}/contract")
+    @Operation(summary = "查询租约电子合同", description = "返回合同摘要、正文条款以及 e签宝已签合同文件地址。")
+    public ApiResponse<LeaseDtos.LeaseContractDocument> getLeaseContract(
+            @Parameter(description = "租约 ID") @PathVariable String leaseId,
+            HttpServletRequest request
+    ) {
+        return ApiResponse.success(
+                leaseService.getLeaseContract(leaseId, CurrentUser.id(request))
+        );
+    }
+
     /**
      * 获取当前用户租约对应的门锁展示信息。
      */

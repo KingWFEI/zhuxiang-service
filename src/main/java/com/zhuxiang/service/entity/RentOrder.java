@@ -60,7 +60,13 @@ public class RentOrder implements Serializable {
 
     private LocalDateTime signedAt;
 
+    private LocalDateTime paymentDeadlineAt;
+
+    private LocalDateTime prePaymentDeadlineAt;
+
     private LocalDateTime cancelledAt;
+
+    private String cancelReason;
 
     private Integer userHidden;
 

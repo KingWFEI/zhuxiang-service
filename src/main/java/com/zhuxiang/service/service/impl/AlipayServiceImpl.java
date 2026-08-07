@@ -54,6 +54,9 @@ public class AlipayServiceImpl implements AlipayService {
     public String buildH5PayUrl(String outTradeNo, int totalAmount, String subject) {
         AlipayTradeWapPayRequest request = new AlipayTradeWapPayRequest();
         request.setNotifyUrl(props.getNotifyUrl());
+        if (props.getReturnUrl() != null && !props.getReturnUrl().isBlank()) {
+            request.setReturnUrl(props.getReturnUrl());
+        }
 
         BigDecimal amount = BigDecimal.valueOf(totalAmount)
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
@@ -63,9 +66,6 @@ public class AlipayServiceImpl implements AlipayService {
         bizContent.put("total_amount", amount.toPlainString());
         bizContent.put("subject", subject);
         bizContent.put("product_code", "QUICK_WAP_WAY");
-        if (props.getReturnUrl() != null && !props.getReturnUrl().isBlank()) {
-            bizContent.put("return_url", props.getReturnUrl());
-        }
         request.setBizContent(toJson(bizContent));
 
         try {

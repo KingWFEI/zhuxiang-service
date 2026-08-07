@@ -96,6 +96,8 @@ public class OpenApiDescriptionConfig {
             entry("communityId", "小区 ID"),
             entry("content", "消息正文"),
             entry("contractConfirmedAt", "合同确认时间"),
+            entry("paymentDeadlineAt", "租客签署完成后的支付截止时间"),
+            entry("prePaymentDeadlineAt", "支付前当前办理阶段截止时间"),
             entry("contract", "合同预览详情"),
             entry("contractId", "合同 ID"),
             entry("contractNo", "合同编号"),
