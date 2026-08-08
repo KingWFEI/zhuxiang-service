@@ -11,10 +11,16 @@ import org.springframework.stereotype.Component;
 public class AgentProperties {
 
     /** Python Agent 服务地址 */
-    private String baseUrl = "http://localhost:8100";
+    private String baseUrl = "http://localhost:8101";
 
     /** Agent 服务间调用密钥 */
-    private String apiKey = "change-this-agent-api-key";
+    private String apiKey = "";
+
+    private String model = "deepseek-v4-flash";
+
+    private String expectedSource = "zhuxiang-agent";
+
+    private String allowedSourceAddresses = "127.0.0.1,::1";
 
     public String getBaseUrl() {
         return baseUrl;
@@ -30,5 +36,29 @@ public class AgentProperties {
 
     public void setApiKey(String apiKey) {
         this.apiKey = apiKey;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public void setModel(String model) {
+        this.model = model;
+    }
+
+    public String getExpectedSource() {
+        return expectedSource;
+    }
+
+    public void setExpectedSource(String expectedSource) {
+        this.expectedSource = expectedSource;
+    }
+
+    public String getAllowedSourceAddresses() {
+        return allowedSourceAddresses;
+    }
+
+    public void setAllowedSourceAddresses(String allowedSourceAddresses) {
+        this.allowedSourceAddresses = allowedSourceAddresses;
     }
 }

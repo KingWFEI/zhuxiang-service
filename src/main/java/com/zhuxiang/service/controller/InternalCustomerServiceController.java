@@ -1,8 +1,7 @@
 package com.zhuxiang.service.controller;
 
 import com.zhuxiang.service.common.ApiResponse;
-import com.zhuxiang.service.config.AgentProperties;
-import com.zhuxiang.service.common.BusinessException;
+import com.zhuxiang.service.auth.InternalAgentRequestValidator;
 import com.zhuxiang.service.dto.InternalCustomerServiceDtos;
 import com.zhuxiang.service.service.InternalCustomerServiceService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +12,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -24,23 +25,22 @@ import java.util.List;
 @Tag(name = "内部客服数据接口", description = "为 Python Agent 提供脱敏后的用户业务数据")
 public class InternalCustomerServiceController {
 
+    private static final Logger log = LoggerFactory.getLogger(InternalCustomerServiceController.class);
+
     private final InternalCustomerServiceService internalService;
-    private final AgentProperties agentProperties;
+    private final InternalAgentRequestValidator requestValidator;
 
     public InternalCustomerServiceController(
             InternalCustomerServiceService internalService,
-            AgentProperties agentProperties
+            InternalAgentRequestValidator requestValidator
     ) {
         this.internalService = internalService;
-        this.agentProperties = agentProperties;
+        this.requestValidator = requestValidator;
     }
 
-    /** 校验内部 API Key */
-    private void validateApiKey(HttpServletRequest request) {
-        String apiKey = request.getHeader("X-Internal-Api-Key");
-        if (apiKey == null || !apiKey.equals(agentProperties.getApiKey())) {
-            throw BusinessException.forbidden("内部接口鉴权失败");
-        }
+    private void validateAndLog(HttpServletRequest request, String resource) {
+        String requestId = requestValidator.validate(request);
+        log.info("Agent 内部数据查询: requestId={} resource={}", requestId, resource);
     }
 
     /**
@@ -52,7 +52,7 @@ public class InternalCustomerServiceController {
             @Parameter(description = "用户ID") @PathVariable String userId,
             HttpServletRequest request
     ) {
-        validateApiKey(request);
+        validateAndLog(request, "leases");
         return ApiResponse.success(internalService.getUserLeases(userId));
     }
 
@@ -65,7 +65,7 @@ public class InternalCustomerServiceController {
             @Parameter(description = "用户ID") @PathVariable String userId,
             HttpServletRequest request
     ) {
-        validateApiKey(request);
+        validateAndLog(request, "bills");
         return ApiResponse.success(internalService.getUserBills(userId));
     }
 
@@ -78,7 +78,7 @@ public class InternalCustomerServiceController {
             @Parameter(description = "用户ID") @PathVariable String userId,
             HttpServletRequest request
     ) {
-        validateApiKey(request);
+        validateAndLog(request, "locks");
         return ApiResponse.success(internalService.getUserLocks(userId));
     }
 
@@ -91,7 +91,7 @@ public class InternalCustomerServiceController {
             @Parameter(description = "用户ID") @PathVariable String userId,
             HttpServletRequest request
     ) {
-        validateApiKey(request);
+        validateAndLog(request, "appointments");
         return ApiResponse.success(internalService.getUserAppointments(userId));
     }
 
@@ -104,7 +104,7 @@ public class InternalCustomerServiceController {
             @Parameter(description = "用户ID") @PathVariable String userId,
             HttpServletRequest request
     ) {
-        validateApiKey(request);
+        validateAndLog(request, "repairs");
         return ApiResponse.success(internalService.getUserRepairs(userId));
     }
 
@@ -117,7 +117,7 @@ public class InternalCustomerServiceController {
             @Parameter(description = "房源ID") @PathVariable String houseId,
             HttpServletRequest request
     ) {
-        validateApiKey(request);
+        validateAndLog(request, "house-brief");
         return ApiResponse.success(internalService.getHouseBrief(houseId));
     }
 }
