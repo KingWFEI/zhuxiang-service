@@ -20,6 +20,8 @@ public class AppointmentAccessGrant {
     private Long ttlockLockId;
     private LocalDateTime validFrom;
     private LocalDateTime validTo;
+    private LocalDateTime passcodeValidFrom;
+    private LocalDateTime passcodeValidTo;
     private String status;
     private String ekeyStatus;
     private Long ttlockKeyId;

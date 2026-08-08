@@ -37,6 +37,7 @@
             <result property="checkedInAt" column="checked_in_at" />
             <result property="completedAt" column="completed_at" />
             <result property="activeSlotKey" column="active_slot_key" />
+            <result property="activeUserHouseKey" column="active_user_house_key" />
             <result property="idempotencyKey" column="idempotency_key" />
             <result property="version" column="version" />
             <result property="createdAt" column="created_at" />
@@ -51,6 +52,7 @@
         reject_reason,cancel_reason,cancelled_by,cancelled_at,proposed_start_at,
         proposed_end_at,reschedule_reason,reschedule_deadline_at,
         checkin_code_ciphertext,checked_in_at,completed_at,active_slot_key,
+        active_user_house_key,
         idempotency_key,version,created_at,updated_at
     </sql>
 
@@ -85,6 +87,7 @@
             checked_in_at = #{appointment.checkedInAt},
             completed_at = #{appointment.completedAt},
             active_slot_key = #{appointment.activeSlotKey},
+            active_user_house_key = #{appointment.activeUserHouseKey},
             idempotency_key = #{appointment.idempotencyKey},
             version = #{appointment.version},
             updated_at = #{appointment.updatedAt}

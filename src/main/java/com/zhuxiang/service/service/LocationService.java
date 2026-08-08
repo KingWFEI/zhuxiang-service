@@ -7,6 +7,7 @@ import com.zhuxiang.service.config.AmapProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -53,6 +54,79 @@ public class LocationService {
             String province, String city, String district,
             String township, String neighborhood, String address
     ) {}
+
+    public record DistrictItem(String name, String code) {}
+
+    /** 按地级市查询其下一级行政区，供找房区域筛选使用。 */
+    @Cacheable(value = "cityDistricts", key = "#city", unless = "#result.isEmpty()")
+    public List<DistrictItem> listDistricts(String city) {
+        String url = UriComponentsBuilder.fromHttpUrl(amapProperties.getBaseUrl() + "/v3/config/district")
+                .queryParam("key", amapProperties.getWebServiceKey())
+                .queryParam("keywords", city)
+                .queryParam("subdistrict", 1)
+                .queryParam("extensions", "base")
+                .build()
+                .encode()
+                .toUriString();
+        String logUrl = url.replace(amapProperties.getWebServiceKey(), "[REDACTED]");
+        String configuredKey = amapProperties.getWebServiceKey();
+        String keySuffix = configuredKey == null || configuredKey.length() < 4
+                ? "****"
+                : configuredKey.substring(configuredKey.length() - 4);
+        log.info("高德行政区查询开始: city={}, url={}, keyLength={}, keySuffix={}",
+                city, logUrl, configuredKey == null ? 0 : configuredKey.length(), keySuffix);
+        String body;
+        try {
+            body = restTemplate.getForObject(url, String.class);
+            log.info("高德行政区原始响应: city={}, body={}", city, body);
+        } catch (Exception e) {
+            log.warn("高德行政区查询请求失败, city={}", city, e);
+            throw new BusinessException(50301, "行政区服务暂时不可用，请稍后重试");
+        }
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            log.info("高德行政区响应摘要: city={}, status={}, info={}, infocode={}, count={}",
+                    city,
+                    root.path("status").asText(""),
+                    root.path("info").asText(""),
+                    root.path("infocode").asText(""),
+                    root.path("count").asText(""));
+            if (!"1".equals(root.path("status").asText(""))) {
+                String info = root.path("info").asText("");
+                String infocode = root.path("infocode").asText("");
+                log.warn("高德行政区接口返回失败: city={}, status={}, info={}, infocode={}",
+                        city, root.path("status").asText(""), info, infocode);
+                throw new BusinessException(50301,
+                        "行政区查询失败" + (info.isBlank() ? "" : ": " + info));
+            }
+            JsonNode districts = root.path("districts");
+            if (!districts.isArray() || districts.isEmpty()) {
+                return List.of();
+            }
+            JsonNode children = districts.get(0).path("districts");
+            List<DistrictItem> items = new ArrayList<>();
+            log.info("高德行政区顶层结果: city={}, name={}, level={}, childrenCount={}",
+                    city,
+                    districts.get(0).path("name").asText(""),
+                    districts.get(0).path("level").asText(""),
+                    children.isArray() ? children.size() : 0);
+            if (children.isArray()) {
+                for (JsonNode child : children) {
+                    String name = child.path("name").asText("");
+                    String code = child.path("adcode").asText("");
+                    if (!name.isBlank()) {
+                        items.add(new DistrictItem(name, code));
+                    }
+                }
+            }
+            return items;
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("高德行政区查询响应解析失败, city={}", city, e);
+            throw new BusinessException(50301, "行政区服务暂时不可用，请稍后重试");
+        }
+    }
 
     // ── 高德 POI 文字搜索 ──
 

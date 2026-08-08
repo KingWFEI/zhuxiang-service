@@ -107,6 +107,22 @@ public class CustomerServiceMessageServiceImpl
 
     @Override
     @Transactional
+    public void markAssistantMessageFailed(String messageId, String partialContent, String errorMessage) {
+        CustomerServiceMessage message = getById(messageId);
+        if (message == null) {
+            return;
+        }
+        message.setContent(partialContent == null || partialContent.isBlank()
+                ? "抱歉，AI 服务暂时不可用，请稍后重试。"
+                : partialContent);
+        message.setStatus(CustomerServiceEnums.MessageStatus.FAILED);
+        message.setErrorMessage(errorMessage == null ? "AI 服务调用失败" : errorMessage);
+        message.setUpdatedAt(LocalDateTime.now());
+        updateById(message);
+    }
+
+    @Override
+    @Transactional
     public void submitFeedback(String userId, String messageId, String feedbackType, String comment) {
         // 校验消息存在且归属于当前用户的会话
         validateMessageOwnership(userId, messageId);

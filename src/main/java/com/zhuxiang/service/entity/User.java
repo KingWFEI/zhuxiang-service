@@ -47,11 +47,6 @@ public class User implements Serializable {
     private String role;
 
     /**
-     * 是否已实名认证：0未实名，1已实名
-     */
-    private Integer isVerified;
-
-    /**
      * 用户状态：active正常，disabled禁用，cancelled注销
      */
     private String status;
@@ -92,7 +87,6 @@ public class User implements Serializable {
             && (this.getNickname() == null ? other.getNickname() == null : this.getNickname().equals(other.getNickname()))
             && (this.getAvatarUrl() == null ? other.getAvatarUrl() == null : this.getAvatarUrl().equals(other.getAvatarUrl()))
             && (this.getRole() == null ? other.getRole() == null : this.getRole().equals(other.getRole()))
-            && (this.getIsVerified() == null ? other.getIsVerified() == null : this.getIsVerified().equals(other.getIsVerified()))
             && (this.getStatus() == null ? other.getStatus() == null : this.getStatus().equals(other.getStatus()))
             && (this.getLastLoginAt() == null ? other.getLastLoginAt() == null : this.getLastLoginAt().equals(other.getLastLoginAt()))
             && (this.getCreatedAt() == null ? other.getCreatedAt() == null : this.getCreatedAt().equals(other.getCreatedAt()))
@@ -109,7 +103,6 @@ public class User implements Serializable {
         result = prime * result + ((getNickname() == null) ? 0 : getNickname().hashCode());
         result = prime * result + ((getAvatarUrl() == null) ? 0 : getAvatarUrl().hashCode());
         result = prime * result + ((getRole() == null) ? 0 : getRole().hashCode());
-        result = prime * result + ((getIsVerified() == null) ? 0 : getIsVerified().hashCode());
         result = prime * result + ((getStatus() == null) ? 0 : getStatus().hashCode());
         result = prime * result + ((getLastLoginAt() == null) ? 0 : getLastLoginAt().hashCode());
         result = prime * result + ((getCreatedAt() == null) ? 0 : getCreatedAt().hashCode());
@@ -129,7 +122,6 @@ public class User implements Serializable {
         sb.append(", nickname=").append(nickname);
         sb.append(", avatarUrl=").append(avatarUrl);
         sb.append(", role=").append(role);
-        sb.append(", isVerified=").append(isVerified);
         sb.append(", status=").append(status);
         sb.append(", lastLoginAt=").append(lastLoginAt);
         sb.append(", createdAt=").append(createdAt);

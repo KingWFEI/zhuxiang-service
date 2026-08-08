@@ -42,10 +42,13 @@ public class AppointmentController {
     public ApiResponse<AppointmentDtos.ViewingSlotResult> getViewingSlots(
             @PathVariable String houseId,
             @RequestParam(required = false) java.time.LocalDate startDate,
-            @RequestParam(defaultValue = "7") int days
+            @RequestParam(defaultValue = "7") int days,
+            @RequestParam(defaultValue = "false") boolean includeTestSlot
     ) {
         return ApiResponse.success(
-                appointmentService.getViewingSlots(houseId, startDate, days)
+                appointmentService.getViewingSlots(
+                        houseId, startDate, days, includeTestSlot
+                )
         );
     }
 

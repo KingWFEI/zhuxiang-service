@@ -35,7 +35,7 @@ public class HomeController {
      * 获取首页首次加载所需的全部数据。
      */
     @GetMapping("/data")
-    @Operation(summary = "获取首页聚合数据", description = "一次返回城市标题、未读数、服务入口、房源标签页、房源流和广告；携带令牌时会返回用户相关状态。")
+    @Operation(summary = "获取首页聚合数据", description = "返回房源标签页和对应房源流；信息流广告作为 advertisement 类型条目混排在推荐列表中。")
     public ApiResponse<HomeDtos.HomeData> getHomeData(
             @Parameter(description = "城市行政区划代码", example = "510100") @RequestParam(required = false) String cityCode,
             @Parameter(description = "区域名称", example = "高新区") @RequestParam(required = false) String region,

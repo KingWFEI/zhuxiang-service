@@ -2,6 +2,7 @@ package com.zhuxiang.service.common;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -19,14 +20,30 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusinessException(
+    public ResponseEntity<?> handleBusinessException(
             BusinessException exception,
             HttpServletRequest request
     ) {
-        log.warn("接口请求失败: {} {} -> code={}, message={}",
-                request.getMethod(), request.getRequestURI(), exception.getCode(), exception.getMessage());
+        if (isSseRequest(request) && (exception.getCode() == 401 || exception.getCode() == 403)) {
+            log.debug("SSE鉴权未通过: {} {} -> code={}",
+                    request.getMethod(), request.getRequestURI(), exception.getCode());
+        } else {
+            log.warn("接口请求失败: {} {} -> code={}, message={}",
+                    request.getMethod(), request.getRequestURI(), exception.getCode(), exception.getMessage());
+        }
+        if (isSseRequest(request) && (exception.getCode() == 401 || exception.getCode() == 403)) {
+            return ResponseEntity.status(exception.getCode()).build();
+        }
         return ResponseEntity.status(exception.getCode())
-                .body(ApiResponse.error(exception.getCode(), exception.getMessage()));
+                .body(ApiResponse.error(
+                        exception.getCode(), exception.getMessage(), exception.getData()
+                ));
+    }
+
+    private boolean isSseRequest(HttpServletRequest request) {
+        String accept = request.getHeader("Accept");
+        return request.getRequestURI().endsWith("/messages/stream")
+                || (accept != null && accept.contains("text/event-stream"));
     }
 
     @ExceptionHandler(EsignApiException.class)
@@ -85,10 +102,34 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleUnknownException(Exception exception, HttpServletRequest request) {
+    public ResponseEntity<?> handleUnknownException(Exception exception, HttpServletRequest request) {
+        if (isSseRequest(request) && isClientDisconnect(exception)) {
+            log.debug("SSE客户端已断开: {} {}", request.getMethod(), request.getRequestURI());
+            return ResponseEntity.noContent().build();
+        }
         log.error("接口未知异常: {} {} -> message={}",
                 request.getMethod(), request.getRequestURI(), exception.getMessage(), exception);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error(500, "服务器内部错误"));
+    }
+
+    private boolean isClientDisconnect(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            String typeName = current.getClass().getName();
+            if (typeName.contains("AsyncRequestNotUsableException")
+                    || typeName.contains("ClientAbortException")) {
+                return true;
+            }
+            if (current instanceof IOException) {
+                String message = current.getMessage();
+                return message == null
+                        || message.contains("中止了一个已建立的连接")
+                        || message.contains("Connection reset")
+                        || message.contains("Broken pipe");
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

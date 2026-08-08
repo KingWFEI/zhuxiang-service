@@ -7,12 +7,14 @@ import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.AdminUserDtos;
 import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.service.UserService;
+import com.zhuxiang.service.service.RealNameVerificationQueryService;
 import com.zhuxiang.service.service.impl.AdminUserServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -25,11 +27,13 @@ import static org.mockito.Mockito.when;
 class AdminUserServiceTests {
 
     private final UserService userService = mock(UserService.class);
+    private final RealNameVerificationQueryService realNameVerificationQueryService =
+            mock(RealNameVerificationQueryService.class);
     private AdminUserServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new AdminUserServiceImpl(userService);
+        service = new AdminUserServiceImpl(userService, realNameVerificationQueryService);
     }
 
     @Test
@@ -38,12 +42,12 @@ class AdminUserServiceTests {
         User tenant = user("tenant-1", "TENANT", "active");
         tenant.setPhone("13800138000");
         tenant.setNickname("张三");
-        tenant.setIsVerified(1);
 
         Page<User> databasePage = new Page<>(1, 20, 1);
         databasePage.setRecords(List.of(tenant));
         when(userService.requireActiveUser("admin-1")).thenReturn(user("admin-1", "ADMIN", "active"));
         when(userService.page(any(Page.class), any(Wrapper.class))).thenReturn(databasePage);
+        when(realNameVerificationQueryService.findVerifiedUserIds(any())).thenReturn(Set.of("tenant-1"));
 
         PageData<AdminUserDtos.UserView> result = service.getUsers(
                 "admin-1", "tenant", "ACTIVE", "张三", 1, 20
@@ -117,7 +121,6 @@ class AdminUserServiceTests {
         user.setRole(role);
         user.setStatus(status);
         user.setAvatarUrl("");
-        user.setIsVerified(0);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         return user;

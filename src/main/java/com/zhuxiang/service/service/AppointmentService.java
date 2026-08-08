@@ -24,12 +24,15 @@ public interface AppointmentService extends IService<Appointment> {
     );
 
     AppointmentDtos.ViewingSlotResult getViewingSlots(
-            String houseId, LocalDate startDate, int days
+            String houseId, LocalDate startDate, int days, boolean includeTestSlot
     );
 
     PageData<AppointmentDtos.Summary> listMyAppointments(
             String userId, String status, long page, long pageSize
     );
+
+    /** 返回当前用户创建的全部看房预约数量。 */
+    long countMyAppointments(String userId);
 
     AppointmentDtos.Detail getMyAppointment(String userId, String appointmentId);
 

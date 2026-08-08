@@ -52,6 +52,11 @@ public class SmsCode implements Serializable {
     private LocalDateTime usedAt;
 
     /**
+     * 验证码校验失败次数
+     */
+    private Integer failedAttempts;
+
+    /**
      * 记录创建时间
      */
     private LocalDateTime createdAt;
@@ -78,6 +83,7 @@ public class SmsCode implements Serializable {
             && (this.getExpiresAt() == null ? other.getExpiresAt() == null : this.getExpiresAt().equals(other.getExpiresAt()))
             && (this.getUsed() == null ? other.getUsed() == null : this.getUsed().equals(other.getUsed()))
             && (this.getUsedAt() == null ? other.getUsedAt() == null : this.getUsedAt().equals(other.getUsedAt()))
+            && (this.getFailedAttempts() == null ? other.getFailedAttempts() == null : this.getFailedAttempts().equals(other.getFailedAttempts()))
             && (this.getCreatedAt() == null ? other.getCreatedAt() == null : this.getCreatedAt().equals(other.getCreatedAt()));
     }
 
@@ -92,6 +98,7 @@ public class SmsCode implements Serializable {
         result = prime * result + ((getExpiresAt() == null) ? 0 : getExpiresAt().hashCode());
         result = prime * result + ((getUsed() == null) ? 0 : getUsed().hashCode());
         result = prime * result + ((getUsedAt() == null) ? 0 : getUsedAt().hashCode());
+        result = prime * result + ((getFailedAttempts() == null) ? 0 : getFailedAttempts().hashCode());
         result = prime * result + ((getCreatedAt() == null) ? 0 : getCreatedAt().hashCode());
         return result;
     }
@@ -105,10 +112,11 @@ public class SmsCode implements Serializable {
         sb.append(", id=").append(id);
         sb.append(", phone=").append(phone);
         sb.append(", scene=").append(scene);
-        sb.append(", code=").append(code);
+        sb.append(", code=[REDACTED]");
         sb.append(", expiresAt=").append(expiresAt);
         sb.append(", used=").append(used);
         sb.append(", usedAt=").append(usedAt);
+        sb.append(", failedAttempts=").append(failedAttempts);
         sb.append(", createdAt=").append(createdAt);
         sb.append(", serialVersionUID=").append(serialVersionUID);
         sb.append("]");

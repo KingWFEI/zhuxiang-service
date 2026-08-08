@@ -25,7 +25,10 @@ import java.util.Set;
 public class FileController {
 
     private static final Set<String> ALLOWED_BIZ_TYPES = Set.of(
-            "id_card_front", "id_card_back", "move_in_inspection", "move_out_inspection");
+            "id_card_front", "id_card_back", "move_in_inspection", "move_out_inspection",
+            "landlord_id_card_front", "landlord_id_card_back",
+            "landlord_proof_property", "landlord_proof_purchase",
+            "landlord_proof_lease", "landlord_proof_court", "landlord_proof_other");
 
     private final FileRecordService fileRecordService;
 

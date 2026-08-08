@@ -41,13 +41,21 @@ public class FileRecordServiceImpl extends ServiceImpl<FileRecordMapper, FileRec
     /** 校验图片并保存到当前环境配置的对象存储。 */
     @Override
     public FileUploadResponse upload(String userId, MultipartFile file, String bizType) {
-        return uploadImage(userId, file, bizType, "id-card");
+        String directory = bizType.startsWith("landlord_")
+                ? "landlord-auth"
+                : "id-card";
+        return uploadImage(userId, file, bizType, directory);
     }
 
     /** 上传管理端房源图片到独立对象目录。 */
     @Override
     public FileUploadResponse uploadHouseImage(String operatorId, MultipartFile file) {
         return uploadImage(operatorId, file, "house_image", "house-images");
+    }
+
+    @Override
+    public FileUploadResponse uploadAdvertisementImage(String operatorId, MultipartFile file) {
+        return uploadImage(operatorId, file, "advertisement_image", "advertisements");
     }
 
     /** 执行通用图片校验、对象存储上传和文件记录保存。 */
@@ -97,6 +105,20 @@ public class FileRecordServiceImpl extends ServiceImpl<FileRecordMapper, FileRec
                 .eq(FileRecord::getBizType, bizType));
         if (count == 0) {
             throw BusinessException.badRequest("图片无效或不属于当前用户");
+        }
+    }
+
+    @Override
+    public void validateFileOwnership(
+            String userId, String fileId, String url, String bizType
+    ) {
+        long count = count(Wrappers.<FileRecord>lambdaQuery()
+                .eq(FileRecord::getId, fileId)
+                .eq(FileRecord::getUserId, userId)
+                .eq(FileRecord::getUrl, url)
+                .eq(FileRecord::getBizType, bizType));
+        if (count == 0) {
+            throw BusinessException.badRequest("文件无效或不属于当前用户");
         }
     }
 }

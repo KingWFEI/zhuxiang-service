@@ -30,4 +30,7 @@ public interface UserFavoriteHouseService extends IService<UserFavoriteHouse> {
             long page,
             long pageSize
     );
+
+    /** 返回当前用户收藏的房源数量。 */
+    long countFavorites(String userId);
 }

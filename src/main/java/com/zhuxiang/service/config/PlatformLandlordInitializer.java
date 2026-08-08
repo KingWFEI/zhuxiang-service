@@ -85,7 +85,6 @@ public class PlatformLandlordInitializer implements ApplicationRunner {
         user.setNickname(properties.getName());
         user.setAvatarUrl(properties.getAvatarUrl());
         user.setRole("LANDLORD");
-        user.setIsVerified(1);
         // 系统主体不允许登录，但可作为 house.landlord_id 的外键目标。
         user.setStatus("disabled");
         user.setCreatedAt(now);

@@ -14,7 +14,7 @@ public interface SmsCodeService extends IService<SmsCode> {
     /**
      * 生成并发送短信验证码。
      */
-    AuthDtos.SmsCodeResult sendSmsCode(AuthDtos.SmsCodeRequest request);
+    AuthDtos.SmsCodeResult sendSmsCode(AuthDtos.SmsCodeRequest request, String clientIp);
 
     /**
      * 校验并核销短信验证码。

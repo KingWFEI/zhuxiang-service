@@ -12,11 +12,12 @@
             <result property="expiresAt" column="expires_at" />
             <result property="used" column="used" />
             <result property="usedAt" column="used_at" />
+            <result property="failedAttempts" column="failed_attempts" />
             <result property="createdAt" column="created_at" />
     </resultMap>
 
     <sql id="Base_Column_List">
         id,phone,scene,code,expires_at,used,
-        used_at,created_at
+        used_at,failed_attempts,created_at
     </sql>
 </mapper>

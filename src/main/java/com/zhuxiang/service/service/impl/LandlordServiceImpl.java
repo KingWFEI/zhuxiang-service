@@ -9,6 +9,7 @@ import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.mapper.LandlordMapper;
 import com.zhuxiang.service.mapper.UserMapper;
 import com.zhuxiang.service.service.LandlordService;
+import com.zhuxiang.service.service.RealNameVerificationQueryService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -25,9 +26,14 @@ public class LandlordServiceImpl extends ServiceImpl<LandlordMapper, Landlord>
         implements LandlordService {
 
     private final UserMapper userMapper;
+    private final RealNameVerificationQueryService realNameVerificationQueryService;
 
-    public LandlordServiceImpl(UserMapper userMapper) {
+    public LandlordServiceImpl(
+            UserMapper userMapper,
+            RealNameVerificationQueryService realNameVerificationQueryService
+    ) {
         this.userMapper = userMapper;
+        this.realNameVerificationQueryService = realNameVerificationQueryService;
     }
 
     @Override
@@ -72,7 +78,7 @@ public class LandlordServiceImpl extends ServiceImpl<LandlordMapper, Landlord>
         profile.setShowWechat(0);
         profile.setShowEmail(0);
         profile.setServiceYears(0);
-        profile.setIsVerified(integerBoolean(user.getIsVerified()) ? 1 : 0);
+        profile.setIsVerified(realNameVerificationQueryService.isVerified(user.getId()) ? 1 : 0);
         profile.setRating(BigDecimal.ZERO);
         profile.setRentedCount(0);
         profile.setResponseDescription("通常会及时回复");
@@ -174,7 +180,7 @@ public class LandlordServiceImpl extends ServiceImpl<LandlordMapper, Landlord>
                 valueOrEmpty(profile.getCoverImageUrl()),
                 valueOrEmpty(profile.getSlogan()),
                 valueOrEmpty(profile.getIntroduction()),
-                integerBoolean(user.getIsVerified()),
+                realNameVerificationQueryService.isVerified(user.getId()),
                 profile.getRating() == null ? BigDecimal.ZERO : profile.getRating(),
                 profile.getRentedCount() == null ? 0 : profile.getRentedCount(),
                 valueOrEmpty(profile.getResponseDescription()),

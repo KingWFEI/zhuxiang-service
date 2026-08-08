@@ -12,32 +12,8 @@ public final class HomeDtos {
     }
 
     public record HomeData(
-            Header header,
-            long unreadMessageCount,
-            List<ServiceEntry> serviceEntries,
             List<Tab> tabs,
-            Map<String, HouseDtos.FeedData> houseGroups,
-            List<Advertisement> advertisements
-    ) {
-    }
-
-    public record Header(
-            String cityName,
-            String greeting,
-            String subtitle,
-            String searchPlaceholder,
-            String backgroundImageUrl
-    ) {
-    }
-
-    public record ServiceEntry(
-            String key,
-            String title,
-            String iconKey,
-            String targetType,
-            String targetValue,
-            boolean requiresLogin,
-            boolean enabled
+            Map<String, HouseDtos.FeedData> houseGroups
     ) {
     }
 
@@ -49,14 +25,4 @@ public final class HomeDtos {
     ) {
     }
 
-    public record Advertisement(
-            String id,
-            String title,
-            String description,
-            String imageUrl,
-            String position,
-            String targetType,
-            String targetValue
-    ) {
-    }
 }

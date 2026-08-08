@@ -26,7 +26,8 @@ public final class AppointmentDtos {
             @Size(max = 30, message = "联系人姓名不能超过 30 字") String contactName,
             @NotBlank(message = "联系人手机号不能为空")
             @Pattern(regexp = "^1\\d{10}$", message = "联系人手机号格式错误") String contactPhone,
-            @Size(max = 500, message = "备注不能超过 500 字") String remark
+            @Size(max = 500, message = "备注不能超过 500 字") String remark,
+            Boolean testSlot
     ) {
     }
 
@@ -46,7 +47,10 @@ public final class AppointmentDtos {
     public record ViewingSlot(
             OffsetDateTime startAt,
             OffsetDateTime endAt,
-            boolean available
+            boolean available,
+            OffsetDateTime accessValidFrom,
+            OffsetDateTime accessValidTo,
+            boolean testSlot
     ) {
     }
 
@@ -185,7 +189,9 @@ public final class AppointmentDtos {
 
     public record PasscodeAccess(
             boolean available,
-            String value
+            String value,
+            OffsetDateTime validFrom,
+            OffsetDateTime validTo
     ) {
     }
 

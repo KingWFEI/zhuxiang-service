@@ -12,6 +12,7 @@ import com.zhuxiang.service.service.AdvertisementService;
 import com.zhuxiang.service.service.CommunityService;
 import com.zhuxiang.service.service.FileRecordService;
 import com.zhuxiang.service.service.HouseFacilityRelationService;
+import com.zhuxiang.service.service.HouseRoomTypeService;
 import com.zhuxiang.service.service.HouseFacilityService;
 import com.zhuxiang.service.service.HouseImageService;
 import com.zhuxiang.service.service.HousePropertyCertificateService;
@@ -47,6 +48,7 @@ class LandlordHouseDeletionTests {
                 mock(HouseTagRelationService.class),
                 mock(HouseFacilityService.class),
                 mock(HouseFacilityRelationService.class),
+                mock(HouseRoomTypeService.class),
                 mock(LandlordService.class),
                 mock(AdvertisementService.class),
                 mock(RegionService.class),

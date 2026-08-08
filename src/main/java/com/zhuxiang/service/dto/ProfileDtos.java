@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDate;
+
 public final class ProfileDtos {
 
     private ProfileDtos() {
@@ -51,18 +53,38 @@ public final class ProfileDtos {
     public record AvatarResult(String avatarUrl) {
     }
 
+    @Schema(description = "个人中心统计摘要")
+    public record Overview(
+            @Schema(description = "当前用户收藏的房源数量") long favoriteCount,
+            @Schema(description = "当前用户创建的看房预约数量") long appointmentCount,
+            @Schema(description = "当前用户是否已完成实名认证") boolean isVerified
+    ) {
+    }
+
     public record CurrentHome(
             String houseId,
+            String title,
             String community,
+            String location,
             String building,
             String unit,
             String room,
             String address,
+            String roomType,
+            Integer area,
+            String floor,
+            String orientation,
+            Integer monthlyRent,
+            Integer deposit,
+            String paymentMethod,
+            LocalDate leaseStartDate,
+            LocalDate leaseEndDate,
             String leaseId,
             String leaseStatus,
             String lockId,
             String lockStatus,
-            String coverImage
+            String coverImage,
+            String sourceType
     ) {
     }
 

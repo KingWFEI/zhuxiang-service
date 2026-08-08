@@ -8,6 +8,7 @@ import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.AdminUserDtos;
 import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.service.AdminUserService;
+import com.zhuxiang.service.service.RealNameVerificationQueryService;
 import com.zhuxiang.service.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,9 +26,14 @@ public class AdminUserServiceImpl implements AdminUserService {
     private static final Set<String> EDITABLE_STATUSES = Set.of("active", "disabled");
 
     private final UserService userService;
+    private final RealNameVerificationQueryService realNameVerificationQueryService;
 
-    public AdminUserServiceImpl(UserService userService) {
+    public AdminUserServiceImpl(
+            UserService userService,
+            RealNameVerificationQueryService realNameVerificationQueryService
+    ) {
         this.userService = userService;
+        this.realNameVerificationQueryService = realNameVerificationQueryService;
     }
 
     @Override
@@ -55,8 +61,13 @@ public class AdminUserServiceImpl implements AdminUserService {
                                 .or().like(User::getId, normalizedKeyword))
                         .orderByDesc(User::getCreatedAt)
         );
+        Set<String> verifiedUserIds = realNameVerificationQueryService.findVerifiedUserIds(
+                result.getRecords().stream().map(User::getId).toList()
+        );
         return PageData.of(
-                result.getRecords().stream().map(this::toView).toList(),
+                result.getRecords().stream()
+                        .map(user -> toView(user, verifiedUserIds.contains(user.getId())))
+                        .toList(),
                 page,
                 pageSize,
                 result.getTotal()
@@ -66,7 +77,8 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     public AdminUserDtos.UserView getUser(String operatorId, String userId) {
         requireAdmin(operatorId);
-        return toView(requireUser(userId));
+        User user = requireUser(userId);
+        return toView(user, realNameVerificationQueryService.isVerified(user.getId()));
     }
 
     @Override
@@ -94,7 +106,7 @@ public class AdminUserServiceImpl implements AdminUserService {
             user.setUpdatedAt(LocalDateTime.now());
             userService.updateById(user);
         }
-        return toView(user);
+        return toView(user, realNameVerificationQueryService.isVerified(user.getId()));
     }
 
     private void requireAdmin(String operatorId) {
@@ -134,14 +146,14 @@ public class AdminUserServiceImpl implements AdminUserService {
         return normalized;
     }
 
-    private AdminUserDtos.UserView toView(User user) {
+    private AdminUserDtos.UserView toView(User user, boolean verified) {
         return new AdminUserDtos.UserView(
                 user.getId(),
                 user.getPhone(),
                 user.getNickname(),
                 user.getAvatarUrl(),
                 user.getRole(),
-                Integer.valueOf(1).equals(user.getIsVerified()),
+                verified,
                 user.getStatus(),
                 user.getLastLoginAt(),
                 user.getCreatedAt(),

@@ -2,8 +2,9 @@ package com.zhuxiang.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.zhuxiang.service.entity.User;
-import com.zhuxiang.service.service.UserService;
+import com.zhuxiang.service.entity.UserRealNameAuth;
+import com.zhuxiang.service.enums.RealNameAuthStatus;
+import com.zhuxiang.service.mapper.UserRealNameAuthMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -13,7 +14,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -38,7 +41,7 @@ class FirstBatchApiIntegrationTests {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private UserService userService;
+    private UserRealNameAuthMapper userRealNameAuthMapper;
 
     @Test
     void corsHeadersAreReturned() throws Exception {
@@ -80,7 +83,8 @@ class FirstBatchApiIntegrationTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(Map.of("phone", phone, "scene", "register"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.expiresIn").value(300));
+                .andExpect(jsonPath("$.data.expiresIn").value(300))
+                .andExpect(jsonPath("$.data.retryAfter").value(60));
 
         String registerResponse = mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -125,10 +129,12 @@ class FirstBatchApiIntegrationTests {
         mockMvc.perform(get("/home/data")
                         .header("Authorization", bearer(accessToken))
                         .param("cityCode", "500000")
-                        .param("pageSize", "10"))
+                .param("pageSize", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.header.greeting", containsString("King Wang")))
-                .andExpect(jsonPath("$.data.unreadMessageCount").value(1))
+                .andExpect(jsonPath("$.data.header").doesNotExist())
+                .andExpect(jsonPath("$.data.serviceEntries").doesNotExist())
+                .andExpect(jsonPath("$.data.unreadMessageCount").doesNotExist())
+                .andExpect(jsonPath("$.data.advertisements").doesNotExist())
                 .andExpect(jsonPath("$.data.houseGroups.recommended.items[0].house.isFavorite")
                         .value(true));
 
@@ -146,6 +152,13 @@ class FirstBatchApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("pending"));
 
+        mockMvc.perform(get("/profile/overview")
+                        .header("Authorization", bearer(accessToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.favoriteCount").value(1))
+                .andExpect(jsonPath("$.data.appointmentCount").value(1))
+                .andExpect(jsonPath("$.data.isVerified").value(false));
+
         mockMvc.perform(post("/rental-applications")
                         .header("Authorization", bearer(accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -153,9 +166,26 @@ class FirstBatchApiIntegrationTests {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403));
 
-        User user = userService.getById(userId);
-        user.setIsVerified(1);
-        userService.updateById(user);
+        UserRealNameAuth verifiedAuth = new UserRealNameAuth();
+        verifiedAuth.setUserId(userId);
+        verifiedAuth.setRealNameAuthNo("integration-" + UUID.randomUUID());
+        verifiedAuth.setAuthStatus(RealNameAuthStatus.VERIFIED.getValue());
+        verifiedAuth.setRealName("King Wang");
+        verifiedAuth.setAccountMobile(phone);
+        verifiedAuth.setVerifiedMobile(phone);
+        verifiedAuth.setIdCardType("CRED_PSN_CH_IDCARD");
+        verifiedAuth.setIdCardCiphertext("integration-test-ciphertext");
+        verifiedAuth.setIdCardMasked("110101********0000");
+        verifiedAuth.setVerifiedAt(LocalDateTime.now());
+        verifiedAuth.setCreatedAt(LocalDateTime.now());
+        verifiedAuth.setUpdatedAt(LocalDateTime.now());
+        verifiedAuth.setVersion(0);
+        userRealNameAuthMapper.insert(verifiedAuth);
+
+        mockMvc.perform(get("/profile/overview")
+                        .header("Authorization", bearer(accessToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.isVerified").value(true));
 
         mockMvc.perform(post("/rental-applications")
                         .header("Authorization", bearer(accessToken))
@@ -217,22 +247,22 @@ class FirstBatchApiIntegrationTests {
                         .param("region", "渝北区")
                         .param("latitude", "29.6500000")
                         .param("longitude", "106.5500000")
-                        .param("pageSize", "2"))
+                .param("pageSize", "2"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.header.cityName").value("重庆"))
-                .andExpect(jsonPath("$.data.unreadMessageCount").value(0))
-                .andExpect(jsonPath("$.data.serviceEntries.length()").value(4))
-                .andExpect(jsonPath("$.data.tabs.length()").value(4))
+                .andExpect(jsonPath("$.data.header").doesNotExist())
+                .andExpect(jsonPath("$.data.unreadMessageCount").doesNotExist())
+                .andExpect(jsonPath("$.data.serviceEntries").doesNotExist())
+                .andExpect(jsonPath("$.data.tabs.length()").value(3))
                 .andExpect(jsonPath("$.data.houseGroups.recommended.items[0].type")
                         .value("house"))
                 .andExpect(jsonPath("$.data.houseGroups.recommended.items[1].type")
                         .value("advertisement"))
                 .andExpect(jsonPath("$.data.houseGroups.short_rent.items[0].house.id")
                         .value("house-4"))
-                .andExpect(jsonPath("$.data.houseGroups.homestay.items").isEmpty())
+                .andExpect(jsonPath("$.data.houseGroups.homestay").doesNotExist())
                 .andExpect(jsonPath("$.data.houseGroups.long_rent.items").isEmpty())
-                .andExpect(jsonPath("$.data.advertisements").isArray());
+                .andExpect(jsonPath("$.data.advertisements").doesNotExist());
 
         mockMvc.perform(get("/houses")
                         .param("keyword", "幸福小区")

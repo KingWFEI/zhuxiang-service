@@ -20,6 +20,8 @@ import com.zhuxiang.service.entity.House;
 import com.zhuxiang.service.entity.HouseFacility;
 import com.zhuxiang.service.entity.HouseFacilityRelation;
 import com.zhuxiang.service.entity.HouseImage;
+import com.zhuxiang.service.entity.HouseLocation;
+import com.zhuxiang.service.entity.HouseRoomType;
 
 import com.zhuxiang.service.entity.HouseTag;
 import com.zhuxiang.service.entity.HouseTagRelation;
@@ -41,12 +43,15 @@ import com.zhuxiang.service.service.HouseImageService;
 import com.zhuxiang.service.service.FileRecordService;
 import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.HousePropertyCertificateService;
+import com.zhuxiang.service.service.HouseRoomTypeService;
 import com.zhuxiang.service.service.HouseTagRelationService;
 import com.zhuxiang.service.service.HouseTagService;
 import com.zhuxiang.service.service.LandlordService;
 import com.zhuxiang.service.service.RegionService;
 import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.mapper.HouseMapper;
+import com.zhuxiang.service.mapper.HouseLocationMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -75,8 +80,10 @@ import java.util.stream.Collectors;
 public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     implements HouseService{
 
-    private static final Set<String> CATEGORIES =
-            Set.of("recommended", "short_rent", "homestay", "long_rent");
+    private static final Set<String> RENT_TYPES =
+            Set.of("LONG_RENT", "SHORT_RENT", "HOMESTAY");
+    private static final Set<String> RENT_MODES =
+            Set.of("WHOLE_RENT", "SHARED_RENT");
     private static final Set<String> SORTS =
             Set.of("default", "price_asc", "price_desc", "latest", "distance");
     private static final Set<String> ADMIN_ROLES =
@@ -88,6 +95,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     private final HouseTagRelationService tagRelationService;
     private final HouseFacilityService facilityService;
     private final HouseFacilityRelationService facilityRelationService;
+    private final HouseRoomTypeService roomTypeService;
     private final LandlordService landlordService;
     private final AdvertisementService advertisementService;
     private final RegionService regionService;
@@ -98,6 +106,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     private final FileRecordService fileRecordService;
     private final HousePropertyCertificateService propertyCertificateService;
     private final PlatformLandlordProperties platformLandlordProperties;
+    @Autowired
+    private HouseLocationMapper houseLocationMapper;
 
     public HouseServiceImpl(
             CommunityService communityService,
@@ -106,6 +116,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             HouseTagRelationService tagRelationService,
             HouseFacilityService facilityService,
             HouseFacilityRelationService facilityRelationService,
+            HouseRoomTypeService roomTypeService,
             LandlordService landlordService,
             AdvertisementService advertisementService,
             RegionService regionService,
@@ -123,6 +134,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         this.tagRelationService = tagRelationService;
         this.facilityService = facilityService;
         this.facilityRelationService = facilityRelationService;
+        this.roomTypeService = roomTypeService;
         this.landlordService = landlordService;
         this.advertisementService = advertisementService;
         this.regionService = regionService;
@@ -145,9 +157,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             long pageSize,
             String userId
     ) {
-        validateCategory(category);
         IPage<House> result = queryHouses(
                 null, category, null, null, null, null, null, null, null, null,
+                null, null, null, null,
                 "default", page, pageSize
         );
         List<HouseDtos.FeedItem> items = result.getRecords().stream()
@@ -178,10 +190,14 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     public PageData<HouseDtos.HouseView> searchHouses(
             String keyword,
             String category,
+            String rentMode,
+            String city,
             String region,
             Integer minPrice,
             Integer maxPrice,
             String roomType,
+            String decoration,
+            String orientation,
             Integer minArea,
             Integer maxArea,
             String facilities,
@@ -192,8 +208,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             String userId
     ) {
         IPage<House> result = queryHouses(
-                keyword, category, region, minPrice, maxPrice, roomType,
-                minArea, maxArea, facilities, tags, sort, page, pageSize
+                keyword, category, rentMode, city, region, minPrice, maxPrice, roomType,
+                decoration, orientation, minArea, maxArea, facilities, tags, sort, page, pageSize
         );
         return PageData.of(
                 result.getRecords().stream()
@@ -203,6 +219,34 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 pageSize,
                 result.getTotal()
         );
+    }
+
+    @Override
+    public List<String> getSearchSuggestions(String keyword, String city, int limit) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim();
+        if (!StringUtils.hasText(normalizedKeyword)) return List.of();
+
+        int safeLimit = Math.max(1, Math.min(limit, 20));
+        IPage<House> result = queryHouses(
+                normalizedKeyword, null, null, city, null,
+                null, null, null, null, null, null, null, null, null,
+                "default", 1, Math.min(100, safeLimit * 4L)
+        );
+
+        LinkedHashSet<String> candidates = new LinkedHashSet<>();
+        for (House house : result.getRecords()) {
+            addSearchSuggestion(candidates, house.getTitle());
+            Community community = StringUtils.hasText(house.getCommunityId())
+                    ? communityService.getById(house.getCommunityId()) : null;
+            if (community != null) addSearchSuggestion(candidates, community.getName());
+            String location = buildLocationDisplay(house, findHouseLocation(house.getId()));
+            if (location.contains(normalizedKeyword)) addSearchSuggestion(candidates, location);
+        }
+        return candidates.stream().limit(safeLimit).toList();
+    }
+
+    private void addSearchSuggestion(Set<String> candidates, String value) {
+        if (StringUtils.hasText(value)) candidates.add(value.trim());
     }
 
     /**
@@ -226,6 +270,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             updateById(house);
         }
         Community community = communityService.getById(house.getCommunityId());
+        HouseLocation houseLocation = findHouseLocation(houseId);
         Landlord landlord = landlordService.findByUserId(house.getLandlordId());
         LandlordDtos.ProfileView landlordProfile = landlord == null
                 ? null
@@ -244,12 +289,13 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getTitle(),
                 house.getCoverImage(),
                 images.isEmpty() ? List.of(house.getCoverImage()) : images,
-                buildLocationDisplay(house),
+                buildLocationDisplay(house, houseLocation),
                 community == null ? "" : community.getName(),
                 house.getAddress(),
                 house.getPrice(),
                 house.getDeposit(),
                 house.getPaymentMethod(),
+                house.getRentMode(),
                 house.getRentType(),
                 house.getRoomType(),
                 areaAsInteger(house.getArea()),
@@ -277,8 +323,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 rent.rentAvailability(),
                 rent.activeOrderId(),
                 rent.activeOrderBelongsToMe(),
-                community != null ? community.getLongitude() : null,
-                community != null ? community.getLatitude() : null,
+                houseLocation != null ? houseLocation.getLongitude() : null,
+                houseLocation != null ? houseLocation.getLatitude() : null,
                 landlordProfile
         );
     }
@@ -296,24 +342,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 ).stream()
                 .map(region -> new HouseDtos.Option(region.getName(), region.getCode()))
                 .toList();
-        List<HouseDtos.Option> facilities = facilityService.list(
-                        Wrappers.<HouseFacility>lambdaQuery()
-                                .eq(HouseFacility::getEnabled, 1)
-                                .orderByAsc(HouseFacility::getSortOrder)
-                ).stream()
-                .map(facility -> new HouseDtos.Option(facility.getName(), facility.getId()))
-                .toList();
-        List<HouseDtos.Option> roomTypes = list(
-                        Wrappers.<House>lambdaQuery()
-                                .select(House::getRoomType)
-                                .in(House::getStatus, "available", "reserved")
-                                .groupBy(House::getRoomType)
-                ).stream()
-                .map(House::getRoomType)
-                .filter(StringUtils::hasText)
-                .distinct()
-                .map(value -> new HouseDtos.Option(value, value))
-                .toList();
+        List<HouseDtos.Option> facilities = getEnabledFacilities();
+        List<HouseDtos.Option> roomTypes = getEnabledRoomTypes();
         return new HouseDtos.FilterOptions(
                 regions,
                 List.of(
@@ -332,6 +362,17 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                         new HouseDtos.Option("距离优先", "distance")
                 )
         );
+    }
+
+    @Override
+    public List<HouseDtos.Option> getEnabledFacilities() {
+        return facilityService.list(
+                        Wrappers.<HouseFacility>lambdaQuery()
+                                .eq(HouseFacility::getEnabled, 1)
+                                .orderByAsc(HouseFacility::getSortOrder)
+                ).stream()
+                .map(facility -> new HouseDtos.Option(facility.getName(), facility.getId()))
+                .toList();
     }
 
     /**
@@ -382,8 +423,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     @Override
     public HouseDtos.HouseView toHouseView(House house, String userId) {
         Community community = communityService.getById(house.getCommunityId());
+        HouseLocation houseLocation = findHouseLocation(house.getId());
         RentAvailabilityData rent = loadRentAvailability(house, userId);
-        String location = buildLocationDisplay(house);
+        String location = buildLocationDisplay(house, houseLocation);
         return new HouseDtos.HouseView(
                 house.getId(),
                 house.getTitle(),
@@ -391,6 +433,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 location,
                 community == null ? "" : community.getName(),
                 house.getPrice(),
+                house.getRentMode(),
+                house.getRentType(),
                 house.getRoomType(),
                 areaAsInteger(house.getArea()),
                 house.getFloor(),
@@ -418,10 +462,14 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     private IPage<House> queryHouses(
             String keyword,
             String category,
+            String rentMode,
+            String city,
             String region,
             Integer minPrice,
             Integer maxPrice,
             String roomType,
+            String decoration,
+            String orientation,
             Integer minArea,
             Integer maxArea,
             String facilityNames,
@@ -430,9 +478,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             long page,
             long pageSize
     ) {
-        if (StringUtils.hasText(category)) {
-            validateCategory(category);
-        }
+        String rentTypeFilter = normalizeRentTypeFilter(category);
+        validateRentMode(rentMode);
         if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
             throw BusinessException.badRequest("最低价格不能高于最高价格");
         }
@@ -447,12 +494,26 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         LambdaQueryWrapper<House> wrapper = Wrappers.<House>lambdaQuery()
                 .in(House::getStatus, "available", "reserved")
                 .apply("NOT EXISTS (SELECT 1 FROM lease WHERE lease.house_id = house.id AND lease.status = 'active')")
-                .eq(StringUtils.hasText(category), House::getRentType, category)
+                .eq(StringUtils.hasText(rentTypeFilter), House::getRentType, rentTypeFilter)
+                .eq(StringUtils.hasText(rentMode), House::getRentMode, rentMode)
                 .ge(minPrice != null, House::getPrice, minPrice)
                 .le(maxPrice != null, House::getPrice, maxPrice)
                 .eq(StringUtils.hasText(roomType), House::getRoomType, roomType)
+                .eq(StringUtils.hasText(decoration), House::getDecoration, decoration)
+                .eq(StringUtils.hasText(orientation), House::getOrientation, orientation)
                 .ge(minArea != null, House::getArea, minArea)
                 .le(maxArea != null, House::getArea, maxArea);
+
+        if (StringUtils.hasText(city)) {
+            String normalizedCity = city.trim();
+            String cityWithoutSuffix = normalizedCity.endsWith("市")
+                    ? normalizedCity.substring(0, normalizedCity.length() - 1)
+                    : normalizedCity;
+            wrapper.apply("EXISTS (SELECT 1 FROM house_location hl "
+                            + "WHERE hl.house_id = house.id "
+                            + "AND (hl.city = {0} OR hl.city = {1} OR hl.city LIKE CONCAT({1}, '%')))",
+                    normalizedCity, cityWithoutSuffix);
+        }
 
         if (StringUtils.hasText(region)) {
             Region matchedRegion = regionService.getOne(
@@ -462,20 +523,10 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                             .last("LIMIT 1"),
                     false
             );
-            if (matchedRegion == null) {
-                wrapper.like(House::getLocation, region);
-            } else {
-                List<String> communityIds = communityService.list(
-                                Wrappers.<Community>lambdaQuery()
-                                        .eq(Community::getRegionId, matchedRegion.getId())
-                        ).stream()
-                        .map(Community::getId)
-                        .toList();
-                if (communityIds.isEmpty()) {
-                    return new Page<>(page, pageSize, 0);
-                }
-                wrapper.in(House::getCommunityId, communityIds);
-            }
+            String districtName = matchedRegion == null ? region.trim() : matchedRegion.getName();
+            wrapper.apply("EXISTS (SELECT 1 FROM house_location hl "
+                            + "WHERE hl.house_id = house.id AND hl.district = {0})",
+                    districtName);
         }
 
         if (StringUtils.hasText(keyword)) {
@@ -680,9 +731,37 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     /**
      * 校验房源分类是否受支持。
      */
-    private void validateCategory(String category) {
-        if (!CATEGORIES.contains(category)) {
-            throw BusinessException.badRequest("房源分类不支持");
+    private String normalizeRentTypeFilter(String category) {
+        if (!StringUtils.hasText(category) || "recommended".equals(category)) {
+            return null;
+        }
+        String normalized = switch (category) {
+            case "long_rent" -> "LONG_RENT";
+            case "short_rent" -> "SHORT_RENT";
+            case "homestay" -> "HOMESTAY";
+            default -> category;
+        };
+        if (!RENT_TYPES.contains(normalized)) {
+            throw BusinessException.badRequest("租赁类型不支持");
+        }
+        return normalized;
+    }
+
+    @Override
+    public List<HouseDtos.Option> getEnabledRoomTypes() {
+        return roomTypeService.list(
+                        Wrappers.<HouseRoomType>lambdaQuery()
+                                .eq(HouseRoomType::getEnabled, 1)
+                                .orderByAsc(HouseRoomType::getSortOrder)
+                                .orderByAsc(HouseRoomType::getName))
+                .stream()
+                .map(value -> new HouseDtos.Option(value.getName(), value.getName()))
+                .toList();
+    }
+
+    private void validateRentMode(String rentMode) {
+        if (StringUtils.hasText(rentMode) && !RENT_MODES.contains(rentMode)) {
+            throw BusinessException.badRequest("出租方式不支持");
         }
     }
 
@@ -707,6 +786,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         List<String> tagIds = normalizeAttributeIds(request.tagIds(), "标签");
         validateEnabledFacilities(facilityIds);
         validateEnabledTags(tagIds);
+        String roomType = requireEnabledRoomType(request.roomType());
         List<String> imageUrls = normalizeAndValidateHouseImages(request, operatorId);
         String coverImage = imageUrls.getFirst();
         LocalDateTime now = LocalDateTime.now();
@@ -724,7 +804,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setPaymentMethod(HousePaymentRule.normalize(request.paymentMethod()));
         house.setDeposit(HousePaymentRule.calculateDeposit(
                 house.getPrice(), house.getPaymentMethod()));
-        house.setRoomType(request.roomType());
+        house.setRoomType(roomType);
         house.setArea(request.area());
         house.setFloor(request.floor());
         house.setOrientation(request.orientation());
@@ -732,6 +812,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setAvailableDate(request.availableDate());
         house.setMetro(request.metro());
         house.setDescription(request.description());
+        house.setRentMode(request.rentMode());
         house.setRentType(request.rentType());
         house.setStatus("draft");
         house.setIsSmartLockSupported(request.isSmartLockSupported() != null
@@ -749,6 +830,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         saveHouseImages(house.getId(), coverImage, imageUrls, now);
         saveHouseFacilityRelations(house.getId(), facilityIds);
         saveHouseTagRelations(house.getId(), tagIds);
+        upsertHouseLocation(house.getId(), request.longitude(), request.latitude(),
+                request.province(), request.city(), request.district(), request.township(),
+                request.neighborhood(), request.address(), now);
         return toAdminHouseView(house, null);
     }
 
@@ -866,6 +950,21 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         }
     }
 
+    private String requireEnabledRoomType(String value) {
+        if (!StringUtils.hasText(value)) {
+            throw BusinessException.badRequest("户型不能为空");
+        }
+        String name = value.trim();
+        long count = roomTypeService.count(
+                Wrappers.<HouseRoomType>lambdaQuery()
+                        .eq(HouseRoomType::getName, name)
+                        .eq(HouseRoomType::getEnabled, 1));
+        if (count == 0) {
+            throw BusinessException.badRequest("户型不存在或已停用，请重新选择");
+        }
+        return name;
+    }
+
     /** 在房源创建事务中保存设施关联。 */
     private void saveHouseFacilityRelations(String houseId, List<String> facilityIds) {
         List<HouseFacilityRelation> relations = facilityIds.stream().map(facilityId -> {
@@ -880,24 +979,33 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         }
     }
 
-    /** 从关联小区拼接区域显示文本，回退到 house.location。 */
-    private String buildLocationDisplay(House house) {
+    /** 从房源位置表拼接行政区展示文本，回退到历史 house.location。 */
+    private String buildLocationDisplay(House house, HouseLocation houseLocation) {
         if (house == null) return "";
-        Community community = StringUtils.hasText(house.getCommunityId())
-                ? communityService.getById(house.getCommunityId()) : null;
-        if (community != null) {
+        if (houseLocation != null) {
             List<String> parts = new ArrayList<>();
-            addNotEmpty(parts, community.getProvince());
-            addNotEmpty(parts, community.getCity());
-            addNotEmpty(parts, community.getDistrict());
+            addNotEmpty(parts, houseLocation.getProvince());
+            addNotEmpty(parts, houseLocation.getCity());
+            addNotEmpty(parts, houseLocation.getDistrict());
             if (!parts.isEmpty()) return String.join("", parts);
         }
         return house.getLocation() != null ? house.getLocation() : "";
     }
 
+    private HouseLocation findHouseLocation(String houseId) {
+        if (!StringUtils.hasText(houseId) || houseLocationMapper == null) return null;
+        return houseLocationMapper.selectOne(
+                Wrappers.<HouseLocation>lambdaQuery()
+                        .eq(HouseLocation::getHouseId, houseId)
+                        .last("LIMIT 1"));
+    }
+
     private void addNotEmpty(List<String> parts, String value) {
         if (value != null && !value.isBlank()) {
-            parts.add(value.trim());
+            String normalized = value.trim();
+            if (parts.isEmpty() || !parts.getLast().equals(normalized)) {
+                parts.add(normalized);
+            }
         }
     }
 
@@ -1038,7 +1146,11 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             house.setPaymentMethod(HousePaymentRule.normalize(request.paymentMethod()));
         }
         if (request.roomType() != null) {
-            house.setRoomType(request.roomType());
+            String requestedRoomType = request.roomType().trim();
+            if (!requestedRoomType.equals(house.getRoomType())) {
+                requestedRoomType = requireEnabledRoomType(requestedRoomType);
+            }
+            house.setRoomType(requestedRoomType);
         }
         if (request.area() != null) {
             house.setArea(request.area());
@@ -1061,6 +1173,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         if (request.description() != null) {
             house.setDescription(request.description());
         }
+        if (request.rentMode() != null) {
+            house.setRentMode(request.rentMode());
+        }
         if (request.rentType() != null) {
             house.setRentType(request.rentType());
         }
@@ -1079,6 +1194,14 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             List<String> tagIds = normalizeOptionalAttributeIds(request.tagIds(), "标签");
             validateEnabledTags(tagIds);
             replaceHouseTagRelations(houseId, tagIds);
+        }
+        if (request.longitude() != null || request.latitude() != null) {
+            if (request.longitude() == null || request.latitude() == null) {
+                throw BusinessException.badRequest("经纬度必须同时提供");
+            }
+            upsertHouseLocation(houseId, request.longitude(), request.latitude(),
+                    request.province(), request.city(), request.district(), request.township(),
+                    request.neighborhood(), request.address(), now);
         }
         if (request.coverImage() != null || request.imageUrls() != null) {
             String coverImage = request.coverImage() == null
@@ -1242,6 +1365,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     private AdminHouseDtos.AdminHouseView toAdminHouseView(House house, SmartLock smartLock) {
         Community community = StringUtils.hasText(house.getCommunityId())
                 ? communityService.getById(house.getCommunityId()) : null;
+        HouseLocation houseLocation = findHouseLocation(house.getId());
         AdminHouseDtos.LockDeviceView lockDeviceView = null;
         boolean smartLockBound = StringUtils.hasText(house.getSmartLockId())
                 || (StringUtils.hasText(house.getLockBindStatus())
@@ -1262,8 +1386,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getTitle(),
                 house.getCoverImage(),
                 getHouseImageUrls(house.getId()),
-                community != null && StringUtils.hasText(community.getDistrict())
-                        ? community.getDistrict() : house.getLocation(),
+                buildLocationDisplay(house, houseLocation),
                 house.getCommunityId(),
                 house.getAddress(),
                 house.getBuilding(),
@@ -1280,6 +1403,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getAvailableDate(),
                 house.getMetro(),
                 house.getDescription(),
+                house.getRentMode(),
                 house.getRentType(),
                 house.getStatus(),
                 sourceTypeOf(house),
@@ -1293,12 +1417,47 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
                 house.getFavoriteCount(),
                 house.getCreatedAt(),
                 house.getUpdatedAt(),
-                community != null ? community.getLongitude() : null,
-                community != null ? community.getLatitude() : null,
+                houseLocation != null ? houseLocation.getLongitude() : community != null ? community.getLongitude() : null,
+                houseLocation != null ? houseLocation.getLatitude() : community != null ? community.getLatitude() : null,
+                houseLocation != null ? houseLocation.getProvince() : community != null ? community.getProvince() : null,
+                houseLocation != null ? houseLocation.getCity() : community != null ? community.getCity() : null,
+                houseLocation != null ? houseLocation.getDistrict() : community != null ? community.getDistrict() : null,
+                houseLocation != null ? houseLocation.getTownship() : null,
+                houseLocation != null ? houseLocation.getNeighborhood() : null,
                 getHouseFacilityIds(house.getId()),
                 getHouseTagIds(house.getId()),
                 propertyCertificateService.getCurrentView(house.getId())
         );
+    }
+
+    private void upsertHouseLocation(
+            String houseId, BigDecimal longitude, BigDecimal latitude,
+            String province, String city, String district, String township,
+            String neighborhood, String address, LocalDateTime now) {
+        if (longitude == null || latitude == null) return;
+        if (houseLocationMapper == null) return; // 兼容未注入 Mapper 的纯单元测试实例
+        HouseLocation location = houseLocationMapper.selectOne(
+                Wrappers.<HouseLocation>lambdaQuery()
+                        .eq(HouseLocation::getHouseId, houseId)
+                        .last("LIMIT 1"));
+        boolean create = location == null;
+        if (create) {
+            location = new HouseLocation();
+            location.setId(UUID.randomUUID().toString());
+            location.setHouseId(houseId);
+            location.setCreatedAt(now);
+        }
+        location.setLongitude(longitude);
+        location.setLatitude(latitude);
+        location.setProvince(Objects.requireNonNullElse(province, ""));
+        location.setCity(Objects.requireNonNullElse(city, ""));
+        location.setDistrict(Objects.requireNonNullElse(district, ""));
+        location.setTownship(Objects.requireNonNullElse(township, ""));
+        location.setNeighborhood(Objects.requireNonNullElse(neighborhood, ""));
+        location.setAddress(Objects.requireNonNullElse(address, ""));
+        location.setUpdatedAt(now);
+        if (create) houseLocationMapper.insert(location);
+        else houseLocationMapper.updateById(location);
     }
 
     private List<String> getHouseFacilityIds(String houseId) {
@@ -1448,6 +1607,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         List<String> tagIds = normalizeAttributeIds(request.tagIds(), "标签");
         validateEnabledFacilities(facilityIds);
         validateEnabledTags(tagIds);
+        String roomType = requireEnabledRoomType(request.roomType());
         List<String> imageUrls = normalizeAndValidateHouseImages(request, landlordId);
         String coverImage = imageUrls.getFirst();
         LocalDateTime now = LocalDateTime.now();
@@ -1466,7 +1626,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setPaymentMethod(HousePaymentRule.normalize(request.paymentMethod()));
         house.setDeposit(HousePaymentRule.calculateDeposit(
                 house.getPrice(), house.getPaymentMethod()));
-        house.setRoomType(request.roomType());
+        house.setRoomType(roomType);
         house.setArea(request.area());
         house.setFloor(request.floor());
         house.setOrientation(request.orientation());
@@ -1474,6 +1634,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setAvailableDate(request.availableDate());
         house.setMetro(request.metro());
         house.setDescription(request.description());
+        house.setRentMode(request.rentMode());
         house.setRentType(request.rentType());
         house.setStatus("draft");
         house.setIsSmartLockSupported(request.isSmartLockSupported() != null

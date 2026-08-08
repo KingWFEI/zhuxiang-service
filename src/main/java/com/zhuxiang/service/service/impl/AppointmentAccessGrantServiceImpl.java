@@ -3,6 +3,7 @@ package com.zhuxiang.service.service.impl;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.zhuxiang.service.client.TtLockOpenApiClient;
 import com.zhuxiang.service.common.AppointmentAccessStatus;
+import com.zhuxiang.service.common.AppointmentAccessWindow;
 import com.zhuxiang.service.common.AppointmentStatus;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.common.ViewingMode;
@@ -171,7 +172,16 @@ public class AppointmentAccessGrantServiceImpl implements AppointmentAccessGrant
                         bluetoothEnabled ? smartLock.getLockMac() : null,
                         bluetoothEnabled ? smartLock.getLockData() : null
                 ),
-                new AppointmentDtos.PasscodeAccess(passcodeAvailable, passcode)
+                new AppointmentDtos.PasscodeAccess(
+                        passcodeAvailable,
+                        passcode,
+                        passcodeAvailable && grant.getPasscodeValidFrom() != null
+                                ? grant.getPasscodeValidFrom().atOffset(BUSINESS_OFFSET)
+                                : null,
+                        passcodeAvailable && grant.getPasscodeValidTo() != null
+                                ? grant.getPasscodeValidTo().atOffset(BUSINESS_OFFSET)
+                                : null
+                )
         );
     }
 
@@ -268,8 +278,18 @@ public class AppointmentAccessGrantServiceImpl implements AppointmentAccessGrant
         grant.setHouseId(appointment.getHouseId());
         grant.setSmartLockId(smartLock.getId());
         grant.setTtlockLockId(smartLock.getLockId());
-        grant.setValidFrom(appointment.getAppointmentStartAt().minusMinutes(10));
-        grant.setValidTo(appointment.getAppointmentEndAt().plusMinutes(10));
+        grant.setValidFrom(AppointmentAccessWindow.validFrom(
+                appointment.getAppointmentStartAt()
+        ));
+        grant.setValidTo(AppointmentAccessWindow.validTo(
+                appointment.getAppointmentEndAt()
+        ));
+        grant.setPasscodeValidFrom(AppointmentAccessWindow.passcodeValidFrom(
+                appointment.getAppointmentStartAt()
+        ));
+        grant.setPasscodeValidTo(AppointmentAccessWindow.passcodeValidTo(
+                appointment.getAppointmentEndAt()
+        ));
         grant.setStatus(AppointmentAccessStatus.PENDING.name());
         grant.setEkeyStatus("PENDING");
         grant.setPasscodeStatus("PENDING");
@@ -335,6 +355,7 @@ public class AppointmentAccessGrantServiceImpl implements AppointmentAccessGrant
             return;
         }
         try {
+            ensurePasscodeWindow(grant, appointment);
             passcodeCrypto.validateConfiguration();
             int version = resolveKeyboardVersion(smartLock, accessToken);
             if (version != SUPPORTED_KEYBOARD_VERSION) {
@@ -347,8 +368,8 @@ public class AppointmentAccessGrantServiceImpl implements AppointmentAccessGrant
                     version,
                     PERIOD_PASSCODE_TYPE,
                     "勿忧管家预约" + shortId(appointment.getId()),
-                    toEpochMillis(grant.getValidFrom()),
-                    toEpochMillis(grant.getValidTo())
+                    toEpochMillis(grant.getPasscodeValidFrom()),
+                    toEpochMillis(grant.getPasscodeValidTo())
             );
             if (response.success()) {
                 grant.setTtlockKeyboardPwdId(response.getKeyboardPwdId());
@@ -370,6 +391,22 @@ public class AppointmentAccessGrantServiceImpl implements AppointmentAccessGrant
         } catch (RuntimeException exception) {
             grant.setPasscodeStatus("FAILED");
             grant.setPasscodeErrorMessage(safeExceptionMessage(exception));
+        }
+    }
+
+    private void ensurePasscodeWindow(
+            AppointmentAccessGrant grant,
+            Appointment appointment
+    ) {
+        if (grant.getPasscodeValidFrom() == null) {
+            grant.setPasscodeValidFrom(AppointmentAccessWindow.passcodeValidFrom(
+                    appointment.getAppointmentStartAt()
+            ));
+        }
+        if (grant.getPasscodeValidTo() == null) {
+            grant.setPasscodeValidTo(AppointmentAccessWindow.passcodeValidTo(
+                    appointment.getAppointmentEndAt()
+            ));
         }
     }
 

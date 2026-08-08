@@ -31,6 +31,9 @@ public interface CustomerServiceMessageService extends IService<CustomerServiceM
      */
     void updateAssistantMessage(String messageId, String content, String status, String metadataJson);
 
+    /** 标记 AI 消息失败，并保留已生成的部分内容。 */
+    void markAssistantMessageFailed(String messageId, String partialContent, String errorMessage);
+
     /**
      * 提交用户反馈。
      */

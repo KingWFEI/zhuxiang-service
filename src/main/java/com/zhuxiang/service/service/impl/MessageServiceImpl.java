@@ -8,6 +8,8 @@ import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.MessageDtos;
 import com.zhuxiang.service.entity.Message;
+import com.zhuxiang.service.event.MessageDomainEventPublisher;
+import com.zhuxiang.service.event.MessageRealtimeEvent;
 import com.zhuxiang.service.service.MessageService;
 import com.zhuxiang.service.mapper.MessageMapper;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,12 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message>
 
     private static final Set<String> CATEGORIES =
             Set.of("system", "lease", "lock", "bill", "appointment", "repair");
+
+    private final MessageDomainEventPublisher realtimeEventPublisher;
+
+    public MessageServiceImpl(MessageDomainEventPublisher realtimeEventPublisher) {
+        this.realtimeEventPublisher = realtimeEventPublisher;
+    }
 
     /**
      * 按条件分页查询用户消息。
@@ -68,14 +76,12 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message>
      */
     @Override
     public MessageDtos.UnreadCounts getUnreadCounts(String userId) {
-        Map<String, Long> counts = list(
-                        Wrappers.<Message>lambdaQuery()
-                                .select(Message::getCategory)
-                                .eq(Message::getUserId, userId)
-                                .eq(Message::getIsDeleted, 0)
-                                .eq(Message::getIsRead, 0)
-                ).stream()
-                .collect(Collectors.groupingBy(Message::getCategory, Collectors.counting()));
+        Map<String, Long> counts = baseMapper.selectUnreadCounts(userId).stream()
+                .collect(Collectors.toMap(
+                        row -> row.getCategory(),
+                        row -> row.getUnreadCount(),
+                        Long::sum
+                ));
         return MessageDtos.UnreadCounts.from(counts);
     }
 
@@ -90,6 +96,9 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message>
             message.setIsRead(1);
             message.setReadAt(LocalDateTime.now());
             updateById(message);
+            realtimeEventPublisher.publish(
+                    MessageRealtimeEvent.changed(userId, "read", messageId)
+            );
         }
         return true;
     }
@@ -108,6 +117,9 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message>
                         .eq(Message::getIsDeleted, 0)
                         .eq(Message::getIsRead, 0)
         );
+        realtimeEventPublisher.publish(
+                MessageRealtimeEvent.changed(userId, "read_all", null)
+        );
         return true;
     }
 
@@ -120,6 +132,9 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message>
         Message message = requireOwnedMessage(userId, messageId);
         message.setIsDeleted(1);
         updateById(message);
+        realtimeEventPublisher.publish(
+                MessageRealtimeEvent.changed(userId, "deleted", messageId)
+        );
         return true;
     }
 
@@ -135,6 +150,9 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message>
                         .eq(Message::getUserId, userId)
                         .eq(Message::getIsDeleted, 0)
                         .eq(Message::getIsRead, 1)
+        );
+        realtimeEventPublisher.publish(
+                MessageRealtimeEvent.changed(userId, "clear_read", null)
         );
         return true;
     }
@@ -178,6 +196,9 @@ public class MessageServiceImpl extends ServiceImpl<MessageMapper, Message>
         message.setIsDeleted(0);
         message.setCreatedAt(LocalDateTime.now());
         save(message);
+        realtimeEventPublisher.publish(
+                MessageRealtimeEvent.created(userId, toView(message))
+        );
     }
 
     /**

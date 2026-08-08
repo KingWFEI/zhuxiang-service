@@ -9,6 +9,7 @@ import com.zhuxiang.service.service.MessageService;
 import com.zhuxiang.service.service.LandlordService;
 import com.zhuxiang.service.service.ObjectStorageService;
 import com.zhuxiang.service.service.RefreshTokenService;
+import com.zhuxiang.service.service.RealNameVerificationQueryService;
 import com.zhuxiang.service.service.SmsCodeService;
 import com.zhuxiang.service.service.impl.UserServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,6 +35,8 @@ class UserServicePasswordTests {
 
     private final UserMapper userMapper = mock(UserMapper.class);
     private final ObjectStorageService objectStorageService = mock(ObjectStorageService.class);
+    private final RealNameVerificationQueryService realNameVerificationQueryService =
+            mock(RealNameVerificationQueryService.class);
     private UserServiceImpl userService;
 
     @BeforeEach
@@ -44,7 +47,8 @@ class UserServicePasswordTests {
                 mock(MessageService.class),
                 mock(TokenProvider.class),
                 objectStorageService,
-                mock(LandlordService.class)
+                mock(LandlordService.class),
+                realNameVerificationQueryService
         );
         ReflectionTestUtils.setField(userService, "baseMapper", userMapper);
     }
@@ -64,6 +68,16 @@ class UserServicePasswordTests {
         assertThat(user.getUpdatedAt()).isNotNull();
         assertThat(userService.getProfile(user.getId()).hasPassword()).isTrue();
         verify(userMapper).updateById(user);
+    }
+
+    @Test
+    void profileReadsVerificationFromRealNameAuthRecords() {
+        User user = activeUser(null);
+        when(userMapper.selectById(user.getId())).thenReturn(user);
+        when(realNameVerificationQueryService.isVerified(user.getId())).thenReturn(true);
+
+        assertThat(userService.getProfile(user.getId()).isVerified()).isTrue();
+        verify(realNameVerificationQueryService).isVerified(user.getId());
     }
 
     @Test
@@ -110,7 +124,6 @@ class UserServicePasswordTests {
         user.setNickname("测试用户");
         user.setAvatarUrl("");
         user.setRole("TENANT");
-        user.setIsVerified(0);
         user.setStatus("active");
         user.setPasswordHash(passwordHash);
         return user;

@@ -173,6 +173,7 @@ public class AppointmentMaintenanceJob {
                 Wrappers.<Appointment>lambdaUpdate()
                         .set(Appointment::getStatus, target.name())
                         .set(target.isTerminal(), Appointment::getActiveSlotKey, null)
+                        .set(target.isTerminal(), Appointment::getActiveUserHouseKey, null)
                         .set(Appointment::getCompletedAt,
                                 target == AppointmentStatus.COMPLETED
                                         ? LocalDateTime.now()

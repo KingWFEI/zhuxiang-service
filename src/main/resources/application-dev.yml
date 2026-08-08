@@ -1,0 +1,6 @@
+app:
+  auth:
+    sms:
+      rate-limit-store: memory
+      fixed-code: ${FIXED_SMS_CODE:123456}
+      expose-code: ${SMS_EXPOSE_CODE:true}

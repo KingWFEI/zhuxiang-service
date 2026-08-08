@@ -3,14 +3,24 @@ package com.zhuxiang.service.common;
 public class BusinessException extends RuntimeException {
 
     private final int code;
+    private final Object data;
 
     public BusinessException(int code, String message) {
+        this(code, message, null);
+    }
+
+    public BusinessException(int code, String message, Object data) {
         super(message);
         this.code = code;
+        this.data = data;
     }
 
     public int getCode() {
         return code;
+    }
+
+    public Object getData() {
+        return data;
     }
 
     public static BusinessException badRequest(String message) {
@@ -35,6 +45,14 @@ public class BusinessException extends RuntimeException {
 
     public static BusinessException tooManyRequests(String message) {
         return new BusinessException(429, message);
+    }
+
+    public static BusinessException tooManyRequests(String message, Object data) {
+        return new BusinessException(429, message, data);
+    }
+
+    public static BusinessException serviceUnavailable(String message) {
+        return new BusinessException(503, message);
     }
 
     /** 用户未完成全局实名认证，不可创建租约订单 */

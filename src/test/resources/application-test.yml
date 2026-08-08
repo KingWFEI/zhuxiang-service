@@ -10,8 +10,14 @@ spring:
     clean-disabled: false
 
 app:
+  message:
+    realtime:
+      enabled: false
   auth:
     token-secret: integration-test-secret
-    fixed-sms-code: "123456"
+    sms:
+      rate-limit-store: memory
+      fixed-code: "123456"
+      expose-code: false
   upload:
     directory: ./target/test-uploads

@@ -46,9 +46,13 @@ public class AuthController {
     @PostMapping("/sms-code")
     @Operation(summary = "发送短信验证码", description = "按指定业务场景发送 6 位短信验证码；开发环境可能返回固定验证码。")
     public ApiResponse<AuthDtos.SmsCodeResult> sendSmsCode(
-            @Valid @RequestBody AuthDtos.SmsCodeRequest request
+            @Valid @RequestBody AuthDtos.SmsCodeRequest request,
+            HttpServletRequest servletRequest
     ) {
-        return ApiResponse.success("验证码发送成功", smsCodeService.sendSmsCode(request));
+        return ApiResponse.success(
+                "验证码发送成功",
+                smsCodeService.sendSmsCode(request, servletRequest.getRemoteAddr())
+        );
     }
 
     /**

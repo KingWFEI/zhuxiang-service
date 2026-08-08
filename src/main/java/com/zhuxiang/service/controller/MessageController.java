@@ -3,16 +3,20 @@ package com.zhuxiang.service.controller;
 import com.zhuxiang.service.auth.CurrentUser;
 import com.zhuxiang.service.auth.RequireAuth;
 import com.zhuxiang.service.common.ApiResponse;
+import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.MessageDtos;
+import com.zhuxiang.service.realtime.MessageSseHub;
 import com.zhuxiang.service.service.MessageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +25,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.util.Optional;
 
 /**
  * 用户消息管理接口。
@@ -34,9 +41,32 @@ import org.springframework.web.bind.annotation.RestController;
 public class MessageController {
 
     private final MessageService messageService;
+    private final Optional<MessageSseHub> messageSseHub;
 
-    public MessageController(MessageService messageService) {
+    public MessageController(
+            MessageService messageService,
+            Optional<MessageSseHub> messageSseHub
+    ) {
         this.messageService = messageService;
+        this.messageSseHub = messageSseHub;
+    }
+
+    @GetMapping(path = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "订阅实时消息", description = "通过SSE接收当前用户的站内消息变化和心跳事件。")
+    public SseEmitter stream(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        MessageSseHub hub = messageSseHub.orElseThrow(
+                () -> BusinessException.notFound("实时消息功能暂未开启")
+        );
+        String userId = CurrentUser.id(request);
+        if (!hub.isEnabledFor(userId)) {
+            throw BusinessException.notFound("实时消息功能暂未对当前账号开放");
+        }
+        response.setHeader("Cache-Control", "no-cache, no-transform");
+        response.setHeader("X-Accel-Buffering", "no");
+        return hub.connect(userId);
     }
 
     /**

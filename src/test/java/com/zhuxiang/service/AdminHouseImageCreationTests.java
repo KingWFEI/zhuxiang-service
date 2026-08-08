@@ -21,6 +21,7 @@ import com.zhuxiang.service.service.AdvertisementService;
 import com.zhuxiang.service.service.CommunityService;
 import com.zhuxiang.service.service.FileRecordService;
 import com.zhuxiang.service.service.HouseFacilityRelationService;
+import com.zhuxiang.service.service.HouseRoomTypeService;
 import com.zhuxiang.service.service.HouseFacilityService;
 import com.zhuxiang.service.service.HouseImageService;
 import com.zhuxiang.service.service.HousePropertyCertificateService;
@@ -58,6 +59,7 @@ class AdminHouseImageCreationTests {
     private final HouseTagRelationService tagRelationService = mock(HouseTagRelationService.class);
     private final HouseFacilityService facilityService = mock(HouseFacilityService.class);
     private final HouseFacilityRelationService facilityRelationService = mock(HouseFacilityRelationService.class);
+    private final HouseRoomTypeService roomTypeService = mock(HouseRoomTypeService.class);
     private final LandlordService landlordService = mock(LandlordService.class);
     private final AdvertisementService advertisementService = mock(AdvertisementService.class);
     private final RegionService regionService = mock(RegionService.class);
@@ -78,7 +80,7 @@ class AdminHouseImageCreationTests {
         platformLandlordProperties.setId("platform-landlord-1");
         service = new HouseServiceImpl(
                 communityService, imageService, tagService, tagRelationService,
-                facilityService, facilityRelationService, landlordService,
+                facilityService, facilityRelationService, roomTypeService, landlordService,
                 advertisementService, regionService, smartLockMapper,
                 favoriteHouseMapper, rentOrderMapper, userService, fileRecordService,
                 propertyCertificateService, platformLandlordProperties
@@ -88,6 +90,7 @@ class AdminHouseImageCreationTests {
         when(imageService.saveBatch(any(Collection.class))).thenReturn(true);
         when(facilityRelationService.saveBatch(any(Collection.class))).thenReturn(true);
         when(tagRelationService.saveBatch(any(Collection.class))).thenReturn(true);
+        when(roomTypeService.count(any(Wrapper.class))).thenReturn(1L);
     }
 
     @Test
@@ -131,6 +134,8 @@ class AdminHouseImageCreationTests {
                 .isEqualTo(HouseSourceType.PLATFORM.name());
         assertThat(houseCaptor.getValue().getLandlordId()).isEqualTo("platform-landlord-1");
         assertThat(houseCaptor.getValue().getCreatedBy()).isEqualTo("admin-1");
+        assertThat(houseCaptor.getValue().getRentMode()).isEqualTo("WHOLE_RENT");
+        assertThat(houseCaptor.getValue().getRentType()).isEqualTo("LONG_RENT");
 
         ArgumentCaptor<Collection<HouseFacilityRelation>> facilitiesCaptor = collectionCaptor();
         verify(facilityRelationService).saveBatch(facilitiesCaptor.capture());
@@ -512,10 +517,11 @@ class AdminHouseImageCreationTests {
                 "2栋", "1单元", "1801", 2800, 999,
                 "押一付三", "1室1厅1卫", new BigDecimal("45.5"),
                 "18/32层", "南", "精装", LocalDate.of(2026, 7, 1),
-                "距地铁500米", "房源介绍", "long_rent",
+                "距地铁500米", "房源介绍", "WHOLE_RENT", "LONG_RENT",
                 true, true,
                 List.of("wifi", "air_conditioner"),
-                List.of("near_metro", "direct_rent")
+                List.of("near_metro", "direct_rent"),
+                null, null, null, null, null, null, null
         );
     }
 
@@ -528,7 +534,8 @@ class AdminHouseImageCreationTests {
         return new AdminHouseDtos.UpdateHouseRequest(
                 null, coverImage, imageUrls, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, facilityIds, tagIds
+                null, null, null, null, facilityIds, tagIds,
+                null, null, null, null, null, null, null
         );
     }
 

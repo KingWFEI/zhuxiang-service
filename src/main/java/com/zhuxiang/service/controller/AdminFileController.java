@@ -48,4 +48,16 @@ public class AdminFileController {
                 adminFileService.uploadHouseImage(CurrentUser.id(request), file)
         );
     }
+
+    @PostMapping("/advertisement-images/upload")
+    @Operation(summary = "上传广告图片", description = "仅管理员或管家可上传广告运营图片，最大 5MB。")
+    public ApiResponse<FileUploadResponse> uploadAdvertisementImage(
+            HttpServletRequest request,
+            @RequestParam("file") MultipartFile file
+    ) {
+        return ApiResponse.success(
+                "广告图片上传成功",
+                adminFileService.uploadAdvertisementImage(CurrentUser.id(request), file)
+        );
+    }
 }

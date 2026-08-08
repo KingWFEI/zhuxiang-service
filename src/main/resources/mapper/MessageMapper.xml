@@ -24,4 +24,18 @@
         action_type,action_target,is_read,is_deleted,read_at,
         created_at
     </sql>
+
+    <resultMap id="UnreadCountResultMap" type="com.zhuxiang.service.dto.MessageUnreadCountRow">
+        <result property="category" column="category" />
+        <result property="unreadCount" column="unread_count" />
+    </resultMap>
+
+    <select id="selectUnreadCounts" resultMap="UnreadCountResultMap">
+        SELECT category, COUNT(*) AS unread_count
+        FROM message
+        WHERE user_id = #{userId}
+          AND is_deleted = 0
+          AND is_read = 0
+        GROUP BY category
+    </select>
 </mapper>

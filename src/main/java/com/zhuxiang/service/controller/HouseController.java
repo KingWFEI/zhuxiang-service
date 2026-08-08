@@ -15,6 +15,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -72,11 +74,16 @@ public class HouseController {
     @Operation(summary = "搜索房源", description = "按关键字、分类、区域、价格、户型、面积、设施和标签组合筛选房源，并支持排序和分页。")
     public ApiResponse<PageData<HouseDtos.HouseView>> search(
             @Parameter(description = "标题、位置或小区关键字") @RequestParam(required = false) String keyword,
-            @Parameter(description = "房源分类键") @RequestParam(required = false) String category,
+            @Parameter(description = "兼容旧客户端的房源分类键，优先使用 rentType") @RequestParam(required = false) String category,
+            @Parameter(description = "租赁类型", example = "LONG_RENT") @RequestParam(required = false) String rentType,
+            @Parameter(description = "出租方式", example = "WHOLE_RENT") @RequestParam(required = false) String rentMode,
+            @Parameter(description = "定位或手动选择的地级市") @RequestParam(required = false) String city,
             @Parameter(description = "区域名称") @RequestParam(required = false) String region,
             @Parameter(description = "最低月租金，单位元", example = "1000") @RequestParam(required = false) @Min(0) Integer minPrice,
             @Parameter(description = "最高月租金，单位元", example = "5000") @RequestParam(required = false) @Min(0) Integer maxPrice,
             @Parameter(description = "户型") @RequestParam(required = false) String roomType,
+            @Parameter(description = "装修") @RequestParam(required = false) String decoration,
+            @Parameter(description = "朝向") @RequestParam(required = false) String orientation,
             @Parameter(description = "最小面积，单位平方米", example = "20") @RequestParam(required = false) @Min(0) Integer minArea,
             @Parameter(description = "最大面积，单位平方米", example = "120") @RequestParam(required = false) @Min(0) Integer maxArea,
             @Parameter(description = "设施值，多个值使用英文逗号分隔", example = "wifi,air_conditioner") @RequestParam(required = false) String facilities,
@@ -87,10 +94,22 @@ public class HouseController {
             HttpServletRequest request
     ) {
         return ApiResponse.success(houseService.searchHouses(
-                keyword, category, region, minPrice, maxPrice, roomType,
+                keyword,
+                rentType != null && !rentType.isBlank() ? rentType : category,
+                rentMode, city, region, minPrice, maxPrice, roomType, decoration, orientation,
                 minArea, maxArea, facilities, tags, sort, page, pageSize,
                 CurrentUser.optionalId(request)
         ));
+    }
+
+    @GetMapping("/search-suggestions")
+    @Operation(summary = "房源搜索联想", description = "根据关键词和当前城市返回房源标题、小区和行政区建议。")
+    public ApiResponse<List<String>> searchSuggestions(
+            @RequestParam @NotBlank @Size(max = 80) String keyword,
+            @RequestParam(required = false) @Size(max = 50) String city,
+            @RequestParam(defaultValue = "8") @Min(1) @Max(20) int limit
+    ) {
+        return ApiResponse.success(houseService.getSearchSuggestions(keyword, city, limit));
     }
 
     /**
@@ -100,6 +119,18 @@ public class HouseController {
     @Operation(summary = "获取筛选选项", description = "返回区域、价格区间、户型、设施和排序选项。")
     public ApiResponse<HouseDtos.FilterOptions> filterOptions() {
         return ApiResponse.success(houseService.getFilterOptions());
+    }
+
+    @GetMapping("/room-types")
+    @Operation(summary = "获取已启用户型", description = "房源发布和租客筛选共用同一份户型字典。")
+    public ApiResponse<List<HouseDtos.Option>> roomTypes() {
+        return ApiResponse.success(houseService.getEnabledRoomTypes());
+    }
+
+    @GetMapping("/facilities")
+    @Operation(summary = "获取房间设施", description = "返回房间设施表中已启用的设施选项。")
+    public ApiResponse<List<HouseDtos.Option>> facilities() {
+        return ApiResponse.success(houseService.getEnabledFacilities());
     }
 
     /**

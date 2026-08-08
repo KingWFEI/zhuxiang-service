@@ -8,7 +8,9 @@ import com.zhuxiang.service.dto.AuthDtos;
 import com.zhuxiang.service.dto.HouseDtos;
 import com.zhuxiang.service.dto.ProfileDtos;
 import com.zhuxiang.service.service.UserService;
+import com.zhuxiang.service.service.AppointmentService;
 import com.zhuxiang.service.service.LeaseService;
+import com.zhuxiang.service.service.RealNameVerificationQueryService;
 import com.zhuxiang.service.service.UserFavoriteHouseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -43,15 +45,21 @@ public class ProfileController {
     private final UserService userService;
     private final LeaseService leaseService;
     private final UserFavoriteHouseService favoriteHouseService;
+    private final AppointmentService appointmentService;
+    private final RealNameVerificationQueryService realNameVerificationQueryService;
 
     public ProfileController(
             UserService userService,
             LeaseService leaseService,
-            UserFavoriteHouseService favoriteHouseService
+            UserFavoriteHouseService favoriteHouseService,
+            AppointmentService appointmentService,
+            RealNameVerificationQueryService realNameVerificationQueryService
     ) {
         this.userService = userService;
         this.leaseService = leaseService;
         this.favoriteHouseService = favoriteHouseService;
+        this.appointmentService = appointmentService;
+        this.realNameVerificationQueryService = realNameVerificationQueryService;
     }
 
     /**
@@ -61,6 +69,20 @@ public class ProfileController {
     @Operation(summary = "获取个人资料", description = "返回当前登录用户的手机号、昵称、头像、角色、实名认证状态和密码设置状态。")
     public ApiResponse<AuthDtos.UserView> getProfile(HttpServletRequest request) {
         return ApiResponse.success(userService.getProfile(CurrentUser.id(request)));
+    }
+
+    /**
+     * 获取个人中心收藏与预约统计。
+     */
+    @GetMapping("/overview")
+    @Operation(summary = "获取个人中心统计", description = "返回当前用户的收藏房源数和看房预约数。")
+    public ApiResponse<ProfileDtos.Overview> overview(HttpServletRequest request) {
+        String userId = CurrentUser.id(request);
+        return ApiResponse.success(new ProfileDtos.Overview(
+                favoriteHouseService.countFavorites(userId),
+                appointmentService.countMyAppointments(userId),
+                realNameVerificationQueryService.isVerified(userId)
+        ));
     }
 
     /**

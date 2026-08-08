@@ -119,7 +119,12 @@ public class House implements Serializable {
     private String description;
 
     /**
-     * 租赁分类：recommended推荐，short_rent短租，homestay民宿，long_rent长租
+     * 出租方式：WHOLE_RENT整租，SHARED_RENT合租
+     */
+    private String rentMode;
+
+    /**
+     * 租赁类型：LONG_RENT长租，SHORT_RENT短租，HOMESTAY民宿
      */
     private String rentType;
 
@@ -218,6 +223,7 @@ public class House implements Serializable {
             && (this.getAvailableDate() == null ? other.getAvailableDate() == null : this.getAvailableDate().equals(other.getAvailableDate()))
             && (this.getMetro() == null ? other.getMetro() == null : this.getMetro().equals(other.getMetro()))
             && (this.getDescription() == null ? other.getDescription() == null : this.getDescription().equals(other.getDescription()))
+            && (this.getRentMode() == null ? other.getRentMode() == null : this.getRentMode().equals(other.getRentMode()))
             && (this.getRentType() == null ? other.getRentType() == null : this.getRentType().equals(other.getRentType()))
             && (this.getStatus() == null ? other.getStatus() == null : this.getStatus().equals(other.getStatus()))
             && (this.getIsSmartLockSupported() == null ? other.getIsSmartLockSupported() == null : this.getIsSmartLockSupported().equals(other.getIsSmartLockSupported()))
@@ -255,6 +261,7 @@ public class House implements Serializable {
         result = prime * result + ((getAvailableDate() == null) ? 0 : getAvailableDate().hashCode());
         result = prime * result + ((getMetro() == null) ? 0 : getMetro().hashCode());
         result = prime * result + ((getDescription() == null) ? 0 : getDescription().hashCode());
+        result = prime * result + ((getRentMode() == null) ? 0 : getRentMode().hashCode());
         result = prime * result + ((getRentType() == null) ? 0 : getRentType().hashCode());
         result = prime * result + ((getStatus() == null) ? 0 : getStatus().hashCode());
         result = prime * result + ((getIsSmartLockSupported() == null) ? 0 : getIsSmartLockSupported().hashCode());
@@ -295,6 +302,7 @@ public class House implements Serializable {
         sb.append(", availableDate=").append(availableDate);
         sb.append(", metro=").append(metro);
         sb.append(", description=").append(description);
+        sb.append(", rentMode=").append(rentMode);
         sb.append(", rentType=").append(rentType);
         sb.append(", status=").append(status);
         sb.append(", isSmartLockSupported=").append(isSmartLockSupported);

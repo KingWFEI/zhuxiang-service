@@ -93,6 +93,7 @@ public class Appointment implements Serializable {
     private LocalDateTime checkedInAt;
     private LocalDateTime completedAt;
     private String activeSlotKey;
+    private String activeUserHouseKey;
     private String idempotencyKey;
     private Integer version;
 

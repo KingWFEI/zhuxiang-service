@@ -97,16 +97,28 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             SmartLock lock = smartLockMapper.selectLatestByHouseId(house.getId());
             homes.add(new ProfileDtos.CurrentHome(
                     house.getId(),
+                    textOrEmpty(house.getTitle()),
                     community == null ? "" : community.getName(),
+                    textOrEmpty(house.getLocation()),
                     house.getBuilding(),
                     house.getUnit(),
                     house.getRoom(),
                     house.getAddress() != null ? house.getAddress() : "",
+                    textOrEmpty(house.getRoomType()),
+                    house.getArea() == null ? null : house.getArea().intValue(),
+                    textOrEmpty(house.getFloor()),
+                    textOrEmpty(house.getOrientation()),
+                    lease.getMonthlyRent(),
+                    lease.getDeposit(),
+                    textOrEmpty(house.getPaymentMethod()),
+                    lease.getStartDate(),
+                    lease.getEndDate(),
                     lease.getId(),
                     lease.getStatus(),
                     lock == null ? null : lock.getId(),
                     lock == null ? "UNBOUND" : lock.getStatus(),
-                    house.getCoverImage() != null ? house.getCoverImage() : ""
+                    house.getCoverImage() != null ? house.getCoverImage() : "",
+                    textOrEmpty(house.getSourceType())
             ));
         }
         return homes;

@@ -110,6 +110,14 @@ public class UserFavoriteHouseServiceImpl extends ServiceImpl<UserFavoriteHouseM
                 .toList();
         return PageData.of(items, page, pageSize, favorites.getTotal());
     }
+
+    @Override
+    public long countFavorites(String userId) {
+        return count(
+                Wrappers.<UserFavoriteHouse>lambdaQuery()
+                        .eq(UserFavoriteHouse::getUserId, userId)
+        );
+    }
 }
 
 

@@ -87,7 +87,7 @@ public class Landlord implements Serializable {
     private String idCardCiphertext;
 
     /**
-     * 历史认证快照；对外展示以 user.is_verified 为准
+     * 历史认证快照；对外展示以 user_real_name_auth 中的 VERIFIED 记录为准
      */
     private Integer isVerified;
 

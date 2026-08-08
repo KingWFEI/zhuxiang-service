@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhuxiang.service.common.AppointmentAccessStatus;
 import com.zhuxiang.service.common.AppointmentStatus;
+import com.zhuxiang.service.common.AppointmentAccessWindow;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.common.HouseSourceType;
 import com.zhuxiang.service.common.PageData;
@@ -29,6 +30,7 @@ import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.MessageService;
 import com.zhuxiang.service.service.UserService;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -87,6 +89,9 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     private final MessageService messageService;
     private final AppointmentCheckinCodeService checkinCodeService;
 
+    @Value("${app.appointment.test-slot-enabled:false}")
+    private boolean testSlotEnabled;
+
     public AppointmentServiceImpl(
             HouseService houseService,
             UserService userService,
@@ -131,11 +136,20 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
             }
         }
         House house = houseService.requireAvailableHouse(request.houseId());
+        requireNoActiveAppointmentForHouse(tenant.getId(), house.getId());
         HouseViewingConfig config = viewingConfigMapper.selectById(house.getId());
         requireViewingEnabled(config);
         ViewingMode mode = resolveViewingMode(house, config);
-        TimeWindow window = resolveCreateWindow(request, config);
-        validateWindow(window, config);
+        boolean testSlot = Boolean.TRUE.equals(request.testSlot());
+        if (testSlot && (!testSlotEnabled || mode != ViewingMode.SELF_SERVICE_LOCK)) {
+            throw BusinessException.forbidden("当前环境或房源不允许使用测试预约时段");
+        }
+        TimeWindow window = testSlot
+                ? resolveTestWindow(config)
+                : resolveCreateWindow(request, config);
+        if (!testSlot) {
+            validateWindow(window, config);
+        }
 
         Appointment appointment = new Appointment();
         appointment.setId(UUID.randomUUID().toString());
@@ -155,6 +169,9 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         appointment.setCreatedAt(LocalDateTime.now());
         appointment.setUpdatedAt(LocalDateTime.now());
         appointment.setActiveSlotKey(buildActiveSlotKey(house.getId(), window));
+        appointment.setActiveUserHouseKey(buildActiveUserHouseKey(
+                tenant.getId(), house.getId()
+        ));
         appointment.setIdempotencyKey(normalizedIdempotencyKey);
 
         if (mode == ViewingMode.SELF_SERVICE_LOCK) {
@@ -184,6 +201,9 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                     return toCreateResult(existing);
                 }
             }
+            if (isActiveUserHouseConstraint(exception)) {
+                throw duplicateHouseAppointmentException();
+            }
             throw BusinessException.conflict("该看房时段已被预约，请选择其他时间");
         }
         writeStatusLog(
@@ -198,7 +218,8 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     public AppointmentDtos.ViewingSlotResult getViewingSlots(
             String houseId,
             LocalDate startDate,
-            int days
+            int days,
+            boolean includeTestSlot
     ) {
         House house = houseService.requireAvailableHouse(houseId);
         HouseViewingConfig config = viewingConfigMapper.selectById(houseId);
@@ -215,6 +236,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                 DEFAULT_ADVANCE_MINUTES
         );
         LocalDateTime earliest = LocalDateTime.now(BUSINESS_ZONE).plusMinutes(advanceMinutes);
+        LocalDateTime testStart = nextWholeHour(LocalDateTime.now(BUSINESS_ZONE));
         List<Appointment> active = list(
                 Wrappers.<Appointment>lambdaQuery()
                         .eq(Appointment::getHouseId, houseId)
@@ -227,6 +249,20 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         for (int dayIndex = 0; dayIndex < safeDays; dayIndex++) {
             LocalDate date = firstDate.plusDays(dayIndex);
             List<AppointmentDtos.ViewingSlot> slots = new ArrayList<>();
+            if (includeTestSlot
+                    && testSlotEnabled
+                    && mode == ViewingMode.SELF_SERVICE_LOCK
+                    && date.equals(testStart.toLocalDate())) {
+                LocalDateTime testEnd = testStart.plusMinutes(duration);
+                slots.add(new AppointmentDtos.ViewingSlot(
+                        toOffset(testStart),
+                        toOffset(testEnd),
+                        true,
+                        toOffset(AppointmentAccessWindow.validFrom(testStart)),
+                        toOffset(AppointmentAccessWindow.validTo(testEnd)),
+                        true
+                ));
+            }
             for (LocalTime time : DEFAULT_START_TIMES) {
                 LocalDateTime start = date.atTime(time);
                 LocalDateTime end = start.plusMinutes(duration);
@@ -238,7 +274,16 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                         && !occupied
                         && date.getDayOfWeek() != DayOfWeek.SUNDAY;
                 slots.add(new AppointmentDtos.ViewingSlot(
-                        toOffset(start), toOffset(end), available
+                        toOffset(start),
+                        toOffset(end),
+                        available,
+                        mode == ViewingMode.SELF_SERVICE_LOCK
+                                ? toOffset(AppointmentAccessWindow.validFrom(start))
+                                : null,
+                        mode == ViewingMode.SELF_SERVICE_LOCK
+                                ? toOffset(AppointmentAccessWindow.validTo(end))
+                                : null,
+                        false
                 ));
             }
             dates.add(new AppointmentDtos.ViewingSlotDate(date, slots));
@@ -261,6 +306,14 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                         .eq(StringUtils.hasText(status), Appointment::getStatus, normalizeStatusFilter(status))
                         .orderByDesc(Appointment::getAppointmentStartAt),
                 page, pageSize, Perspective.TENANT
+        );
+    }
+
+    @Override
+    public long countMyAppointments(String userId) {
+        return count(
+                Wrappers.<Appointment>lambdaQuery()
+                        .eq(Appointment::getUserId, userId)
         );
     }
 
@@ -812,8 +865,22 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
                 appointment.getCancelReason(),
                 showCheckinCode ? checkinCodeService.codeFor(appointment.getId()) : null,
                 access == null ? accessStatus(appointment) : access.getStatus(),
-                access == null ? null : toOffset(access.getValidFrom()),
-                access == null ? null : toOffset(access.getValidTo()),
+                access != null
+                        ? toOffset(access.getValidFrom())
+                        : mode == ViewingMode.SELF_SERVICE_LOCK
+                        && appointment.getAppointmentStartAt() != null
+                        ? toOffset(AppointmentAccessWindow.validFrom(
+                                appointment.getAppointmentStartAt()
+                        ))
+                        : null,
+                access != null
+                        ? toOffset(access.getValidTo())
+                        : mode == ViewingMode.SELF_SERVICE_LOCK
+                        && appointment.getAppointmentEndAt() != null
+                        ? toOffset(AppointmentAccessWindow.validTo(
+                                appointment.getAppointmentEndAt()
+                        ))
+                        : null,
                 availableActions(appointment, perspective),
                 logs
         );
@@ -895,6 +962,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         appointment.setVersion(expectedVersion + 1);
         if (target.isTerminal()) {
             appointment.setActiveSlotKey(null);
+            appointment.setActiveUserHouseKey(null);
         }
         try {
             int updated = baseMapper.updateWithStatusAndVersion(
@@ -1059,6 +1127,19 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         }
     }
 
+    private TimeWindow resolveTestWindow(HouseViewingConfig config) {
+        int duration = configValue(
+                config == null ? null : config.getDurationMinutes(),
+                DEFAULT_DURATION_MINUTES
+        );
+        LocalDateTime start = nextWholeHour(LocalDateTime.now(BUSINESS_ZONE));
+        return new TimeWindow(start, start.plusMinutes(duration));
+    }
+
+    private LocalDateTime nextWholeHour(LocalDateTime value) {
+        return value.plusHours(1).withMinute(0).withSecond(0).withNano(0);
+    }
+
     private void validateWindow(TimeWindow window, HouseViewingConfig config) {
         if (!window.end().isAfter(window.start())) {
             throw BusinessException.badRequest("预约结束时间必须晚于开始时间");
@@ -1128,6 +1209,36 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
 
     private String buildActiveSlotKey(String houseId, TimeWindow window) {
         return houseId + "|" + window.start() + "|" + window.end();
+    }
+
+    private String buildActiveUserHouseKey(String userId, String houseId) {
+        return userId + "|" + houseId;
+    }
+
+    private void requireNoActiveAppointmentForHouse(String userId, String houseId) {
+        long count = count(
+                Wrappers.<Appointment>lambdaQuery()
+                        .eq(Appointment::getUserId, userId)
+                        .eq(Appointment::getHouseId, houseId)
+                        .in(Appointment::getStatus, activeStatusNames())
+        );
+        if (count > 0) {
+            throw duplicateHouseAppointmentException();
+        }
+    }
+
+    private BusinessException duplicateHouseAppointmentException() {
+        return BusinessException.conflict(
+                "您已有该房源的预约，请先取消已有预约后再重新预约"
+        );
+    }
+
+    private boolean isActiveUserHouseConstraint(DuplicateKeyException exception) {
+        Throwable cause = exception.getMostSpecificCause();
+        String message = cause == null ? exception.getMessage() : cause.getMessage();
+        return message != null
+                && message.toLowerCase(Locale.ROOT)
+                .contains("uk_appointment_active_user_house");
     }
 
     private String formatTimeSlot(TimeWindow window) {

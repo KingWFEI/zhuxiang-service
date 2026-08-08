@@ -14,6 +14,7 @@ import com.zhuxiang.service.service.MessageService;
 import com.zhuxiang.service.service.LandlordService;
 import com.zhuxiang.service.service.ObjectStorageService;
 import com.zhuxiang.service.service.RefreshTokenService;
+import com.zhuxiang.service.service.RealNameVerificationQueryService;
 import com.zhuxiang.service.service.SmsCodeService;
 import com.zhuxiang.service.mapper.UserMapper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -53,6 +54,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     private final TokenProvider tokenProvider;
     private final ObjectStorageService objectStorageService;
     private final LandlordService landlordService;
+    private final RealNameVerificationQueryService realNameVerificationQueryService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public UserServiceImpl(
@@ -61,7 +63,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             MessageService messageService,
             TokenProvider tokenProvider,
             ObjectStorageService objectStorageService,
-            LandlordService landlordService
+            LandlordService landlordService,
+            RealNameVerificationQueryService realNameVerificationQueryService
     ) {
         this.smsCodeService = smsCodeService;
         this.refreshTokenService = refreshTokenService;
@@ -69,6 +72,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         this.tokenProvider = tokenProvider;
         this.objectStorageService = objectStorageService;
         this.landlordService = landlordService;
+        this.realNameVerificationQueryService = realNameVerificationQueryService;
     }
 
     /**
@@ -220,7 +224,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         user.setNickname(request.nickname().trim());
         user.setAvatarUrl("");
         user.setRole(request.role());
-        user.setIsVerified(0);
         user.setStatus("active");
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
@@ -323,7 +326,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         user.setNickname(StringUtils.hasText(nickname) ? nickname : "勿忧管家用户");
         user.setAvatarUrl("");
         user.setRole("TENANT");
-        user.setIsVerified(0);
         user.setStatus("active");
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
@@ -366,7 +368,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
                 user.getNickname(),
                 user.getAvatarUrl(),
                 user.getRole(),
-                Integer.valueOf(1).equals(user.getIsVerified()),
+                realNameVerificationQueryService.isVerified(user.getId()),
                 StringUtils.hasText(user.getPasswordHash())
         );
     }

@@ -32,10 +32,14 @@ public interface HouseService extends IService<House> {
     PageData<HouseDtos.HouseView> searchHouses(
             String keyword,
             String category,
+            String rentMode,
+            String city,
             String region,
             Integer minPrice,
             Integer maxPrice,
             String roomType,
+            String decoration,
+            String orientation,
             Integer minArea,
             Integer maxArea,
             String facilities,
@@ -46,6 +50,11 @@ public interface HouseService extends IService<House> {
             String userId
     );
 
+    /** 根据输入关键词返回房源搜索联想。 */
+    List<String> getSearchSuggestions(String keyword, String city, int limit);
+
+    List<HouseDtos.Option> getEnabledFacilities();
+
     /**
      * 获取指定房源详情。
      */
@@ -55,6 +64,9 @@ public interface HouseService extends IService<House> {
      * 获取房源筛选选项。
      */
     HouseDtos.FilterOptions getFilterOptions();
+
+    /** 获取已启用户型，供发布房源和租客筛选共用。 */
+    List<HouseDtos.Option> getEnabledRoomTypes();
 
     /**
      * 获取可租用的房源实体。

@@ -37,4 +37,14 @@ public class AdminFileServiceImpl implements AdminFileService {
         }
         return fileRecordService.uploadHouseImage(operatorId, file);
     }
+
+    @Override
+    public FileUploadResponse uploadAdvertisementImage(String operatorId, MultipartFile file) {
+        User operator = userService.requireActiveUser(operatorId);
+        String role = operator.getRole() == null ? "" : operator.getRole().toUpperCase(Locale.ROOT);
+        if (!Set.of("ADMIN", "HOUSEKEEPER").contains(role)) {
+            throw BusinessException.forbidden("当前账号无权上传广告图片");
+        }
+        return fileRecordService.uploadAdvertisementImage(operatorId, file);
+    }
 }

@@ -76,7 +76,10 @@ public final class AuthDtos {
     ) {
     }
 
-    public record SmsCodeResult(long expiresIn) {
+    public record SmsCodeResult(long expiresIn, long retryAfter) {
+    }
+
+    public record SmsCodeRetry(long retryAfter) {
     }
 
     public record UserView(

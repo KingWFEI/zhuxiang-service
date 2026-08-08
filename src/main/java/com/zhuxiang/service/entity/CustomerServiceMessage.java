@@ -33,6 +33,9 @@ public class CustomerServiceMessage implements Serializable {
     /** 消息状态：SENT STREAMING DONE FAILED */
     private String status;
 
+    /** 失败原因，仅服务端记录。 */
+    private String errorMessage;
+
     /** 创建时间 */
     private LocalDateTime createdAt;
 

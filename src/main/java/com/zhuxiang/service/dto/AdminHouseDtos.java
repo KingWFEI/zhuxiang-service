@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -43,7 +44,9 @@ public final class AdminHouseDtos {
             @NotBlank(message = "付款方式不能为空")
             @Schema(description = "付款方式，决定付款周期和押金月数", example = "押一付三")
             String paymentMethod,
-            @Schema(description = "户型", example = "1室1厅1卫") String roomType,
+            @NotBlank(message = "户型不能为空")
+            @Size(max = 50, message = "户型不能超过50个字符")
+            @Schema(description = "服务端户型字典中的名称", example = "1室1厅1卫") String roomType,
             @Schema(description = "建筑面积，单位平方米", example = "45.5") BigDecimal area,
             @Schema(description = "楼层描述", example = "18/32层") String floor,
             @Schema(description = "朝向", example = "南") String orientation,
@@ -51,8 +54,14 @@ public final class AdminHouseDtos {
             @Schema(description = "最早可入住日期", example = "2026-07-01") LocalDate availableDate,
             @Schema(description = "地铁信息", example = "距1号线金融城站500米") String metro,
             @Schema(description = "房源详细介绍") String description,
+            @NotBlank(message = "出租方式不能为空")
+            @Pattern(regexp = "WHOLE_RENT|SHARED_RENT", message = "出租方式不支持")
+            @Schema(description = "出租方式", allowableValues = {"WHOLE_RENT", "SHARED_RENT"}, example = "WHOLE_RENT")
+            String rentMode,
             @NotBlank(message = "租赁类型不能为空")
-            @Schema(description = "租赁类型，如整租或合租", example = "整租") String rentType,
+            @Pattern(regexp = "LONG_RENT|SHORT_RENT|HOMESTAY", message = "租赁类型不支持")
+            @Schema(description = "租赁类型", allowableValues = {"LONG_RENT", "SHORT_RENT", "HOMESTAY"}, example = "LONG_RENT")
+            String rentType,
             @Schema(description = "是否支持智能门锁", example = "true") Boolean isSmartLockSupported,
             @Schema(description = "是否支持自助看房", example = "true") Boolean isSelfViewingSupported,
             @NotEmpty(message = "房源设施不能为空")
@@ -62,7 +71,14 @@ public final class AdminHouseDtos {
             @NotEmpty(message = "房源标签不能为空")
             @Size(max = 100, message = "房源标签不能超过100项")
             @Schema(description = "创建时绑定的启用标签 ID 列表")
-            List<@NotBlank(message = "标签ID不能为空") String> tagIds
+            List<@NotBlank(message = "标签ID不能为空") String> tagIds,
+            BigDecimal longitude,
+            BigDecimal latitude,
+            String province,
+            String city,
+            String district,
+            String township,
+            String neighborhood
     ) {
     }
 
@@ -98,6 +114,7 @@ public final class AdminHouseDtos {
             LocalDate availableDate,
             String metro,
             String description,
+            String rentMode,
             String rentType,
             String status,
             @Schema(
@@ -121,6 +138,11 @@ public final class AdminHouseDtos {
             LocalDateTime updatedAt,
             BigDecimal longitude,
             BigDecimal latitude,
+            String province,
+            String city,
+            String district,
+            String township,
+            String neighborhood,
             @Schema(description = "房源绑定的设施 ID 列表", example = "[\"facility_001\"]")
             List<String> facilityIds,
             @Schema(description = "房源绑定的标签 ID 列表", example = "[\"tag_001\"]")
@@ -148,7 +170,8 @@ public final class AdminHouseDtos {
             Integer deposit,
             @Schema(description = "付款方式，传入后服务端重新计算押金", example = "押一付三")
             String paymentMethod,
-            @Schema(description = "户型", example = "1室1厅1卫") String roomType,
+            @Size(max = 50, message = "户型不能超过50个字符")
+            @Schema(description = "服务端户型字典中的名称", example = "1室1厅1卫") String roomType,
             @Schema(description = "建筑面积，单位平方米", example = "45.5") BigDecimal area,
             @Schema(description = "楼层描述", example = "18/32层") String floor,
             @Schema(description = "朝向", example = "南") String orientation,
@@ -156,7 +179,12 @@ public final class AdminHouseDtos {
             @Schema(description = "最早可入住日期", example = "2026-07-01") LocalDate availableDate,
             @Schema(description = "地铁信息", example = "距1号线金融城站500米") String metro,
             @Schema(description = "房源详细介绍") String description,
-            @Schema(description = "租赁类型，如整租或合租", example = "整租") String rentType,
+            @Pattern(regexp = "WHOLE_RENT|SHARED_RENT", message = "出租方式不支持")
+            @Schema(description = "出租方式", allowableValues = {"WHOLE_RENT", "SHARED_RENT"}, example = "WHOLE_RENT")
+            String rentMode,
+            @Pattern(regexp = "LONG_RENT|SHORT_RENT|HOMESTAY", message = "租赁类型不支持")
+            @Schema(description = "租赁类型", allowableValues = {"LONG_RENT", "SHORT_RENT", "HOMESTAY"}, example = "LONG_RENT")
+            String rentType,
             @Schema(description = "是否支持智能门锁", example = "true") Boolean isSmartLockSupported,
             @Schema(description = "是否支持自助看房", example = "true") Boolean isSelfViewingSupported,
             @Size(max = 100, message = "房源设施不能超过100项")
@@ -164,7 +192,14 @@ public final class AdminHouseDtos {
             List<@NotBlank(message = "设施ID不能为空") String> facilityIds,
             @Size(max = 100, message = "房源标签不能超过100项")
             @Schema(description = "完整替换房源标签的启用标签 ID 列表；不传保持不变，空数组清空")
-            List<@NotBlank(message = "标签ID不能为空") String> tagIds
+            List<@NotBlank(message = "标签ID不能为空") String> tagIds,
+            BigDecimal longitude,
+            BigDecimal latitude,
+            String province,
+            String city,
+            String district,
+            String township,
+            String neighborhood
     ) {
     }
 }

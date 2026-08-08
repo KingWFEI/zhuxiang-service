@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.config.AutoUnlockProperties;
 import com.zhuxiang.service.dto.LeaseDtos;
+import com.zhuxiang.service.dto.ProfileDtos;
+import com.zhuxiang.service.entity.Community;
 import com.zhuxiang.service.entity.House;
 import com.zhuxiang.service.entity.Landlord;
 import com.zhuxiang.service.entity.Lease;
@@ -105,6 +107,38 @@ class LeaseDetailServiceTests {
         assertThat(result.pendingBillTitle()).isEqualTo("3月租金待支付");
         assertThat(result.pendingBillAmount()).isEqualTo(268000);
         assertThat(result.pendingBillDueDate()).isEqualTo(LocalDate.of(2026, 3, 5));
+    }
+
+    @Test
+    void returnsEnrichedCurrentHomesWithPerHouseLockState() {
+        Lease lease = lease();
+        House house = house();
+        house.setTitle("星河公寓 1201");
+        house.setLocation("渝北区");
+        house.setFloor("12/28层");
+        house.setSourceType("PLATFORM");
+        house.setCoverImage("https://example.com/house.jpg");
+        Community community = new Community();
+        community.setName("星河公寓");
+        SmartLock lock = new SmartLock();
+        lock.setId("lock-1");
+        lock.setStatus("BOUND");
+
+        when(leaseMapper.selectList(any(Wrapper.class))).thenReturn(List.of(lease));
+        when(houseService.getById("house-1")).thenReturn(house);
+        when(communityService.getById("community-1")).thenReturn(community);
+        when(smartLockMapper.selectLatestByHouseId("house-1")).thenReturn(lock);
+
+        List<ProfileDtos.CurrentHome> result = service.getCurrentHome("tenant-1");
+
+        assertThat(result).hasSize(1);
+        ProfileDtos.CurrentHome currentHome = result.getFirst();
+        assertThat(currentHome.title()).isEqualTo("星河公寓 1201");
+        assertThat(currentHome.monthlyRent()).isEqualTo(268000);
+        assertThat(currentHome.leaseStartDate()).isEqualTo(LocalDate.of(2026, 3, 1));
+        assertThat(currentHome.lockId()).isEqualTo("lock-1");
+        assertThat(currentHome.lockStatus()).isEqualTo("BOUND");
+        assertThat(currentHome.sourceType()).isEqualTo("PLATFORM");
     }
 
     @Test
@@ -213,6 +247,7 @@ class LeaseDetailServiceTests {
     private House house() {
         House house = new House();
         house.setId("house-1");
+        house.setCommunityId("community-1");
         house.setBuilding("3");
         house.setUnit("2");
         house.setRoom("1201");

@@ -7,6 +7,7 @@ import com.zhuxiang.service.entity.Landlord;
 import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.mapper.LandlordMapper;
 import com.zhuxiang.service.mapper.UserMapper;
+import com.zhuxiang.service.service.RealNameVerificationQueryService;
 import com.zhuxiang.service.service.impl.LandlordServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,11 +29,13 @@ class LandlordServiceTests {
 
     private final UserMapper userMapper = mock(UserMapper.class);
     private final LandlordMapper landlordMapper = mock(LandlordMapper.class);
+    private final RealNameVerificationQueryService realNameVerificationQueryService =
+            mock(RealNameVerificationQueryService.class);
     private LandlordServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new LandlordServiceImpl(userMapper);
+        service = new LandlordServiceImpl(userMapper, realNameVerificationQueryService);
         ReflectionTestUtils.setField(service, "baseMapper", landlordMapper);
     }
 
@@ -48,6 +51,7 @@ class LandlordServiceTests {
         profile.setShowEmail(1);
         when(userMapper.selectById("user-1")).thenReturn(user);
         when(landlordMapper.selectOne(any(Wrapper.class), eq(false))).thenReturn(profile);
+        when(realNameVerificationQueryService.isVerified("user-1")).thenReturn(true);
 
         LandlordDtos.ProfileView view = service.getPublicProfile("user-1");
 
@@ -120,7 +124,6 @@ class LandlordServiceTests {
         user.setRole("LANDLORD");
         user.setNickname("测试房东");
         user.setPhone("13800000000");
-        user.setIsVerified(1);
         return user;
     }
 

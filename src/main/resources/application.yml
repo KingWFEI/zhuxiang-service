@@ -50,11 +50,33 @@ mybatis-plus:
       id-type: assign_id
 
 app:
+  appointment:
+    # 仅用于联调智能门锁预约下发，生产环境必须保持 false。
+    test-slot-enabled: ${APPOINTMENT_TEST_SLOT_ENABLED:false}
+  message:
+    realtime:
+      enabled: ${MESSAGE_SSE_ENABLED:true}
+      broker: ${MESSAGE_EVENT_BROKER:memory}
+      heartbeat-ms: ${MESSAGE_SSE_HEARTBEAT_MS:20000}
+      connection-timeout-ms: ${MESSAGE_SSE_CONNECTION_TIMEOUT_MS:1800000}
+      max-connections-per-user: ${MESSAGE_SSE_MAX_CONNECTIONS_PER_USER:3}
+      rollout-percent: ${MESSAGE_SSE_ROLLOUT_PERCENT:100}
+      redis-channel: ${MESSAGE_SSE_REDIS_CHANNEL:wuyou:message-events}
   auth:
     access-token-seconds: ${ACCESS_TOKEN_SECONDS:86400}
     refresh-token-days: ${REFRESH_TOKEN_DAYS:30}
     token-secret: ${TOKEN_SECRET:change-this-secret-in-production}
-    fixed-sms-code: ${FIXED_SMS_CODE:123456}
+    sms:
+      expires-seconds: ${SMS_CODE_EXPIRES_SECONDS:300}
+      retry-after-seconds: ${SMS_RETRY_AFTER_SECONDS:60}
+      max-verify-attempts: ${SMS_MAX_VERIFY_ATTEMPTS:5}
+      phone-hourly-limit: ${SMS_PHONE_HOURLY_LIMIT:5}
+      phone-daily-limit: ${SMS_PHONE_DAILY_LIMIT:10}
+      ip-minute-limit: ${SMS_IP_MINUTE_LIMIT:10}
+      ip-daily-limit: ${SMS_IP_DAILY_LIMIT:50}
+      rate-limit-store: ${SMS_RATE_LIMIT_STORE:memory}
+      fixed-code: ${FIXED_SMS_CODE:}
+      expose-code: ${SMS_EXPOSE_CODE:false}
   upload:
     directory: ${UPLOAD_DIRECTORY:./uploads}
   storage:

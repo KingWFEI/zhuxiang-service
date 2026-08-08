@@ -48,7 +48,6 @@ public class SuperAdminInitializer {
             admin.setNickname(nickname);
             admin.setAvatarUrl("");
             admin.setRole("ADMIN");
-            admin.setIsVerified(1);
             admin.setStatus("active");
             admin.setCreatedAt(LocalDateTime.now());
             admin.setUpdatedAt(LocalDateTime.now());

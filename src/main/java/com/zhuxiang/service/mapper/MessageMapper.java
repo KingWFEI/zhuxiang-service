@@ -2,6 +2,10 @@ package com.zhuxiang.service.mapper;
 
 import com.zhuxiang.service.entity.Message;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.zhuxiang.service.dto.MessageUnreadCountRow;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
 
 /**
 * @author king-wang
@@ -11,6 +15,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 */
 public interface MessageMapper extends BaseMapper<Message> {
 
+    List<MessageUnreadCountRow> selectUnreadCounts(@Param("userId") String userId);
 }
 
 
