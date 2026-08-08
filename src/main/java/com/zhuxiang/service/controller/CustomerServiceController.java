@@ -199,13 +199,19 @@ public class CustomerServiceController {
                 int latencyMs = (int) (System.currentTimeMillis() - startMs);
 
                 // 8. 写入 LLM 调用日志
-                writeLlmLog(sessionId, assistantMsg.getId(), meta, latencyMs, null);
+                if (!meta.failed()) {
+                    writeLlmLog(sessionId, assistantMsg.getId(), meta, latencyMs, null);
 
                 // 9. 更新assistant消息
                 messageService.updateAssistantMessage(
                         assistantMsg.getId(), fullAnswer.toString(),
                         CustomerServiceEnums.MessageStatus.DONE, null
-                );
+                    );
+                } else {
+                    writeLlmLog(sessionId, assistantMsg.getId(), meta, latencyMs, "Agent 返回错误事件");
+                    messageService.markAssistantMessageFailed(
+                            assistantMsg.getId(), fullAnswer.toString(), "Agent 返回错误事件");
+                }
                 sessionService.incrementMessageCount(sessionId);
                 sessionService.updateLastMessagePreview(sessionId, fullAnswer.toString());
 
