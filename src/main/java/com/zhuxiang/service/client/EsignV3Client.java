@@ -11,6 +11,7 @@ import com.zhuxiang.service.dto.LeaseContractFillData;
 import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
@@ -36,7 +37,8 @@ public class EsignV3Client {
     private final ObjectMapper objectMapper;
     private final EsignRequestSigner signer;
 
-    public EsignV3Client(RestTemplate restTemplate, EsignV3Properties properties,
+    public EsignV3Client(@Qualifier("esignRestTemplate") RestTemplate restTemplate,
+                         EsignV3Properties properties,
                          ObjectMapper objectMapper, EsignRequestSigner signer) {
         this.restTemplate = restTemplate;
         this.properties = properties;
@@ -309,22 +311,24 @@ public class EsignV3Client {
 
         // 甲方签署人
         CreateSignFlowRequest.Signer lessor = buildSigner(d.getLessorName(), d.getLessorMobile(), d.getLessorIdCard(),
-                "lessor_sign_001", contractFileId, lessorPage, lessorX, lessorY);
+                "lessor_sign_001", contractFileId, lessorPage, lessorX, lessorY, 2);
         // 乙方签署人
         CreateSignFlowRequest.Signer tenant = buildSigner(d.getTenantName(), d.getTenantMobile(), d.getTenantIdCard(),
-                "tenant_sign_001", contractFileId, tenantPage, tenantX, tenantY);
+                "tenant_sign_001", contractFileId, tenantPage, tenantX, tenantY, 1);
 
-        req.setSigners(List.of(lessor, tenant));
+        // e签宝按签署顺序推进：租客先签，房东后签。
+        req.setSigners(List.of(tenant, lessor));
         return req;
     }
 
     private CreateSignFlowRequest.Signer buildSigner(String name, String mobile, String idCard,
                                                       String customBizNum, String fileId,
-                                                      int page, double posX, double posY) {
+                                                      int page, double posX, double posY,
+                                                      int signOrder) {
         CreateSignFlowRequest.Signer s = new CreateSignFlowRequest.Signer();
 
         CreateSignFlowRequest.SignConfig sc = new CreateSignFlowRequest.SignConfig();
-        sc.setSignOrder(1);
+        sc.setSignOrder(signOrder);
         s.setSignConfig(sc);
 
         CreateSignFlowRequest.NoticeConfig nc = new CreateSignFlowRequest.NoticeConfig();
@@ -569,9 +573,31 @@ public class EsignV3Client {
         }
         @Data @JsonIgnoreProperties(ignoreUnknown = true)
         public static class SignerDetail {
-            private String signerRole;  // "甲方" / "乙方"
-            private int signStatus;     // 0=未签, 1=已签
+            private String signerRole;
+            private int signerType;
+            private int signOrder;
+            private int signStatus;     // e签宝 V3：1=待签署，2=已签署
             private String psnAccount;
+            private PsnSigner psnSigner;
+
+            public String resolvedPsnAccount() {
+                if (psnAccount != null && !psnAccount.isBlank()) return psnAccount;
+                if (psnSigner == null || psnSigner.getPsnAccount() == null) return null;
+                PsnAccount account = psnSigner.getPsnAccount();
+                return account.getAccountMobile() != null && !account.getAccountMobile().isBlank()
+                        ? account.getAccountMobile() : account.getAccountEmail();
+            }
+        }
+        @Data @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class PsnSigner {
+            private String psnId;
+            private String psnName;
+            private PsnAccount psnAccount;
+        }
+        @Data @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class PsnAccount {
+            private String accountMobile;
+            private String accountEmail;
         }
     }
 
@@ -589,4 +615,5 @@ public class EsignV3Client {
             private String fileId; private String fileName; private String downloadUrl;
         }
     }
+
 }

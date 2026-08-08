@@ -133,6 +133,12 @@ public class House implements Serializable {
      */
     private String status;
 
+    /** 当前锁房订单ID，仅签署、支付流程占用。 */
+    private String reservedOrderId;
+
+    /** 当前锁房截止时间；支付成功等待房东签署时可为空。 */
+    private LocalDateTime reservedUntil;
+
     /**
      * 是否支持智能门锁：0否，1是
      */

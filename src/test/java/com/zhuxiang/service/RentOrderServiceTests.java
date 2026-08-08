@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -198,14 +199,15 @@ class RentOrderServiceTests {
     }
 
     @Test
-    void createOrder_shouldUseFullIdCardInContract() {
+    void createOrder_shouldNotPersistPlaintextIdCardInContract() {
         setupNewOrderSuccess();
         when(idCardCryptoService.decrypt(anyString())).thenReturn("110101199001010000");
 
         service.createOrder(TEST_USER_ID, buildRequest());
 
         verify(rentContractMapper).insert(argThat((RentContract c) ->
-                "110101199001010000".equals(c.getTenantIdCard())));
+                "".equals(c.getTenantIdCard())
+                        && "v1:mockCiphertext".equals(c.getTenantIdCardCiphertext())));
     }
 
     @Test
@@ -286,14 +288,14 @@ class RentOrderServiceTests {
     }
 
     @Test
-    void createOrder_shouldReturnExistingPendingSign() {
+    void createOrder_shouldReturnExistingPendingTenantSign() {
         RentOrder existing = buildPendingRealNameOrder();
-        existing.setStatus("pendingSign");
+        existing.setStatus("pendingTenantSign");
         when(rentOrderMapper.selectOne(any())).thenReturn(existing);
 
         RentOrderResponse result = service.createOrder(TEST_USER_ID, buildRequest());
 
-        assertThat(result.status()).isEqualTo("pendingSign");
+        assertThat(result.status()).isEqualTo("pendingTenantSign");
         assertThat(result.id()).isEqualTo(existing.getId());
     }
 
@@ -308,18 +310,19 @@ class RentOrderServiceTests {
                 .hasMessageContaining("已完成租住");
     }
 
-    // ==================== 已有订单：其他用户 ====================
+    // ==================== 其他用户的合同草稿不锁房 ====================
 
     @Test
-    void createOrder_shouldRejectWhenOtherUserHasPending() {
-        // 当前用户无进行中订单（FOR UPDATE → null）
+    void createOrder_shouldAllowDraftWhenOtherUserHasPendingContract() {
         when(rentOrderMapper.selectOne(any())).thenReturn(null);
-        // 其他用户有进行中订单 → count 返回 1
         doReturn(1L).when(service).count(any());
+        when(leaseService.count(any())).thenReturn(0L);
 
-        assertThatThrownBy(() -> service.createOrder(TEST_USER_ID, buildRequest()))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("已有租客办理中");
+        RentOrderResponse result = service.createOrder(TEST_USER_ID, buildRequest());
+
+        assertThat(result.status()).isEqualTo("pendingContract");
+        verify(rentOrderMapper).insert(any(RentOrder.class));
+        verify(rentContractMapper).insert(any(RentContract.class));
     }
 
     // ==================== 合同生成失败 ====================
@@ -332,6 +335,47 @@ class RentOrderServiceTests {
         assertThatThrownBy(() -> service.createOrder(TEST_USER_ID, buildRequest()))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("DB error");
+    }
+
+    @Test
+    void prePaymentTimeout_shouldCloseOrderContractAndReleaseHouseAtomically() {
+        LocalDateTime expiredBefore = LocalDateTime.now().minusMinutes(30);
+        RentOrder order = buildPendingRealNameOrder();
+        order.setStatus("pendingTenantSign");
+        order.setUpdatedAt(expiredBefore.minusMinutes(1));
+        order.setPrePaymentDeadlineAt(expiredBefore.minusSeconds(1));
+        RentContract contract = new RentContract();
+        contract.setOrderId(order.getId());
+        contract.setStatus("signing");
+        when(rentOrderMapper.selectByIdForUpdate(order.getId())).thenReturn(order);
+        when(rentContractMapper.selectByOrderIdForUpdate(order.getId())).thenReturn(contract);
+
+        service.processPrePaymentTimeout(order.getId(), expiredBefore);
+
+        assertThat(order.getStatus()).isEqualTo("cancelled");
+        assertThat(order.getCancelReason()).isEqualTo("支付前办理超时");
+        assertThat(contract.getStatus()).isEqualTo("expired");
+        assertThat(contract.getFailureCode()).isEqualTo("PRE_PAYMENT_TIMEOUT");
+        verify(rentOrderMapper).updateById(order);
+        verify(rentContractMapper).updateById(contract);
+        verify(houseService).lambdaUpdate();
+    }
+
+    @Test
+    void prePaymentTimeout_shouldNeverClosePaidLandlordSignOrder() {
+        LocalDateTime expiredBefore = LocalDateTime.now().minusMinutes(30);
+        RentOrder order = buildPendingRealNameOrder();
+        order.setStatus("pendingLandlordSign");
+        order.setPaidAt(expiredBefore.minusMinutes(1));
+        order.setUpdatedAt(expiredBefore.minusMinutes(1));
+        order.setPrePaymentDeadlineAt(expiredBefore.minusSeconds(1));
+        when(rentOrderMapper.selectByIdForUpdate(order.getId())).thenReturn(order);
+
+        service.processPrePaymentTimeout(order.getId(), expiredBefore);
+
+        assertThat(order.getStatus()).isEqualTo("pendingLandlordSign");
+        verify(rentOrderMapper, never()).updateById(any(RentOrder.class));
+        verify(rentContractMapper, never()).selectByOrderIdForUpdate(anyString());
     }
 
     // ==================== helpers ====================

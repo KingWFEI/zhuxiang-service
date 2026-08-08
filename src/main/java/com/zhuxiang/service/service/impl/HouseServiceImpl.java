@@ -400,7 +400,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         RentOrder activeOrder = rentOrderMapper.selectOne(
                 Wrappers.<RentOrder>lambdaQuery()
                         .eq(RentOrder::getHouseId, house.getId())
-                        .in(RentOrder::getStatus, "created", "pendingRealName", "pendingContract", "pendingPayment", "pendingSign")
+                        .in(RentOrder::getStatus,
+                                "pendingTenantSign", "pendingPayment", "pendingLandlordSign")
                         .last("LIMIT 1")
         );
         if (activeOrder != null) {

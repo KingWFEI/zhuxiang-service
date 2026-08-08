@@ -26,7 +26,10 @@
             <result property="contractConfirmedAt" column="contract_confirmed_at" />
             <result property="paidAt" column="paid_at" />
             <result property="signedAt" column="signed_at" />
+            <result property="paymentDeadlineAt" column="payment_deadline_at" />
+            <result property="prePaymentDeadlineAt" column="pre_payment_deadline_at" />
             <result property="cancelledAt" column="cancelled_at" />
+            <result property="cancelReason" column="cancel_reason" />
             <result property="createdAt" column="created_at" />
             <result property="updatedAt" column="updated_at" />
     </resultMap>
@@ -38,7 +41,7 @@
         monthly_rent,deposit,service_fee,
         first_payment_amount,total_amount,
         real_name_at,contract_confirmed_at,
-        paid_at,signed_at,cancelled_at,
+        paid_at,signed_at,payment_deadline_at,pre_payment_deadline_at,cancelled_at,cancel_reason,
         created_at,updated_at
     </sql>
 </mapper>

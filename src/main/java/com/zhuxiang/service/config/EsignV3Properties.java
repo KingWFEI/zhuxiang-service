@@ -15,6 +15,8 @@ public class EsignV3Properties {
     private String signOrderMode = "SIMULTANEOUS";
     private String notifyUrl;
     private String redirectUrl;
+    private int connectTimeoutSeconds = 15;
+    private int readTimeoutSeconds = 60;
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -39,6 +41,16 @@ public class EsignV3Properties {
 
     public String getRedirectUrl() { return redirectUrl; }
     public void setRedirectUrl(String redirectUrl) { this.redirectUrl = redirectUrl; }
+
+    public int getConnectTimeoutSeconds() { return connectTimeoutSeconds; }
+    public void setConnectTimeoutSeconds(int connectTimeoutSeconds) {
+        this.connectTimeoutSeconds = connectTimeoutSeconds;
+    }
+
+    public int getReadTimeoutSeconds() { return readTimeoutSeconds; }
+    public void setReadTimeoutSeconds(int readTimeoutSeconds) {
+        this.readTimeoutSeconds = readTimeoutSeconds;
+    }
 
     public boolean isCredentialsConfigured() {
         return enabled && appId != null && !appId.isBlank()

@@ -90,13 +90,13 @@ public class RentOrderController {
     }
 
     @PostMapping("/rent-orders/{orderId}/confirm-contract")
-    @Operation(summary = "确认租赁合同", description = "确认当前订单的合同内容，确认后进入待支付阶段。")
+    @Operation(summary = "确认租赁合同", description = "校验租客已确认合同内容；不推进订单状态，订单将在 e签宝成功返回签署链接后进入待签约。")
     public ApiResponse<RentOrderResponse> confirmContract(
             HttpServletRequest request,
             @Parameter(description = "租房订单 ID", example = "order_001") @PathVariable String orderId
     ) {
         return ApiResponse.success(
-                "合同已确认",
+                "合同内容已确认，请继续发起在线签约",
                 rentOrderService.confirmContract(CurrentUser.id(request), orderId)
         );
     }
@@ -107,9 +107,8 @@ public class RentOrderController {
             HttpServletRequest request,
             @Parameter(description = "租房订单 ID", example = "order_001") @PathVariable String orderId
     ) {
-        return ApiResponse.success(
-                rentOrderService.getPaymentInfo(CurrentUser.id(request), orderId)
-        );
+        return ApiResponse.success("租客已签署，请在15分钟内完成支付",
+                rentOrderService.getPaymentInfo(CurrentUser.id(request), orderId));
     }
 
     @PostMapping("/rent-orders/{orderId}/pay")
@@ -126,7 +125,7 @@ public class RentOrderController {
     }
 
     @PostMapping("/rent-orders/{orderId}/sign")
-    @Operation(summary = "发起电子签署", description = "支付成功后发起 e签宝电子签署，返回当前用户的签署网页链接。")
+    @Operation(summary = "发起电子签署", description = "调用 e签宝创建或复用电子签署流程；成功返回签署链接后推进订单状态。")
     public ApiResponse<EsignSignResponse> sign(
             HttpServletRequest request,
             @Parameter(description = "租房订单 ID", example = "order_001") @PathVariable String orderId

@@ -1,6 +1,7 @@
 package com.zhuxiang.service;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.zhuxiang.service.client.EsignV3Client;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.config.AutoUnlockProperties;
 import com.zhuxiang.service.dto.LeaseDtos;
@@ -58,6 +59,7 @@ class LeaseDetailServiceTests {
     private final LeaseMapper leaseMapper = mock(LeaseMapper.class);
     private final AutoUnlockProperties autoUnlockProperties = new AutoUnlockProperties();
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+    private final EsignV3Client esignV3Client = mock(EsignV3Client.class);
     private LeaseServiceImpl service;
 
     @BeforeEach
@@ -65,7 +67,7 @@ class LeaseDetailServiceTests {
         service = new LeaseServiceImpl(
                 houseService, communityService, smartLockMapper, lockPermissionService,
                 passcodePermissionService, contractMapper, billService, landlordService,
-                autoUnlockProperties, eventPublisher
+                autoUnlockProperties, eventPublisher, esignV3Client
         );
         ReflectionTestUtils.setField(service, "baseMapper", leaseMapper);
     }
@@ -148,6 +150,54 @@ class LeaseDetailServiceTests {
         assertThatThrownBy(() -> service.getLeaseDetail("lease-1", "other-tenant"))
                 .isInstanceOfSatisfying(BusinessException.class, exception ->
                         assertThat(exception.getCode()).isEqualTo(403));
+    }
+
+    @Test
+    void returnsOwnedSignedElectronicContract() {
+        Lease lease = lease();
+        lease.setPaymentMethod("monthly");
+        RentContract contract = contract();
+        contract.setContractNo("ZX-2026-001");
+        contract.setHouseName("悦居社区");
+        contract.setRoomName("3栋2单元1201");
+        contract.setHouseAddress("重庆市渝北区中央公园悦居社区");
+        contract.setStartDate(lease.getStartDate());
+        contract.setEndDate(lease.getEndDate());
+        contract.setMonthlyRent(lease.getMonthlyRent());
+        contract.setDeposit(lease.getDeposit());
+        contract.setSignFlowId("flow-1");
+
+        EsignV3Client.FileDownloadResponse.FileItem file =
+                new EsignV3Client.FileDownloadResponse.FileItem();
+        file.setDownloadUrl("https://esign.example/signed-contract.pdf");
+        EsignV3Client.FileDownloadResponse.FileDownloadData data =
+                new EsignV3Client.FileDownloadResponse.FileDownloadData();
+        data.setFiles(List.of(file));
+        EsignV3Client.FileDownloadResponse response =
+                new EsignV3Client.FileDownloadResponse();
+        response.setData(data);
+
+        when(leaseMapper.selectById("lease-1")).thenReturn(lease);
+        when(contractMapper.selectById("contract-1")).thenReturn(contract);
+        when(esignV3Client.getFileDownloadUrl("flow-1")).thenReturn(response);
+
+        LeaseDtos.LeaseContractDocument result =
+                service.getLeaseContract("lease-1", "tenant-1");
+
+        assertThat(result.contractNo()).isEqualTo("ZX-2026-001");
+        assertThat(result.statusText()).isEqualTo("已签约");
+        assertThat(result.fileUrl())
+                .isEqualTo("https://esign.example/signed-contract.pdf");
+    }
+
+    @Test
+    void rejectsAnotherTenantsElectronicContract() {
+        when(leaseMapper.selectById("lease-1")).thenReturn(lease());
+
+        assertThatThrownBy(() -> service.getLeaseContract("lease-1", "other-tenant"))
+                .isInstanceOfSatisfying(BusinessException.class, exception ->
+                        assertThat(exception.getCode()).isEqualTo(403));
+        verify(contractMapper, never()).selectById(any());
     }
 
     @Test

@@ -7,7 +7,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username:   ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:wf010931}
+    password: ${DB_PASSWORD:132135}
 #    url: ${DB_URL:jdbc:mysql://10.143.183.205:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
 #    username: ${DB_USERNAME:zhuxiang_app_user}
 #    password: ${DB_PASSWORD:Zhuxiang@2026!}
@@ -124,7 +124,7 @@ app:
 
 alipay:
   gateway-url: ${ALIPAY_GATEWAY_URL:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
-  app-id: ${ALIPAY_APP_ID:}
+  app-id: ${ALIPAY_APP_ID:9021000165654404}
   merchant-private-key: ${ALIPAY_MERCHANT_PRIVATE_KEY:}
   alipay-public-key: ${ALIPAY_ALIPAY_PUBLIC_KEY:}
   notify-url: ${ALIPAY_NOTIFY_URL:http://localhost:8000/api/payments/alipay/notify}
@@ -146,12 +146,14 @@ ttlock:
 esign:
   enabled: true
   base-url: ${ESIGN_HOST:https://smlopenapi.esign.cn}
-  app-id: ${ESIGN_APP_ID:}
-  app-secret: ${ESIGN_APP_SECRET:}
+  app-id: ${ESIGN_APP_ID:7439124670}
+  app-secret: ${ESIGN_APP_SECRET:b1ef6eb0d232a048d42c6db5d36895d4}
   auto-finish: true
   sign-order-mode: SIMULTANEOUS
   notify-url: ${ESIGN_NOTIFY_URL:}
   redirect-url: ${ESIGN_REDIRECT_URL:}
+  connect-timeout-seconds: ${ESIGN_CONNECT_TIMEOUT_SECONDS:15}
+  read-timeout-seconds: ${ESIGN_READ_TIMEOUT_SECONDS:60}
   face:
     host: ${ESIGN_FACE_HOST:https://smlopenapi.esign.cn}
     app-id: ${ESIGN_FACE_APP_ID:}

@@ -39,6 +39,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.LocalDateTime;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -153,6 +154,8 @@ public class CustomerServiceController {
         SseEmitter emitter = new SseEmitter(120_000L);  // 120秒超时
 
         CompletableFuture.runAsync(() -> {
+            CustomerServiceMessage assistantMsg = null;
+            StringBuilder fullAnswer = new StringBuilder();
             try {
                 // 1. 校验会话归属和状态
                 var session = sessionService.requireOwnedSession(userId, sessionId);
@@ -184,13 +187,12 @@ public class CustomerServiceController {
                 sessionService.touchSession(sessionId);
 
                 // 5. 创建assistant消息占位
-                CustomerServiceMessage assistantMsg = messageService.createAssistantMessagePlaceholder(sessionId);
+                List<CustomerServiceDtos.AgentHistoryItem> history = buildHistory(userId, sessionId, userMsg.id());
+                assistantMsg = messageService.createAssistantMessagePlaceholder(sessionId);
 
                 // 6. 构建历史消息
-                List<CustomerServiceDtos.AgentHistoryItem> history = buildHistory(userId, sessionId);
 
                 // 7. 调用Agent并转发SSE，记录耗时
-                StringBuilder fullAnswer = new StringBuilder();
                 long startMs = System.currentTimeMillis();
                 SseMetadata meta = forwardAgentSse(emitter, sessionId, userId, userMsg.id(),
                         assistantMsg.getId(), userMessageContent, history, fullAnswer);
