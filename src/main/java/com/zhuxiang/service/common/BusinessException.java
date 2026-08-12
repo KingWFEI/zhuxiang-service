@@ -3,6 +3,7 @@ package com.zhuxiang.service.common;
 public class BusinessException extends RuntimeException {
 
     private final int code;
+    private final String businessCode;
     private final Object data;
 
     public BusinessException(int code, String message) {
@@ -10,8 +11,13 @@ public class BusinessException extends RuntimeException {
     }
 
     public BusinessException(int code, String message, Object data) {
+        this(code, null, message, data);
+    }
+
+    public BusinessException(int code, String businessCode, String message, Object data) {
         super(message);
         this.code = code;
+        this.businessCode = businessCode;
         this.data = data;
     }
 
@@ -21,6 +27,10 @@ public class BusinessException extends RuntimeException {
 
     public Object getData() {
         return data;
+    }
+
+    public String getBusinessCode() {
+        return businessCode;
     }
 
     public static BusinessException badRequest(String message) {
@@ -41,6 +51,10 @@ public class BusinessException extends RuntimeException {
 
     public static BusinessException conflict(String message) {
         return new BusinessException(409, message);
+    }
+
+    public static BusinessException conflict(String businessCode, String message) {
+        return new BusinessException(409, businessCode, message, null);
     }
 
     public static BusinessException tooManyRequests(String message) {

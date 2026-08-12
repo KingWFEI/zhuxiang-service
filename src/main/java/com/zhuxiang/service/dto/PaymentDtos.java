@@ -14,6 +14,7 @@ public final class PaymentDtos {
     public record PaymentItem(
             @Schema(description = "支付记录 ID", example = "pay_xxx") String id,
             @Schema(description = "支付编号", example = "ZF202606300001") String paymentNo,
+            @Schema(description = "关联租房订单 ID") String orderId,
             @Schema(description = "关联账单 ID") String billId,
             @Schema(description = "关联租约 ID") String leaseId,
             @Schema(description = "房源名称", example = "3栋2单元1201") String houseName,
@@ -33,6 +34,7 @@ public final class PaymentDtos {
     public record PaymentDetail(
             @Schema(description = "支付记录 ID", example = "pay_xxx") String id,
             @Schema(description = "支付编号", example = "ZF202606300001") String paymentNo,
+            @Schema(description = "关联租房订单 ID") String orderId,
             @Schema(description = "关联账单 ID") String billId,
             @Schema(description = "关联租约 ID") String leaseId,
             @Schema(description = "房源名称", example = "3栋2单元1201") String houseName,

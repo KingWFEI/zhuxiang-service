@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
@@ -117,7 +119,8 @@ public class DepositServiceImpl extends ServiceImpl<DepositRecordMapper, Deposit
         if (record == null) {
             throw BusinessException.notFound("押金记录不存在");
         }
-        if (!"deducted".equals(record.getStatus())) {
+        if ("refunded".equals(record.getStatus())) return;
+        if (!"deducted".equals(record.getStatus()) && !"refunding".equals(record.getStatus())) {
             throw BusinessException.badRequest("当前押金状态不允许退款");
         }
 
@@ -133,49 +136,97 @@ public class DepositServiceImpl extends ServiceImpl<DepositRecordMapper, Deposit
             return;
         }
 
-        record.setStatus("refunding");
-        record.setUpdatedAt(LocalDateTime.now());
-        updateById(record);
+        if ("deducted".equals(record.getStatus())) {
+            record.setStatus("refunding");
+            record.setUpdatedAt(LocalDateTime.now());
+            updateById(record);
+        }
 
-        if (record.getPaymentRecordId() != null) {
-            PaymentRecord originalPayment = paymentRecordService.getById(record.getPaymentRecordId());
-            if (originalPayment != null && originalPayment.getChannelTradeNo() != null) {
-                String outRequestNo = "RFD" + record.getId().replace("-", "").substring(0, 24);
-                try {
-                    AlipayService.AlipayRefundResult result = alipayService.refund(
+        PaymentRecord originalPayment = record.getPaymentRecordId() != null
+                ? paymentRecordService.getById(record.getPaymentRecordId())
+                : null;
+        if (originalPayment == null) {
+            log.error("押金退款缺少原支付记录 depositRecordId={} paymentRecordId={}",
+                    depositRecordId, record.getPaymentRecordId());
+            return;
+        }
+
+        String paymentChannel = originalPayment.getPaymentChannel();
+        String refundTradeNo = null;
+        if ("alipay".equals(paymentChannel)) {
+            if (!"success".equals(originalPayment.getStatus())
+                    || !StringUtils.hasText(originalPayment.getPaymentNo())
+                    || !StringUtils.hasText(originalPayment.getChannelTradeNo())) {
+                log.error("支付宝退款原支付记录无效 depositRecordId={} paymentRecordId={} status={}",
+                        depositRecordId, originalPayment.getId(), originalPayment.getStatus());
+                return;
+            }
+
+            String compactId = record.getId().replace("-", "");
+            String outRequestNo = "RFD" + compactId.substring(0, Math.min(24, compactId.length()));
+            try {
+                AlipayService.AlipayRefundResult result = alipayService.queryRefund(
+                        originalPayment.getPaymentNo(), outRequestNo);
+                boolean confirmed = result != null
+                        && "REFUND_SUCCESS".equals(result.refundStatus());
+                if (!confirmed) {
+                    result = alipayService.refund(
                             originalPayment.getPaymentNo(),
-                            String.valueOf(refundAmount),
+                            toAlipayAmount(refundAmount),
                             outRequestNo
                     );
-                    if (result != null) {
-                        record.setRefundTradeNo(result.tradeNo());
-                        record.setRefundChannel("alipay");
-                    }
-                } catch (Exception e) {
-                    log.error("支付宝退款调用异常 depositRecordId={}", depositRecordId, e);
-                    // 退款失败仍保留 refunding 状态，等待人工处理
+                    confirmed = result != null && "Y".equals(result.fundChange());
+                }
+                if (!confirmed) {
+                    log.error("支付宝退款结果未知，保留退款中状态 depositRecordId={} outRequestNo={}",
+                            depositRecordId, outRequestNo);
                     return;
                 }
+                refundTradeNo = result.tradeNo();
+                record.setRefundTradeNo(refundTradeNo);
+                record.setRefundChannel("alipay");
+            } catch (Exception e) {
+                log.error("支付宝退款调用异常 depositRecordId={}", depositRecordId, e);
+                // 退款失败或结果未知时绝不能记为成功，保留 refunding 等待查询/人工处理。
+                return;
             }
+        } else if ("mock".equals(paymentChannel)) {
+            record.setRefundChannel("mock");
+        } else {
+            log.error("暂不支持该渠道原路退款 depositRecordId={} paymentChannel={}",
+                    depositRecordId, paymentChannel);
+            return;
         }
 
         // 创建退款支付记录
-        PaymentRecord refundRecord = new PaymentRecord();
-        refundRecord.setId(UUID.randomUUID().toString());
-        refundRecord.setPaymentNo(paymentRecordService.generatePaymentNo());
-        refundRecord.setUserId(record.getUserId());
-        refundRecord.setLeaseId(record.getLeaseId());
-        refundRecord.setHouseId(record.getHouseId());
-        refundRecord.setAmount(refundAmount);
-        refundRecord.setPaymentChannel(record.getRefundChannel() != null ? record.getRefundChannel() : "alipay");
-        refundRecord.setStatus("success");
-        refundRecord.setType("refund");
-        refundRecord.setRemark("押金退款");
-        refundRecord.setRefundToRecordId(record.getPaymentRecordId());
-        refundRecord.setPaidAt(LocalDateTime.now());
-        refundRecord.setCreatedAt(LocalDateTime.now());
-        refundRecord.setUpdatedAt(LocalDateTime.now());
-        paymentRecordService.save(refundRecord);
+        PaymentRecord refundRecord = paymentRecordService.getOne(
+                Wrappers.<PaymentRecord>lambdaQuery()
+                        .eq(PaymentRecord::getRefundToRecordId, record.getPaymentRecordId())
+                        .eq(PaymentRecord::getType, "refund")
+                        .last("LIMIT 1"), false);
+        if (refundRecord == null) {
+            refundRecord = new PaymentRecord();
+            refundRecord.setId(UUID.randomUUID().toString());
+            refundRecord.setPaymentNo(paymentRecordService.generatePaymentNo());
+            // payment_record.order_id 为必填；退款流水沿用原支付单的订单归属。
+            refundRecord.setOrderId(originalPayment.getOrderId());
+            refundRecord.setBillId(originalPayment.getBillId());
+            refundRecord.setUserId(record.getUserId());
+            refundRecord.setLeaseId(record.getLeaseId());
+            refundRecord.setHouseId(record.getHouseId());
+            refundRecord.setHouseName(originalPayment.getHouseName());
+            refundRecord.setAmount(refundAmount);
+            refundRecord.setPaymentChannel(record.getRefundChannel());
+            refundRecord.setChannelTradeNo(refundTradeNo);
+            refundRecord.setStatus("success");
+            refundRecord.setType("refund");
+            refundRecord.setRemark("押金退款");
+            refundRecord.setRefundToRecordId(record.getPaymentRecordId());
+            refundRecord.setPaidAt(LocalDateTime.now());
+            refundRecord.setCreatedAt(LocalDateTime.now());
+            refundRecord.setUpdatedAt(LocalDateTime.now());
+            paymentRecordService.save(refundRecord);
+        }
 
         record.setRefundPaymentRecordId(refundRecord.getId());
         record.setRefundedAmount(refundAmount);
@@ -183,6 +234,13 @@ public class DepositServiceImpl extends ServiceImpl<DepositRecordMapper, Deposit
         record.setRefundedAt(LocalDateTime.now());
         record.setUpdatedAt(LocalDateTime.now());
         updateById(record);
+    }
+
+    static String toAlipayAmount(int amountInCents) {
+        return BigDecimal.valueOf(amountInCents)
+                .movePointLeft(2)
+                .setScale(2, RoundingMode.UNNECESSARY)
+                .toPlainString();
     }
 
     @Override

@@ -163,7 +163,7 @@ public class RentOrderController {
             @PathVariable String orderId
     ) {
         return ApiResponse.success(
-                "订单已取消",
+                "订单取消请求已处理",
                 rentOrderService.cancelOrder(CurrentUser.id(request), orderId)
         );
     }

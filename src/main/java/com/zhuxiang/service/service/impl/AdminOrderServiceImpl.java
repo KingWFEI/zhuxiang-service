@@ -22,7 +22,8 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     private static final Set<String> ROLES = Set.of("ADMIN", "HOUSEKEEPER");
     private static final Set<String> STATUSES = Set.of("created", "pendingRealName", "pendingContract",
             "pendingTenantSign", "pendingPayment", "pendingLandlordSign",
-            "paymentExpired", "completed", "cancelled");
+            "paymentExpired", "refundPending", "refunded", "refundFailed",
+            "completed", "cancelled");
 
     private final RentOrderMapper orderMapper;
     private final RentContractMapper contractMapper;

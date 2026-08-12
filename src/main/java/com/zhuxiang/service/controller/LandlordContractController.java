@@ -13,11 +13,13 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -62,6 +64,18 @@ public class LandlordContractController {
     ) {
         return ApiResponse.success("请打开签署链接完成签名",
                 landlordContractService.sign(CurrentUser.id(request), orderId));
+    }
+
+    @PostMapping("/{orderId}/reject")
+    @Operation(summary = "拒绝签署租赁合同",
+            description = "房东明确拒签后立即终止签署流程、释放房源并为租客发起原路退款；重复请求幂等。")
+    public ApiResponse<Void> reject(
+            HttpServletRequest request,
+            @Parameter(description = "租房订单 ID") @PathVariable String orderId,
+            @Valid @RequestBody LandlordContractDtos.RejectRequest body
+    ) {
+        landlordContractService.reject(CurrentUser.id(request), orderId, body);
+        return ApiResponse.success("已拒绝签署，退款正在处理", null);
     }
 
     @PostMapping("/{orderId}/refresh")

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhuxiang.service.config.EsignV3Properties;
 import com.zhuxiang.service.service.EsignCallbackData;
 import com.zhuxiang.service.service.RentOrderService;
+import com.zhuxiang.service.service.LeaseTerminationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,13 +42,16 @@ public class EsignCallbackController {
 
     private final EsignV3Properties properties;
     private final RentOrderService rentOrderService;
+    private final LeaseTerminationService leaseTerminationService;
     private final ObjectMapper objectMapper;
 
     public EsignCallbackController(EsignV3Properties properties,
                                    RentOrderService rentOrderService,
+                                   LeaseTerminationService leaseTerminationService,
                                    ObjectMapper objectMapper) {
         this.properties = properties;
         this.rentOrderService = rentOrderService;
+        this.leaseTerminationService = leaseTerminationService;
         this.objectMapper = objectMapper;
     }
 
@@ -152,7 +156,9 @@ public class EsignCallbackController {
         callback.setSignFlowFinishTime(finishTimeObj instanceof Number
                 ? ((Number) finishTimeObj).longValue() : null);
 
-        rentOrderService.processEsignCallback(callback);
+        if (!leaseTerminationService.processRescissionCallback(signFlowId, signFlowStatus)) {
+            rentOrderService.processEsignCallback(callback);
+        }
         return ResponseEntity.ok("OK");
     }
 

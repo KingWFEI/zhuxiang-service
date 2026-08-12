@@ -14,11 +14,16 @@ import java.time.LocalDateTime;
 public class LeaseTerminationApplication implements Serializable {
 
     public static final String STATUS_PENDING_REVIEW = "pending_review";
+    public static final String STATUS_PENDING_PHOTOS = "pending_photos";
     public static final String STATUS_NEED_SUPPLEMENT = "need_supplement";
     public static final String STATUS_APPROVED = "approved";
     public static final String STATUS_INSPECTION_PENDING = "inspection_pending";
     public static final String STATUS_SETTLEMENT_PENDING = "settlement_pending";
     public static final String STATUS_REFUND_PENDING = "refund_pending";
+    public static final String STATUS_REFUND_FAILED = "refund_failed";
+    public static final String STATUS_RESCISSION_PENDING = "rescission_pending";
+    public static final String STATUS_RESCISSION_SIGNING = "rescission_signing";
+    public static final String STATUS_RESCISSION_FAILED = "rescission_failed";
     public static final String STATUS_COMPLETED = "completed";
     public static final String STATUS_REJECTED = "rejected";
     public static final String STATUS_CANCELLED = "cancelled";
@@ -85,6 +90,36 @@ public class LeaseTerminationApplication implements Serializable {
     private Integer totalDeduction;
 
     private Integer refundAmount;
+
+    private Integer recommendedRefundAmount;
+
+    private String refundAdjustmentReason;
+
+    private String settlementOperatorId;
+
+    private String rescissionSignFlowId;
+
+    private String rescissionStatus;
+
+    private String terminationMode;
+
+    private String manualTerminationReason;
+
+    private String manualAgreementUrls;
+
+    private String manualCompletedBy;
+
+    private LocalDateTime manualCompletedAt;
+
+    private LocalDateTime rescissionStartedAt;
+
+    private LocalDateTime rescissionCompletedAt;
+
+    private String processLastError;
+
+    private LocalDateTime processRetryAt;
+
+    private Integer processRetryCount;
 
     private LocalDateTime settlementConfirmedTime;
 

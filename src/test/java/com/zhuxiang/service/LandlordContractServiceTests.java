@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.dto.EsignSignResponse;
 import com.zhuxiang.service.dto.EsignSignStatusResponse;
+import com.zhuxiang.service.dto.LandlordContractDtos;
 import com.zhuxiang.service.entity.House;
 import com.zhuxiang.service.entity.RentContract;
 import com.zhuxiang.service.entity.RentOrder;
@@ -104,6 +105,27 @@ class LandlordContractServiceTests {
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("无权操作");
         verify(rentOrderService, never()).sign(any(), any());
+    }
+
+    @Test
+    void landlordCanExplicitlyRejectSignature() {
+        when(rentOrderMapper.selectById(ORDER_ID)).thenReturn(order(LANDLORD_ID));
+
+        service.reject(LANDLORD_ID, ORDER_ID,
+                new LandlordContractDtos.RejectRequest("合同信息无法确认"));
+
+        verify(rentOrderService).rejectLandlordSignature(
+                LANDLORD_ID, ORDER_ID, "合同信息无法确认");
+    }
+
+    @Test
+    void landlordCannotRejectAnotherLandlordsOrder() {
+        when(rentOrderMapper.selectById(ORDER_ID)).thenReturn(order("another-landlord"));
+
+        assertThatThrownBy(() -> service.reject(LANDLORD_ID, ORDER_ID,
+                new LandlordContractDtos.RejectRequest("拒绝")))
+                .isInstanceOf(BusinessException.class);
+        verify(rentOrderService, never()).rejectLandlordSignature(any(), any(), any());
     }
 
     @Test

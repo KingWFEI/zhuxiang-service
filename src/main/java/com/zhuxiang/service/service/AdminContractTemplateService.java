@@ -8,7 +8,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface AdminContractTemplateService {
-    PageData<AdminContractTemplateDtos.Summary> list(long page, long pageSize, String keyword, String status);
+    PageData<AdminContractTemplateDtos.Summary> list(
+            long page, long pageSize, String keyword, String status, String businessType);
     AdminContractTemplateDtos.Detail get(String templateId);
     AdminContractTemplateDtos.Detail create(AdminContractTemplateDtos.CreateRequest request, String operatorId);
     AdminContractTemplateDtos.Detail uploadSource(String templateId, MultipartFile file, String operatorId);
@@ -28,7 +29,7 @@ public interface AdminContractTemplateService {
     List<AdminContractTemplateDtos.AuditLog> auditLogs(String templateId);
 
     RuntimeTemplate resolveRuntimeTemplate(String templateConfigId, LeaseContractFillData fillData);
-    RuntimeTemplate resolveActiveRuntimeTemplate(LeaseContractFillData fillData);
+    RuntimeTemplate resolveActiveRuntimeTemplate(String businessType, LeaseContractFillData fillData);
 
     record SignaturePosition(int page, double x, double y) {}
     record RuntimeTemplate(

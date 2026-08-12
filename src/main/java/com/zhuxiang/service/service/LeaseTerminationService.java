@@ -14,9 +14,17 @@ public interface LeaseTerminationService extends IService<LeaseTerminationApplic
 
     LeaseTerminationDtos.TerminationDetailResponse getDetail(String userId, String applicationId);
 
+    LeaseTerminationDtos.RescissionSignUrlResponse getRescissionSignUrl(String userId, String applicationId);
+
     void supplement(String userId, String applicationId, LeaseTerminationDtos.SupplementRequest request);
 
     void cancel(String userId, String applicationId, LeaseTerminationDtos.CancelRequest request);
+
+    LeaseTerminationDtos.TerminationDetailResponse adminCancel(
+            String adminId,
+            String applicationId,
+            LeaseTerminationDtos.CancelRequest request
+    );
 
     LeaseTerminationDtos.TerminationDetailResponse getDetailForAdmin(String applicationId);
 
@@ -35,4 +43,12 @@ public interface LeaseTerminationService extends IService<LeaseTerminationApplic
     );
 
     LeaseTerminationDtos.TerminationDetailResponse completeRefund(String adminId, String applicationId);
+
+    void markPhotosSubmitted(String userId, String contractId);
+
+    void completeInspectionByContract(String adminId, String contractId, String comment);
+
+    void processPendingFlow(String applicationId);
+
+    boolean processRescissionCallback(String signFlowId, Integer signFlowStatus);
 }

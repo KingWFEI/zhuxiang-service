@@ -11,6 +11,8 @@ import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.LeaseTerminationDtos;
 import com.zhuxiang.service.entity.LeaseTerminationApplication;
 import com.zhuxiang.service.service.LeaseTerminationService;
+import com.zhuxiang.service.service.InspectionService;
+import com.zhuxiang.service.dto.InspectionDtos;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -35,9 +37,12 @@ import java.util.List;
 public class LeaseTerminationAdminController {
 
     private final LeaseTerminationService leaseTerminationService;
+    private final InspectionService inspectionService;
 
-    public LeaseTerminationAdminController(LeaseTerminationService leaseTerminationService) {
+    public LeaseTerminationAdminController(LeaseTerminationService leaseTerminationService,
+                                           InspectionService inspectionService) {
         this.leaseTerminationService = leaseTerminationService;
+        this.inspectionService = inspectionService;
     }
 
     @GetMapping
@@ -77,6 +82,17 @@ public class LeaseTerminationAdminController {
         return ApiResponse.success(leaseTerminationService.getDetailForAdmin(id));
     }
 
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "撤销退租申请", description = "管理员代租客撤销尚未结算的退租申请，原租约继续有效。")
+    public ApiResponse<LeaseTerminationDtos.TerminationDetailResponse> cancel(
+            HttpServletRequest request,
+            @PathVariable String id,
+            @Valid @RequestBody LeaseTerminationDtos.CancelRequest body
+    ) {
+        return ApiResponse.success("退租申请已撤销",
+                leaseTerminationService.adminCancel(CurrentUser.id(request), id, body));
+    }
+
     @PostMapping("/{id}/approve")
     @Operation(summary = "审核通过", description = "审核通过后自动创建验房任务，状态变为 inspection_pending。")
     public ApiResponse<LeaseTerminationDtos.TerminationDetailResponse> approve(
@@ -110,13 +126,19 @@ public class LeaseTerminationAdminController {
     }
 
     @PostMapping("/{id}/inspection/complete")
-    @Operation(summary = "验房完成", description = "验房完成后进入待结算状态。")
+    @Operation(summary = "验房完成", description = "兼容入口：锁定验房照片并自动进入待结算状态。")
     public ApiResponse<LeaseTerminationDtos.TerminationDetailResponse> completeInspection(
             HttpServletRequest request,
             @PathVariable String id
     ) {
+        LeaseTerminationApplication application = leaseTerminationService.getById(id);
+        if (application == null) {
+            throw com.zhuxiang.service.common.BusinessException.notFound("退租申请不存在");
+        }
+        inspectionService.lockInspection(CurrentUser.id(request), application.getContractId(),
+                new InspectionDtos.LockRequest("管理端确认线下验房完成"));
         return ApiResponse.success("验房完成",
-                leaseTerminationService.completeInspection(CurrentUser.id(request), id));
+                leaseTerminationService.getDetailForAdmin(id));
     }
 
     @PostMapping("/{id}/settlement/confirm")
@@ -124,18 +146,14 @@ public class LeaseTerminationAdminController {
     public ApiResponse<LeaseTerminationDtos.TerminationDetailResponse> confirmSettlement(
             HttpServletRequest request,
             @PathVariable String id,
-            @Valid @RequestBody(required = false) LeaseTerminationDtos.SettlementConfirmRequest body
+            @Valid @RequestBody LeaseTerminationDtos.SettlementConfirmRequest body
     ) {
-        LeaseTerminationApplication application = leaseTerminationService.getById(id);
-        if (application != null && LeaseTerminationApplication.STATUS_INSPECTION_PENDING.equals(application.getStatus())) {
-            leaseTerminationService.completeInspection(CurrentUser.id(request), id);
-        }
         return ApiResponse.success("结算已确认",
                 leaseTerminationService.confirmSettlement(CurrentUser.id(request), id, body));
     }
 
     @PostMapping("/{id}/refund/complete")
-    @Operation(summary = "退款完成", description = "确认退款完成，退租流程全部结束。")
+    @Operation(summary = "重试退款", description = "触发退款状态查询/重试；退款确认后自动进入合同解约，不允许人工直接标记退款成功。")
     public ApiResponse<LeaseTerminationDtos.TerminationDetailResponse> completeRefund(
             HttpServletRequest request,
             @PathVariable String id
@@ -145,17 +163,21 @@ public class LeaseTerminationAdminController {
     }
 
     @PostMapping("/{id}/complete")
-    @Operation(summary = "完成退租", description = "简单版完成按钮：待退款则完成退款，待结算则确认结算并完成。")
+    @Operation(summary = "推进退租流程", description = "触发退款或解约状态查询；不能绕过结算、退款和解约直接完成退租。")
     public ApiResponse<LeaseTerminationDtos.TerminationDetailResponse> complete(
             HttpServletRequest request,
             @PathVariable String id
     ) {
         LeaseTerminationApplication application = leaseTerminationService.getById(id);
-        if (application != null && LeaseTerminationApplication.STATUS_REFUND_PENDING.equals(application.getStatus())) {
-            return ApiResponse.success("退租已完成",
-                    leaseTerminationService.completeRefund(CurrentUser.id(request), id));
+        if (application == null) {
+            return ApiResponse.success(leaseTerminationService.getDetailForAdmin(id));
         }
-        return ApiResponse.success("退租已完成",
-                leaseTerminationService.confirmSettlement(CurrentUser.id(request), id, null));
+        if (LeaseTerminationApplication.STATUS_SETTLEMENT_PENDING.equals(application.getStatus())) {
+            throw com.zhuxiang.service.common.BusinessException.badRequest("请先填写并确认退款结算金额");
+        }
+        leaseTerminationService.processPendingFlow(id);
+        return ApiResponse.success("退租流程状态已刷新",
+                leaseTerminationService.getDetailForAdmin(id));
     }
+
 }

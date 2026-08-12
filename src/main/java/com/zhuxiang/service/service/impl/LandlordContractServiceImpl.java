@@ -90,6 +90,14 @@ public class LandlordContractServiceImpl implements LandlordContractService {
     }
 
     @Override
+    public void reject(String landlordUserId, String orderId,
+                       LandlordContractDtos.RejectRequest request) {
+        requireLandlordRole(landlordUserId);
+        requireLandlordOrder(landlordUserId, orderId);
+        rentOrderService.rejectLandlordSignature(landlordUserId, orderId, request.reason().trim());
+    }
+
+    @Override
     public EsignSignStatusResponse refresh(String landlordUserId, String orderId) {
         requireLandlordRole(landlordUserId);
         requireLandlordOrder(landlordUserId, orderId);

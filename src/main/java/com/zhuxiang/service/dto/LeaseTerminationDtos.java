@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -77,12 +78,33 @@ public final class LeaseTerminationDtos {
             @Schema(description = "状态文本") String statusText,
             @Schema(description = "驳回原因") String rejectReason,
             @Schema(description = "补充材料要求") String supplementReason,
+            @Schema(description = "押金金额(分)") Integer depositAmount,
+            @Schema(description = "当前未缴账单金额(分)") Integer unpaidAmount,
             @Schema(description = "总扣款(分)") Integer totalDeduction,
             @Schema(description = "应退金额(分)") Integer refundAmount,
+            @Schema(description = "系统建议退款金额(分)") Integer recommendedRefundAmount,
+            @Schema(description = "退款金额调整原因") String refundAdjustmentReason,
+            @Schema(description = "解约签署流程ID") String rescissionSignFlowId,
+            @Schema(description = "解约状态") String rescissionStatus,
+            @Schema(description = "退租完成方式: ESIGN/MANUAL") String terminationMode,
+            @Schema(description = "管理端线下解约归档原因") String manualTerminationReason,
+            @Schema(description = "线下解约协议或凭证URL") List<String> manualAgreementUrls,
+            @Schema(description = "线下解约确认管理员ID") String manualCompletedBy,
+            @Schema(description = "线下解约确认时间") LocalDateTime manualCompletedAt,
+            @Schema(description = "退款/解约流程最近一次错误") String processLastError,
             @Schema(description = "实际搬离日期") LocalDate actualMoveOutDate,
             @Schema(description = "创建时间") LocalDateTime createdAt,
             @Schema(description = "更新时间") LocalDateTime updatedAt,
             @Schema(description = "时间线") List<TimelineItem> timeline
+    ) {
+    }
+
+    @Schema(description = "解约协议签署链接")
+    public record RescissionSignUrlResponse(
+            @Schema(description = "当前动作：authorize/sign") String action,
+            @Schema(description = "解约签署流程ID") String signFlowId,
+            @Schema(description = "签署页面链接") String signUrl,
+            @Schema(description = "签署页面短链接") String shortUrl
     ) {
     }
 
@@ -127,7 +149,8 @@ public final class LeaseTerminationDtos {
     @Schema(description = "确认退租结算请求")
     public record SettlementConfirmRequest(
             @Schema(description = "结算扣款金额(分)") Integer settlementAmount,
-            @Schema(description = "应退金额(分)") Integer refundAmount,
+            @Schema(description = "管理端确认的应退金额(分)") @NotNull @PositiveOrZero Integer refundAmount,
+            @Schema(description = "调整退款金额原因；与系统建议金额不一致时必填") @Size(max = 1000) String adjustmentReason,
             @Schema(description = "结算备注") @Size(max = 1000) String remark,
             @Schema(description = "扣款明细") List<DeductionItem> deductions
     ) {

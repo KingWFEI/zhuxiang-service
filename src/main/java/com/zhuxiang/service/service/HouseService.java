@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.zhuxiang.service.common.PageData;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import com.zhuxiang.service.dto.AdminHouseDtos;
 import com.zhuxiang.service.dto.HouseDtos;
 import com.zhuxiang.service.dto.HousePropertyCertificateDtos;
@@ -15,6 +16,12 @@ import com.zhuxiang.service.dto.HousePropertyCertificateDtos;
 * @createDate 2026-06-12 19:57:05
 */
 public interface HouseService extends IService<House> {
+
+    House getByIdForUpdate(String houseId);
+
+    boolean acquireRentalReservation(String houseId, String orderId, LocalDateTime expiresAt);
+
+    boolean releaseRentalReservation(String houseId, String orderId);
 
     /**
      * 分页获取首页房源流。
