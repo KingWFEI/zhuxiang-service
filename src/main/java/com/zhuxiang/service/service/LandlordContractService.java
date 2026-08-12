@@ -14,5 +14,7 @@ public interface LandlordContractService {
 
     EsignSignResponse sign(String landlordUserId, String orderId);
 
+    void reject(String landlordUserId, String orderId, LandlordContractDtos.RejectRequest request);
+
     EsignSignStatusResponse refresh(String landlordUserId, String orderId);
 }

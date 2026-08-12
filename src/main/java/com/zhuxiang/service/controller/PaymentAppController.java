@@ -38,7 +38,7 @@ public class PaymentAppController {
     @GetMapping("/my")
     @Operation(summary = "我的支付记录", description = "分页查询当前登录用户的支付记录，支持按状态和类型筛选")
     public ApiResponse<PageData<PaymentItem>> listMyPayments(
-            @Parameter(description = "支付状态：pending/success/failed/refunded")
+            @Parameter(description = "支付状态：pending/success/failed/refundPending/refunded/refundFailed")
             @RequestParam(required = false) String status,
             @Parameter(description = "支付类型：rent/deposit/service_fee/refund")
             @RequestParam(required = false) String type,

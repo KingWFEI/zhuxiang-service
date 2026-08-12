@@ -36,8 +36,11 @@ public class AdminContractTemplateController {
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "20") long pageSize,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String status) {
-        operator(req); return ApiResponse.success(service.list(page, Math.min(pageSize, 100), keyword, status));
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String businessType) {
+        operator(req);
+        return ApiResponse.success(service.list(
+                page, Math.min(pageSize, 100), keyword, status, businessType));
     }
 
     @GetMapping("/{id}")

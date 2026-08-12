@@ -27,6 +27,9 @@ public interface RentOrderService extends IService<RentOrder> {
 
     EsignSignResponse sign(String userId, String orderId);
 
+    /** 房东明确拒签后立即关闭合同、发起原路退款并释放房源。 */
+    void rejectLandlordSignature(String landlordUserId, String orderId, String reason);
+
     EsignSignStatusResponse contractRefresh(String userId, String orderId);
 
     ContractDownloadUrlResponse contractDownloadUrl(String userId, String orderId);
@@ -40,6 +43,9 @@ public interface RentOrderService extends IService<RentOrder> {
 
     /** 将租客签署后超过支付时限的订单置为失效并释放房源。 */
     void processPaymentTimeout(String orderId);
+
+    /** 支付后房东超过签约期限时撤销未完成合同并发起退款。 */
+    void processLandlordSignTimeout(String orderId);
 
     /** 将支付前长期未继续办理的订单原子关闭，并释放房源。 */
     void processPrePaymentTimeout(String orderId, java.time.LocalDateTime now);

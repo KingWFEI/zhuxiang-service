@@ -35,10 +35,12 @@ public class GlobalExceptionHandler {
             return ResponseEntity.status(exception.getCode()).build();
         }
         return ResponseEntity.status(exception.getCode())
-                .body(ApiResponse.error(
-                        exception.getCode(), exception.getMessage(), exception.getData()
-                ));
+                .body(exception.getBusinessCode() == null
+                        ? ApiResponse.error(exception.getCode(), exception.getMessage(), exception.getData())
+                        : new BusinessErrorResponse(exception.getBusinessCode(), exception.getMessage(), exception.getData()));
     }
+
+    private record BusinessErrorResponse(String code, String message, Object data) {}
 
     private boolean isSseRequest(HttpServletRequest request) {
         String accept = request.getHeader("Accept");

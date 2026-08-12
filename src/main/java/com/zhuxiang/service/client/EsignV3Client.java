@@ -18,9 +18,11 @@ import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -36,6 +38,8 @@ public class EsignV3Client {
     private final EsignV3Properties properties;
     private final ObjectMapper objectMapper;
     private final EsignRequestSigner signer;
+    private volatile String resolvedPlatformOrgId;
+    private volatile String resolvedPlatformTransactorPsnId;
 
     public EsignV3Client(@Qualifier("esignRestTemplate") RestTemplate restTemplate,
                          EsignV3Properties properties,
@@ -140,6 +144,25 @@ public class EsignV3Client {
         requireConfigured();
         CreateSignFlowRequest req = buildSignFlowRequest(contractFileId, fillData,
                 lessorPage, lessorX, lessorY, tenantPage, tenantX, tenantY);
+        // Rescission requires an organization transactor.  If this is omitted,
+        // eSign records the default platform initiator with transactor=null; the
+        // completed contract then cannot be matched when rescission supplies the
+        // mandatory transactor (1439107).  Persist the exact platform identity on
+        // every new contract so it can be reused unchanged for rescission.
+        req.setSignFlowInitiator(buildPlatformSignFlowInitiator());
+        String path = "/v3/sign-flow/create-by-file";
+        CreateSignFlowResponse response = post(path, req, CreateSignFlowResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        return response;
+    }
+
+    public CreateSignFlowResponse createPlatformSignFlow(String contractFileId, LeaseContractFillData fillData,
+                                                          int lessorPage, double lessorX, double lessorY,
+                                                          int tenantPage, double tenantX, double tenantY) {
+        requireConfigured();
+        CreateSignFlowRequest req = buildPlatformSignFlowRequest(contractFileId, fillData,
+                lessorPage, lessorX, lessorY, tenantPage, tenantX, tenantY);
+        req.setSignFlowInitiator(buildPlatformSignFlowInitiator());
         String path = "/v3/sign-flow/create-by-file";
         CreateSignFlowResponse response = post(path, req, CreateSignFlowResponse.class);
         ensureSuccess(response.getCode(), response.getMessage(), path);
@@ -183,6 +206,365 @@ public class EsignV3Client {
         return resp;
     }
 
+    /** 查询手机号对应的 e签宝个人身份，用于修复历史实名记录缺少 psnId 的情况。 */
+    public PersonIdentityData queryPersonIdentity(String psnAccount) {
+        requireConfigured();
+        String encodedAccount = URLEncoder.encode(psnAccount, StandardCharsets.UTF_8)
+                .replace("+", "%20");
+        String path = "/v3/persons/identity-info?psnAccount=" + encodedAccount;
+        PersonIdentityResponse response = get(path, PersonIdentityResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        if (response.getData() == null || response.getData().getPsnId() == null
+                || response.getData().getPsnId().isBlank()) {
+            throw new IllegalStateException("e签宝未返回个人账号ID");
+        }
+        return response.getData();
+    }
+
+    /** 通过企业名称查询平台企业在 e签宝中的机构账号 ID。 */
+    public OrganizationIdentityData queryOrganizationIdentity(String orgName) {
+        requireConfigured();
+        String encodedName = URLEncoder.encode(orgName, StandardCharsets.UTF_8)
+                .replace("+", "%20");
+        String path = "/v3/organizations/identity-info?orgName=" + encodedName;
+        OrganizationIdentityResponse response;
+        try {
+            response = get(path, OrganizationIdentityResponse.class);
+        } catch (EsignException exception) {
+            // e签宝沙箱当前要求请求 URL 使用编码值，但验签时使用中文原值；
+            // 正式环境仍优先遵循官方文档的“编码后参与签名”规则。
+            if (!"INVALID_SIGNATURE".equals(exception.getEsignCode())) throw exception;
+            String signingPath = "/v3/organizations/identity-info?orgName=" + orgName;
+            log.warn("e签宝机构名称查询按标准编码签名失败，使用沙箱兼容签名重试");
+            response = get(path, signingPath, OrganizationIdentityResponse.class);
+        }
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        if (response.getData() == null || response.getData().getOrgId() == null
+                || response.getData().getOrgId().isBlank()) {
+            throw new IllegalStateException("e签宝未返回平台企业机构账号ID");
+        }
+        return response.getData();
+    }
+
+    /** 获取解约协议签署页；解约流程与普通合同使用同一个签署链接接口。 */
+    public SignUrlResponse getRescissionSignUrl(String rescissionSignFlowId, String psnAccount) {
+        return getSignUrl(rescissionSignFlowId, psnAccount);
+    }
+
+    /** 查询个人是否已授予指定权限。 */
+    public boolean hasPersonAuthorization(String psnId, String scope) {
+        requireConfigured();
+        String path = "/v3/persons/" + psnId + "/authorized-info";
+        PersonAuthorizationResponse response = get(path, PersonAuthorizationResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        if (response.getData() == null || response.getData().getAuthorizedInfo() == null) return false;
+        long now = System.currentTimeMillis();
+        return response.getData().getAuthorizedInfo().stream().anyMatch(item ->
+                scope.equals(item.getAuthorizedScope())
+                        && (item.getEffectiveTime() == null || item.getEffectiveTime() <= now)
+                        && (item.getExpireTime() == null || item.getExpireTime() <= 0
+                        || item.getExpireTime() > now));
+    }
+
+    /** 创建个人授权页，合同解约需要 psn_initiate_sign 权限。 */
+    public PersonAuthUrlData createPersonAuthorizationUrl(String psnAccount, String scope) {
+        requireConfigured();
+        PersonAuthUrlRequest request = new PersonAuthUrlRequest();
+        PersonAuthConfig psnAuthConfig = new PersonAuthConfig();
+        psnAuthConfig.setPsnAccount(psnAccount);
+        request.setPsnAuthConfig(psnAuthConfig);
+        AuthorizeConfig authorizeConfig = new AuthorizeConfig();
+        authorizeConfig.setAuthorizedScopes(List.of(scope));
+        request.setAuthorizeConfig(authorizeConfig);
+        request.setClientType("H5");
+
+        String path = "/v3/psn-auth-url";
+        PersonAuthUrlResponse response = post(path, request, PersonAuthUrlResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        if (response.getData() == null || response.getData().getAuthUrl() == null
+                || response.getData().getAuthUrl().isBlank()) {
+            throw new IllegalStateException("e签宝未返回个人授权页面链接");
+        }
+        return response.getData();
+    }
+
+    /** 撤销尚在签署中的流程，防止订单退款后房东继续完成签署。 */
+    public void revokeSignFlow(String signFlowId, String reason) {
+        requireConfigured();
+        RevokeSignFlowRequest request = new RevokeSignFlowRequest();
+        request.setRevokeReason(reason == null ? "租房订单取消" : reason.substring(0, Math.min(50, reason.length())));
+        String path = "/v3/sign-flow/" + signFlowId + "/revoke";
+        BasicResponse response = post(path, request, BasicResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+    }
+
+    /** 对已完成的原合同发起解约协议签署流程。 */
+    public String initiatePlatformRescission(String originalSignFlowId, String fileId,
+                                             String reasonNotes) {
+        return initiateRescission(originalSignFlowId, fileId, reasonNotes, true);
+    }
+
+    /** 个人房东合同由平台作为原流程发起方办理，租客和个人房东仍需分别签署解约协议。 */
+    public String initiatePersonalHouseRescission(String originalSignFlowId, String fileId,
+                                                   String reasonNotes) {
+        return initiateRescission(originalSignFlowId, fileId, reasonNotes, false);
+    }
+
+    private String initiateRescission(String originalSignFlowId, String fileId,
+                                      String reasonNotes, boolean platformHouse) {
+        requireConfigured();
+        List<String> rescindFileIds = resolveRescindFileIds(originalSignFlowId, fileId);
+        // The rescission API always requires a concrete initiator.  "The platform
+        // initiates" means the platform organization plus its transactor, not an
+        // empty rescissionInitiator object.  Personal-house contracts still need
+        // both tenant and landlord to sign, so only platform houses use autoSignOrg.
+        InitiateRescissionRequest request = buildPlatformRescissionRequest(
+                rescindFileIds, reasonNotes,
+                resolvePlatformOrgId(originalSignFlowId),
+                platformHouse
+                        ? resolvePlatformTransactorPsnId(originalSignFlowId)
+                        : resolveOriginalInitiatorTransactorPsnId(originalSignFlowId),
+                platformHouse);
+
+        String path = "/v3/sign-flow/" + originalSignFlowId + "/initiate-rescission";
+        InitiateRescissionResponse response = post(path, request, InitiateRescissionResponse.class);
+        ensureSuccess(response.getCode(), response.getMessage(), path);
+        if (response.getData() == null || response.getData().getSignFlowId() == null) {
+            throw new IllegalStateException("e签宝解约流程创建成功但未返回 signFlowId");
+        }
+        return response.getData().getSignFlowId();
+    }
+
+    private List<String> resolveRescindFileIds(String originalSignFlowId, String storedFileId) {
+        FileDownloadResponse download = getFileDownloadUrl(originalSignFlowId);
+        List<String> flowFileIds = download.getData() == null
+                || download.getData().getFiles() == null
+                ? List.of()
+                : download.getData().getFiles().stream()
+                .map(FileDownloadResponse.FileItem::getFileId)
+                .filter(id -> id != null && !id.isBlank())
+                .map(String::trim)
+                .distinct()
+                .limit(10)
+                .toList();
+        if (!flowFileIds.isEmpty()) {
+            if (storedFileId != null && !storedFileId.isBlank()
+                    && !flowFileIds.contains(storedFileId.trim())) {
+                log.warn("数据库合同文件ID不属于原签署流程，改用流程返回文件: signFlowId={}",
+                        originalSignFlowId);
+            }
+            return flowFileIds;
+        }
+        if (storedFileId == null || storedFileId.isBlank()) {
+            throw new IllegalStateException("原签署流程未返回可解约合同文件");
+        }
+        return List.of(storedFileId.trim());
+    }
+
+    private String resolvePlatformOrgId(String originalSignFlowId) {
+        if (properties.getPlatformOrgId() != null && !properties.getPlatformOrgId().isBlank()) {
+            return properties.getPlatformOrgId().trim();
+        }
+        if (resolvedPlatformOrgId != null && !resolvedPlatformOrgId.isBlank()) {
+            return resolvedPlatformOrgId;
+        }
+
+        // 原合同默认就是当前 appId 所属平台发起，优先复用流程详情中的机构 ID。
+        SignFlowDetailResponse detail = getSignFlowDetail(originalSignFlowId);
+        if (detail.getData() != null) {
+            SignFlowInitiator flowInitiator = detail.getData().getSignFlowInitiator();
+            if (flowInitiator != null && flowInitiator.getOrgInitiator() != null
+                    && flowInitiator.getOrgInitiator().getOrgId() != null
+                    && !flowInitiator.getOrgInitiator().getOrgId().isBlank()) {
+                cachePlatformTransactor(flowInitiator.getOrgInitiator().getTransactor());
+                resolvedPlatformOrgId = flowInitiator.getOrgInitiator().getOrgId().trim();
+                return resolvedPlatformOrgId;
+            }
+            if (detail.getData().getSigners() != null) {
+                detail.getData().getSigners().stream()
+                        .map(SignFlowDetailResponse.SignerDetail::getOrgSigner)
+                        .filter(java.util.Objects::nonNull)
+                        .map(SignFlowDetailResponse.OrgSigner::getTransactor)
+                        .filter(java.util.Objects::nonNull)
+                        .findFirst()
+                        .ifPresent(this::cachePlatformTransactor);
+                resolvedPlatformOrgId = detail.getData().getSigners().stream()
+                        .map(SignFlowDetailResponse.SignerDetail::getOrgSigner)
+                        .filter(java.util.Objects::nonNull)
+                        .map(SignFlowDetailResponse.OrgSigner::getOrgId)
+                        .filter(id -> id != null && !id.isBlank())
+                        .map(String::trim)
+                        .findFirst()
+                        .orElse(null);
+                if (resolvedPlatformOrgId != null) return resolvedPlatformOrgId;
+            }
+        }
+
+        // 兼容原流程详情未返回机构信息的历史数据，再按企业名称查询。
+        String orgName = properties.getPlatformOrgName();
+        if (orgName == null || orgName.isBlank()) {
+            throw BusinessException.badRequest(
+                    "请配置 ESIGN_PLATFORM_ORG_ID 或 ESIGN_PLATFORM_ORG_NAME");
+        }
+        resolvedPlatformOrgId = queryOrganizationIdentity(orgName.trim()).getOrgId().trim();
+        log.info("已通过平台企业名称解析 e签宝 orgId: orgName={}", orgName);
+        return resolvedPlatformOrgId;
+    }
+
+    private SignFlowInitiator buildPlatformSignFlowInitiator() {
+        String orgId = resolvePlatformOrgIdForNewSignFlow();
+        String transactorPsnId = properties.getPlatformTransactorPsnId();
+        if (transactorPsnId == null || transactorPsnId.isBlank()) {
+            throw BusinessException.badRequest(
+                    "创建新合同时必须配置 ESIGN_PLATFORM_TRANSACTOR_PSN_ID");
+        }
+        SignFlowInitiator initiator = new SignFlowInitiator();
+        OrgInitiator organization = new OrgInitiator();
+        organization.setOrgId(orgId);
+        Transactor transactor = new Transactor();
+        transactor.setPsnId(transactorPsnId.trim());
+        organization.setTransactor(transactor);
+        initiator.setOrgInitiator(organization);
+        return initiator;
+    }
+
+    private String resolvePlatformOrgIdForNewSignFlow() {
+        if (properties.getPlatformOrgId() != null && !properties.getPlatformOrgId().isBlank()) {
+            resolvedPlatformOrgId = properties.getPlatformOrgId().trim();
+            return resolvedPlatformOrgId;
+        }
+        if (resolvedPlatformOrgId != null && !resolvedPlatformOrgId.isBlank()) {
+            return resolvedPlatformOrgId;
+        }
+        String orgName = properties.getPlatformOrgName();
+        if (orgName == null || orgName.isBlank()) {
+            throw BusinessException.badRequest(
+                    "创建新合同时必须配置 ESIGN_PLATFORM_ORG_ID 或 ESIGN_PLATFORM_ORG_NAME");
+        }
+        resolvedPlatformOrgId = queryOrganizationIdentity(orgName.trim()).getOrgId().trim();
+        return resolvedPlatformOrgId;
+    }
+
+    private String resolvePlatformTransactorPsnId(String originalSignFlowId) {
+        if (properties.getPlatformTransactorPsnId() != null
+                && !properties.getPlatformTransactorPsnId().isBlank()) {
+            return properties.getPlatformTransactorPsnId().trim();
+        }
+        if (resolvedPlatformTransactorPsnId != null
+                && !resolvedPlatformTransactorPsnId.isBlank()) {
+            return resolvedPlatformTransactorPsnId;
+        }
+
+        SignFlowDetailResponse detail = getSignFlowDetail(originalSignFlowId);
+        if (detail.getData() != null) {
+            SignFlowInitiator initiator = detail.getData().getSignFlowInitiator();
+            if (initiator != null && initiator.getOrgInitiator() != null) {
+                cachePlatformTransactor(initiator.getOrgInitiator().getTransactor());
+            }
+            if ((resolvedPlatformTransactorPsnId == null
+                    || resolvedPlatformTransactorPsnId.isBlank())
+                    && detail.getData().getSigners() != null) {
+                detail.getData().getSigners().stream()
+                        .map(SignFlowDetailResponse.SignerDetail::getOrgSigner)
+                        .filter(java.util.Objects::nonNull)
+                        .map(SignFlowDetailResponse.OrgSigner::getTransactor)
+                        .filter(java.util.Objects::nonNull)
+                        .findFirst()
+                        .ifPresent(this::cachePlatformTransactor);
+            }
+        }
+
+        if (resolvedPlatformTransactorPsnId == null
+                || resolvedPlatformTransactorPsnId.isBlank()) {
+            throw BusinessException.badRequest(
+                    "未能从原合同获取平台经办人，请配置 ESIGN_PLATFORM_TRANSACTOR_PSN_ID");
+        }
+        return resolvedPlatformTransactorPsnId;
+    }
+
+    /**
+     * Personal-house rescission must reuse the original flow initiator exactly.
+     * A flow created by the AppId owner can have an organization initiator with
+     * no transactor.  In that case adding the configured operator changes the
+     * eSign identity and produces 1439107 (the initiator has no rescindable file).
+     */
+    private String resolveOriginalInitiatorTransactorPsnId(String originalSignFlowId) {
+        SignFlowDetailResponse detail = getSignFlowDetail(originalSignFlowId);
+        if (detail.getData() == null
+                || detail.getData().getSignFlowInitiator() == null
+                || detail.getData().getSignFlowInitiator().getOrgInitiator() == null) {
+            return null;
+        }
+        Transactor transactor = detail.getData().getSignFlowInitiator()
+                .getOrgInitiator().getTransactor();
+        return transactor == null || transactor.getPsnId() == null
+                || transactor.getPsnId().isBlank()
+                ? null : transactor.getPsnId().trim();
+    }
+
+    private void cachePlatformTransactor(Transactor transactor) {
+        if (transactor != null && transactor.getPsnId() != null
+                && !transactor.getPsnId().isBlank()) {
+            resolvedPlatformTransactorPsnId = transactor.getPsnId().trim();
+        }
+    }
+
+    private InitiateRescissionRequest buildPlatformRescissionRequest(
+            List<String> fileIds, String reasonNotes, String platformOrgId,
+            String platformTransactorPsnId, boolean platformHouse) {
+        InitiateRescissionRequest request = buildBaseRescissionRequest(fileIds, reasonNotes);
+
+        RescissionInitiator initiator = new RescissionInitiator();
+        OrgInitiator org = new OrgInitiator();
+        org.setOrgId(platformOrgId);
+        if (platformTransactorPsnId != null && !platformTransactorPsnId.isBlank()) {
+            Transactor transactor = new Transactor();
+            transactor.setPsnId(platformTransactorPsnId.trim());
+            org.setTransactor(transactor);
+        }
+        // 平台企业自身无需 org_initiate_sign 授权，但 e签宝仍要求显式传入 orgId。
+        // 经办人 psnId 仅在交付环境要求时通过配置补充。
+        initiator.setOrgInitiator(org);
+        request.setRescissionInitiator(initiator);
+
+        if (platformHouse) {
+            String sealId = properties.getPlatformSealId();
+            if (sealId == null || sealId.isBlank()) {
+                throw BusinessException.badRequest(
+                        "平台自营合同解约必须配置 ESIGN_PLATFORM_SEAL_ID");
+            }
+            AutoSignOrg autoSignOrg = new AutoSignOrg();
+            autoSignOrg.setOrgId(platformOrgId);
+            autoSignOrg.setSealId(sealId.trim());
+            request.setAutoSignOrg(List.of(autoSignOrg));
+        }
+
+        SignFlowConfig config = new SignFlowConfig();
+        config.setNotifyUrl(properties.getNotifyUrl());
+        request.setSignFlowConfig(config);
+        NoticeConfig notice = new NoticeConfig();
+        notice.setNoticeTypes("1");
+        request.setNoticeConfig(notice);
+        return request;
+    }
+
+    private InitiateRescissionRequest buildBaseRescissionRequest(
+            List<String> fileIds, String reasonNotes) {
+        InitiateRescissionRequest request = new InitiateRescissionRequest();
+        request.setRescindFileList(fileIds);
+        request.setRescindReason("4");
+        request.setRescindReasonNotes(reasonNotes == null ? null
+                : reasonNotes.substring(0, Math.min(200, reasonNotes.length())));
+
+        SignFlowConfig config = new SignFlowConfig();
+        config.setNotifyUrl(properties.getNotifyUrl());
+        request.setSignFlowConfig(config);
+        NoticeConfig notice = new NoticeConfig();
+        notice.setNoticeTypes("1");
+        request.setNoticeConfig(notice);
+        return request;
+    }
+
     // ==================== 接口六：获取已签合同下载链接 ====================
 
     public FileDownloadResponse getFileDownloadUrl(String signFlowId) {
@@ -200,11 +582,15 @@ public class EsignV3Client {
     // ==================== HTTP 方法 ====================
 
     private <T> T get(String path, Class<T> responseType) {
+        return get(path, path, responseType);
+    }
+
+    private <T> T get(String requestPath, String signingPath, Class<T> responseType) {
         try {
             long timestamp = System.currentTimeMillis();
-            String stringToSign = signer.buildGetStringToSign(path);
+            String stringToSign = signer.buildGetStringToSign(signingPath);
             String signature = signer.sign(properties.getAppSecret(), stringToSign);
-            String url = normalizeBaseUrl() + path;
+            String url = normalizeBaseUrl() + requestPath;
 
             long start = System.currentTimeMillis();
             String respBody = restTemplate.execute(URI.create(url), HttpMethod.GET,
@@ -217,16 +603,18 @@ public class EsignV3Client {
                     },
                     this::extractResponseBody);
             long elapsed = System.currentTimeMillis() - start;
-            log.debug("e签宝 GET {} -> {}ms", path, elapsed);
+            log.debug("e签宝 GET {} -> {}ms", requestPath, elapsed);
             return objectMapper.readValue(respBody, responseType);
         } catch (EsignException e) {
             throw e;
         } catch (ResourceAccessException e) {
-            throw new EsignException(0, "NETWORK", "e签宝服务连接超时或网络不可用", path);
+            throw new EsignException(0, "NETWORK", "e签宝服务连接超时或网络不可用", requestPath);
+        } catch (RestClientResponseException e) {
+            throw toEsignHttpException(e, requestPath);
         } catch (RestClientException e) {
-            throw new EsignException(0, "NETWORK", "e签宝服务请求失败", path);
+            throw new EsignException(0, "NETWORK", "e签宝服务请求失败", requestPath);
         } catch (Exception e) {
-            throw new EsignException(0, "UNKNOWN", "e签宝调用异常", path);
+            throw new EsignException(0, "UNKNOWN", "e签宝调用异常", requestPath);
         }
     }
 
@@ -260,6 +648,8 @@ public class EsignV3Client {
             throw e;
         } catch (ResourceAccessException e) {
             throw new EsignException(0, "NETWORK", "e签宝服务连接超时或网络不可用", path);
+        } catch (RestClientResponseException e) {
+            throw toEsignHttpException(e, path);
         } catch (RestClientException e) {
             throw new EsignException(0, "NETWORK", "e签宝服务请求失败", path);
         } catch (Exception e) {
@@ -317,8 +707,59 @@ public class EsignV3Client {
                 "tenant_sign_001", contractFileId, tenantPage, tenantX, tenantY, 1);
 
         // e签宝按签署顺序推进：租客先签，房东后签。
+        req.setContractConfig(rescindableContractConfig());
         req.setSigners(List.of(tenant, lessor));
         return req;
+    }
+
+    private EsignException toEsignHttpException(RestClientResponseException exception, String path) {
+        String responseBody = exception.getResponseBodyAsString(StandardCharsets.UTF_8);
+        try {
+            BasicResponse response = objectMapper.readValue(responseBody, BasicResponse.class);
+            String code = response.getCode() == 0
+                    ? String.valueOf(exception.getStatusCode().value())
+                    : String.valueOf(response.getCode());
+            String message = response.getMessage() == null || response.getMessage().isBlank()
+                    ? "e签宝服务返回HTTP " + exception.getStatusCode().value()
+                    : response.getMessage();
+            return new EsignException(exception.getStatusCode().value(), code, message, path);
+        } catch (Exception ignored) {
+            return new EsignException(
+                    exception.getStatusCode().value(),
+                    String.valueOf(exception.getStatusCode().value()),
+                    "e签宝服务返回HTTP " + exception.getStatusCode().value(),
+                    path);
+        }
+    }
+
+    private CreateSignFlowRequest buildPlatformSignFlowRequest(String contractFileId, LeaseContractFillData d,
+                                                                int lessorPage, double lessorX, double lessorY,
+                                                                int tenantPage, double tenantX, double tenantY) {
+        CreateSignFlowRequest req = new CreateSignFlowRequest();
+        CreateSignFlowRequest.Doc doc = new CreateSignFlowRequest.Doc();
+        doc.setFileId(contractFileId);
+        doc.setFileName("租房合同.pdf");
+        req.setDocs(List.of(doc));
+
+        CreateSignFlowRequest.SignFlowConfig cfg = new CreateSignFlowRequest.SignFlowConfig();
+        cfg.setSignFlowTitle("平台自营房屋租赁合同签署");
+        cfg.setAutoFinish(properties.isAutoFinish());
+        req.setSignFlowConfig(cfg);
+
+        CreateSignFlowRequest.Signer tenant = buildSigner(
+                d.getTenantName(), d.getTenantMobile(), d.getTenantIdCard(),
+                "tenant_sign_001", contractFileId, tenantPage, tenantX, tenantY, 1);
+        CreateSignFlowRequest.Signer platform = buildPlatformAutoSigner(
+                contractFileId, lessorPage, lessorX, lessorY, 2);
+        req.setContractConfig(rescindableContractConfig());
+        req.setSigners(List.of(tenant, platform));
+        return req;
+    }
+
+    private CreateSignFlowRequest.ContractConfig rescindableContractConfig() {
+        CreateSignFlowRequest.ContractConfig config = new CreateSignFlowRequest.ContractConfig();
+        config.setAllowToRescind(true);
+        return config;
     }
 
     private CreateSignFlowRequest.Signer buildSigner(String name, String mobile, String idCard,
@@ -364,6 +805,37 @@ public class EsignV3Client {
         return s;
     }
 
+    private CreateSignFlowRequest.Signer buildPlatformAutoSigner(String fileId,
+                                                                  int page, double posX, double posY,
+                                                                  int signOrder) {
+        CreateSignFlowRequest.Signer signer = new CreateSignFlowRequest.Signer();
+        signer.setSignerType(1);
+
+        CreateSignFlowRequest.SignConfig signConfig = new CreateSignFlowRequest.SignConfig();
+        signConfig.setSignOrder(signOrder);
+        signer.setSignConfig(signConfig);
+
+        CreateSignFlowRequest.NoticeConfig noticeConfig = new CreateSignFlowRequest.NoticeConfig();
+        noticeConfig.setNoticeTypes("");
+        signer.setNoticeConfig(noticeConfig);
+
+        CreateSignFlowRequest.SignField signField = new CreateSignFlowRequest.SignField();
+        signField.setCustomBizNum("platform_lessor_sign_001");
+        signField.setFileId(fileId);
+        CreateSignFlowRequest.NormalSignFieldConfig config = new CreateSignFlowRequest.NormalSignFieldConfig();
+        config.setFreeMode(false);
+        config.setAutoSign(true);
+        config.setSignFieldStyle(1);
+        CreateSignFlowRequest.SignFieldPosition position = new CreateSignFlowRequest.SignFieldPosition();
+        position.setPositionPage(String.valueOf(page));
+        position.setPositionX(posX);
+        position.setPositionY(posY);
+        config.setSignFieldPosition(position);
+        signField.setNormalSignFieldConfig(config);
+        signer.setSignFields(List.of(signField));
+        return signer;
+    }
+
     // ==================== 内嵌 DTO ====================
 
     // ----- 请求 -----
@@ -405,13 +877,20 @@ public class EsignV3Client {
     @Data @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class CreateSignFlowRequest {
         private List<Doc> docs;
+        private SignFlowInitiator signFlowInitiator;
         private SignFlowConfig signFlowConfig;
+        private ContractConfig contractConfig;
         private List<Signer> signers;
 
         @Data @JsonInclude(JsonInclude.Include.NON_NULL)
         public static class Doc { private String fileId; private String fileName; }
         @Data @JsonInclude(JsonInclude.Include.NON_NULL)
-        public static class SignFlowConfig { private String signFlowTitle; private boolean autoFinish; }
+        public static class SignFlowConfig {
+            private String signFlowTitle;
+            private boolean autoFinish;
+        }
+        @Data @JsonInclude(JsonInclude.Include.NON_NULL)
+        public static class ContractConfig { private boolean allowToRescind; }
         @Data @JsonInclude(JsonInclude.Include.NON_NULL)
         public static class Signer {
             private SignConfig signConfig;
@@ -569,6 +1048,7 @@ public class EsignV3Client {
         public static class SignFlowDetailData {
             private String signFlowId; private int signFlowStatus;
             private String contractNum; private Long signFlowFinishTime;
+            private SignFlowInitiator signFlowInitiator;
             private List<SignerDetail> signers;
         }
         @Data @JsonIgnoreProperties(ignoreUnknown = true)
@@ -579,6 +1059,7 @@ public class EsignV3Client {
             private int signStatus;     // e签宝 V3：1=待签署，2=已签署
             private String psnAccount;
             private PsnSigner psnSigner;
+            private OrgSigner orgSigner;
 
             public String resolvedPsnAccount() {
                 if (psnAccount != null && !psnAccount.isBlank()) return psnAccount;
@@ -599,6 +1080,142 @@ public class EsignV3Client {
             private String accountMobile;
             private String accountEmail;
         }
+        @Data @JsonIgnoreProperties(ignoreUnknown = true)
+        public static class OrgSigner {
+            private String orgId;
+            private String orgName;
+            @JsonAlias("transactorInfo")
+            private Transactor transactor;
+        }
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class SignFlowInitiator {
+        private OrgInitiator orgInitiator;
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PersonIdentityResponse {
+        private int code;
+        private String message;
+        private PersonIdentityData data;
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PersonIdentityData {
+        private String psnId;
+        private Integer realnameStatus;
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class OrganizationIdentityResponse {
+        private int code;
+        private String message;
+        private OrganizationIdentityData data;
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class OrganizationIdentityData {
+        private String orgId;
+        private String orgName;
+        private Integer realnameStatus;
+        private Boolean authorizeUserInfo;
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PersonAuthorizationResponse {
+        private int code;
+        private String message;
+        private PersonAuthorizationData data;
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PersonAuthorizationData {
+        private List<AuthorizedInfo> authorizedInfo;
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AuthorizedInfo {
+        private String authorizedScope;
+        private Long effectiveTime;
+        private Long expireTime;
+    }
+
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class PersonAuthUrlRequest {
+        private PersonAuthConfig psnAuthConfig;
+        private AuthorizeConfig authorizeConfig;
+        private String clientType;
+    }
+
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class PersonAuthConfig { private String psnAccount; }
+
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class AuthorizeConfig { private List<String> authorizedScopes; }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PersonAuthUrlResponse {
+        private int code;
+        private String message;
+        private PersonAuthUrlData data;
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PersonAuthUrlData {
+        private String authFlowId;
+        private String authUrl;
+        private String authShortUrl;
+    }
+
+    @Data
+    public static class RevokeSignFlowRequest {
+        private String revokeReason;
+    }
+
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class InitiateRescissionRequest {
+        private List<String> rescindFileList;
+        private String rescindReason;
+        private String rescindReasonNotes;
+        private RescissionInitiator rescissionInitiator;
+        private SignFlowConfig signFlowConfig;
+        private NoticeConfig noticeConfig;
+        private List<AutoSignOrg> autoSignOrg;
+    }
+
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class RescissionInitiator {
+        private OrgInitiator orgInitiator;
+    }
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL) @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class OrgInitiator {
+        private String orgId;
+        private String orgName;
+        private Transactor transactor;
+    }
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL) @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Transactor { private String psnId; private String psnName; }
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class AutoSignOrg { private String orgId; private String orgName; private String sealId; }
+    @Data @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class SignFlowConfig { private String notifyUrl; }
+    @Data public static class NoticeConfig { private String noticeTypes; }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class InitiateRescissionResponse {
+        private int code;
+        private String message;
+        private InitiateRescissionData data;
+    }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class InitiateRescissionData { private String signFlowId; }
+
+    @Data @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class BasicResponse {
+        private int code;
+        private String message;
     }
 
     @Data @JsonIgnoreProperties(ignoreUnknown = true)

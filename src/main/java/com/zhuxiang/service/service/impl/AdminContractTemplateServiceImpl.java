@@ -33,6 +33,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class AdminContractTemplateServiceImpl implements AdminContractTemplateService {
+    private static final String PLATFORM_COMPANY_NAME = "重庆踏山河科技有限公司";
+    private static final Set<String> SUPPORTED_BUSINESS_TYPES = Set.of(
+            "HOUSE_LEASE", "HOUSE_LEASE_PLATFORM");
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy年MM月dd日");
     private static final long MAX_PDF_SIZE = 50L * 1024 * 1024;
 
@@ -54,12 +57,20 @@ public class AdminContractTemplateServiceImpl implements AdminContractTemplateSe
     }
 
     @Override
-    public PageData<AdminContractTemplateDtos.Summary> list(long page, long pageSize, String keyword, String status) {
+    public PageData<AdminContractTemplateDtos.Summary> list(
+            long page, long pageSize, String keyword, String status, String businessType) {
         LambdaQueryWrapper<EsignContractTemplate> q = new LambdaQueryWrapper<>();
         if (StringUtils.hasText(keyword)) q.and(w -> w.like(EsignContractTemplate::getTemplateName, keyword)
                 .or().like(EsignContractTemplate::getTemplateCode, keyword)
                 .or().like(EsignContractTemplate::getDocTemplateId, keyword));
         if (StringUtils.hasText(status)) q.eq(EsignContractTemplate::getStatus, status);
+        if (StringUtils.hasText(businessType)) {
+            String normalizedBusinessType = businessType.trim().toUpperCase(Locale.ROOT);
+            if (!SUPPORTED_BUSINESS_TYPES.contains(normalizedBusinessType)) {
+                throw BusinessException.badRequest("不支持的合同模板用途");
+            }
+            q.eq(EsignContractTemplate::getBusinessType, normalizedBusinessType);
+        }
         q.orderByDesc(EsignContractTemplate::getUpdatedAt);
         Page<EsignContractTemplate> result = templateMapper.selectPage(new Page<>(page, pageSize), q);
         return PageData.of(result.getRecords().stream().map(this::summary).toList(), page, pageSize, result.getTotal());
@@ -70,13 +81,17 @@ public class AdminContractTemplateServiceImpl implements AdminContractTemplateSe
     @Override
     @Transactional
     public AdminContractTemplateDtos.Detail create(AdminContractTemplateDtos.CreateRequest r, String operatorId) {
+        String businessType = r.businessType().trim().toUpperCase(Locale.ROOT);
+        if (!SUPPORTED_BUSINESS_TYPES.contains(businessType)) {
+            throw BusinessException.badRequest("不支持的合同模板用途");
+        }
         Integer maxVersion = templateMapper.selectList(new LambdaQueryWrapper<EsignContractTemplate>()
-                        .eq(EsignContractTemplate::getBusinessType, r.businessType())
+                        .eq(EsignContractTemplate::getBusinessType, businessType)
                         .eq(EsignContractTemplate::getTemplateCode, r.templateCode()))
                 .stream().map(EsignContractTemplate::getVersion).max(Integer::compareTo).orElse(0);
         EsignContractTemplate t = new EsignContractTemplate();
         t.setId(UUID.randomUUID().toString());
-        t.setBusinessType(r.businessType()); t.setTemplateCode(r.templateCode()); t.setTemplateName(r.templateName());
+        t.setBusinessType(businessType); t.setTemplateCode(r.templateCode()); t.setTemplateName(r.templateName());
         t.setVersion(maxVersion + 1); t.setEnvironment(r.environment()); t.setTemplateType(1);
         t.setStatus("DRAFT"); t.setValidationStatus("NOT_VALIDATED"); t.setVersionNote(r.versionNote());
         t.setCreatedBy(operatorId); t.setCreatedAt(LocalDateTime.now()); t.setUpdatedAt(t.getCreatedAt()); t.setVersionLock(0);
@@ -283,12 +298,23 @@ public class AdminContractTemplateServiceImpl implements AdminContractTemplateSe
                 .stream().map(a -> new AdminContractTemplateDtos.AuditLog(a.getId(), a.getAction(), a.getOperatorName(), a.getDetailText(), a.getCreatedAt())).toList();
     }
 
-    @Override public RuntimeTemplate resolveActiveRuntimeTemplate(LeaseContractFillData fillData) {
+    @Override public RuntimeTemplate resolveActiveRuntimeTemplate(String businessType, LeaseContractFillData fillData) {
+        String normalizedBusinessType = businessType == null
+                ? ""
+                : businessType.trim().toUpperCase(Locale.ROOT);
+        if (!SUPPORTED_BUSINESS_TYPES.contains(normalizedBusinessType)) {
+            throw BusinessException.badRequest("不支持的合同模板用途");
+        }
         EsignContractTemplate t = templateMapper.selectOne(new LambdaQueryWrapper<EsignContractTemplate>()
-                .eq(EsignContractTemplate::getBusinessType, "HOUSE_LEASE")
+                .eq(EsignContractTemplate::getBusinessType, normalizedBusinessType)
                 .in(EsignContractTemplate::getStatus, List.of("ACTIVE", "DRIFTED"))
                 .orderByDesc(EsignContractTemplate::getVersion).last("LIMIT 1"));
-        if (t == null) throw BusinessException.notFound("尚未发布可用的租房合同模板");
+        if (t == null) {
+            String typeLabel = "HOUSE_LEASE_PLATFORM".equals(normalizedBusinessType)
+                    ? "平台自营房源"
+                    : "个人房东房源";
+            throw BusinessException.notFound(typeLabel + "尚未发布可用的合同模板");
+        }
         if ("DRIFTED".equals(t.getStatus())) throw BusinessException.conflict("已发布合同模板发生变化，请管理员重新同步、校验并发布");
         EsignV3Client.TemplateDetailResponse remote = esignClient.getTemplateDetail(t.getDocTemplateId());
         String currentFingerprint = fingerprint(remote.getData() == null ? List.of() : remote.getData().getComponents());
@@ -314,7 +340,9 @@ public class AdminContractTemplateServiceImpl implements AdminContractTemplateSe
                 continue;
             }
             if ("IGNORE".equals(c.getMappingMode()) || !StringUtils.hasText(c.getMappingMode())) continue;
-            if (!StringUtils.hasText(c.getComponentKey())) throw BusinessException.badRequest("模板控件未设置 componentKey：" + c.getComponentName());
+            if (!StringUtils.hasText(c.getComponentKey())) {
+                throw BusinessException.badRequest(missingComponentKeyMessage(c));
+            }
             String value = "FIXED_VALUE".equals(c.getMappingMode()) ? c.getFixedValue() : resolveField(c.getBusinessFieldCode(), fillData, c);
             if (c.getRequiredFlag() == 1 && !StringUtils.hasText(value)) throw BusinessException.badRequest("合同必填字段缺少数据：" + c.getComponentName());
             validateComponentValueLength(c, value);
@@ -340,7 +368,9 @@ public class AdminContractTemplateServiceImpl implements AdminContractTemplateSe
                 out.add(issue("WARNING", "COMPONENT_TYPE_MISMATCH", "控件类型与业务字段类型可能不兼容", c));
             if ("FIXED_VALUE".equals(mode) && !StringUtils.hasText(c.getFixedValue())) out.add(issue("ERROR", "EMPTY_FIXED_VALUE", "固定值不能为空", c));
             if ("USER_INPUT".equals(mode)) out.add(issue("ERROR", "USER_INPUT_UNSUPPORTED", "当前App签约流程不支持签前人工填写，请改用系统字段或固定值", c));
-            if (("SYSTEM_FIELD".equals(mode) || "DERIVED".equals(mode) || "FIXED_VALUE".equals(mode)) && !StringUtils.hasText(c.getComponentKey())) out.add(issue("ERROR", "MISSING_COMPONENT_KEY", "请在e签宝模板中为控件设置唯一 componentKey", c));
+            if (("SYSTEM_FIELD".equals(mode) || "DERIVED".equals(mode) || "FIXED_VALUE".equals(mode)) && !StringUtils.hasText(c.getComponentKey())) {
+                out.add(issue("ERROR", "MISSING_COMPONENT_KEY", missingComponentKeyMessage(c), c));
+            }
             if ("SIGNATURE".equals(mode)) {
                 if (c.getPageNum() == null || c.getPositionX() == null || c.getPositionY() == null) out.add(issue("ERROR", "SIGN_POSITION_MISSING", "签章控件缺少页码或坐标", c));
                 if (isLessor(c.getSignerRole())) lessorSigns++; else if (isTenant(c.getSignerRole())) tenantSigns++;
@@ -355,6 +385,7 @@ public class AdminContractTemplateServiceImpl implements AdminContractTemplateSe
     private String resolveField(String code, LeaseContractFillData d, EsignTemplateComponent c) {
         if (code == null) return null;
         return switch (code) {
+            case "LESSOR_COMPANY_NAME" -> PLATFORM_COMPANY_NAME;
             case "LESSOR_REAL_NAME" -> d.getLessorName(); case "LESSOR_ID_CARD" -> d.getLessorIdCard(); case "LESSOR_MOBILE" -> d.getLessorMobile();
             case "TENANT_REAL_NAME" -> d.getTenantName(); case "TENANT_ID_CARD" -> d.getTenantIdCard(); case "TENANT_MOBILE" -> d.getTenantMobile();
             case "HOUSE_FULL_ADDRESS" -> d.getHouseAddress(); case "LEASE_YEARS" -> leaseYears(d.getLeaseMonths());
@@ -368,6 +399,7 @@ public class AdminContractTemplateServiceImpl implements AdminContractTemplateSe
     }
 
     private static final List<AdminContractTemplateDtos.FieldDefinition> FIELDS = List.of(
+            field("LESSOR_COMPANY_NAME", "平台公司名称", "甲方", "STRING", false),
             field("LESSOR_REAL_NAME", "出租方姓名", "甲方", "STRING", true), field("LESSOR_ID_CARD", "出租方身份证号", "甲方", "STRING", true), field("LESSOR_MOBILE", "出租方手机号", "甲方", "STRING", true),
             field("TENANT_REAL_NAME", "承租方姓名", "乙方", "STRING", true), field("TENANT_ID_CARD", "承租方身份证号", "乙方", "STRING", true), field("TENANT_MOBILE", "承租方手机号", "乙方", "STRING", true),
             field("HOUSE_FULL_ADDRESS", "房源完整地址", "房源", "STRING", false), field("LEASE_YEARS", "租期（年）", "租约", "NUMBER", false),
@@ -382,6 +414,21 @@ public class AdminContractTemplateServiceImpl implements AdminContractTemplateSe
             default -> List.of(1, 8, 16, 19);
         };
         return new AdminContractTemplateDtos.FieldDefinition(code, name, category, type, supported, sensitive, name);
+    }
+
+    private String missingComponentKeyMessage(EsignTemplateComponent component) {
+        String fieldCode = component.getBusinessFieldCode();
+        String expectedKey = StringUtils.hasText(fieldCode)
+                ? fieldCode
+                : "FIXED_" + component.getComponentId().substring(0, Math.min(8, component.getComponentId().length())).toUpperCase(Locale.ROOT);
+        String componentName = StringUtils.hasText(component.getComponentName())
+                ? component.getComponentName()
+                : FIELDS.stream()
+                        .filter(field -> Objects.equals(field.fieldCode(), fieldCode))
+                        .map(AdminContractTemplateDtos.FieldDefinition::displayName)
+                        .findFirst()
+                        .orElse(component.getComponentId());
+        return "“" + componentName + "”控件需要填写控件编码为：" + expectedKey;
     }
 
     private EsignContractTemplate requireTemplate(String id) { EsignContractTemplate t = templateMapper.selectById(id); if (t == null) throw BusinessException.notFound("合同模板不存在"); return t; }

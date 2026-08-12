@@ -12,6 +12,7 @@ import com.zhuxiang.service.entity.RentContract;
 import com.zhuxiang.service.mapper.*;
 import com.zhuxiang.service.service.FileRecordService;
 import com.zhuxiang.service.service.InspectionService;
+import com.zhuxiang.service.service.LeaseTerminationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -44,19 +45,22 @@ public class InspectionServiceImpl
     private final HouseInspectionTemplateMapper templateMapper;
     private final RentContractMapper rentContractMapper;
     private final FileRecordService fileRecordService;
+    private final LeaseTerminationService leaseTerminationService;
 
     public InspectionServiceImpl(ObjectMapper objectMapper,
                                   InspectionPhotoMapper inspectionPhotoMapper,
                                   DepositDeductionItemMapper deductionItemMapper,
                                   HouseInspectionTemplateMapper templateMapper,
                                   RentContractMapper rentContractMapper,
-                                  FileRecordService fileRecordService) {
+                                  FileRecordService fileRecordService,
+                                  LeaseTerminationService leaseTerminationService) {
         this.objectMapper = objectMapper;
         this.inspectionPhotoMapper = inspectionPhotoMapper;
         this.deductionItemMapper = deductionItemMapper;
         this.templateMapper = templateMapper;
         this.rentContractMapper = rentContractMapper;
         this.fileRecordService = fileRecordService;
+        this.leaseTerminationService = leaseTerminationService;
     }
 
     // ==================== 快照创建 ====================
@@ -70,8 +74,9 @@ public class InspectionServiceImpl
                         .last("LIMIT 1"), false);
 
         if (template == null) {
-            log.warn("房源 {} 未配置验收模板，快照创建跳过（退租时将无对比基准）: contractId={}", houseId, contractId);
-            return;
+            template = new HouseInspectionTemplate();
+            template.setVersion(0);
+            template.setRooms("[]");
         }
 
         LeaseInspectionSnapshot existing = getOne(
@@ -94,7 +99,8 @@ public class InspectionServiceImpl
         snapshot.setUpdatedAt(LocalDateTime.now());
         save(snapshot);
 
-        log.info("验收快照已创建: contractId={}, templateVersion={}", contractId, template.getVersion());
+        log.info("Inspection snapshot created: contractId={}, templateVersion={}",
+                contractId, template.getVersion());
     }
 
     // ==================== 入住验收 ====================
@@ -165,7 +171,7 @@ public class InspectionServiceImpl
         LeaseInspectionSnapshot snapshot = requireSnapshot(contractId);
         verifyContractUser(userId, contractId);
 
-        List<InspectionDtos.TemplateRoomItem> rooms = deserializeRooms(snapshot.getRooms());
+        List<InspectionDtos.TemplateRoomItem> rooms = enabledRooms(deserializeRooms(snapshot.getRooms()));
         List<InspectionDtos.PhotoItem> moveInPhotos = loadPhotos(contractId, InspectionPhoto.STAGE_MOVE_IN);
         List<InspectionDtos.PhotoItem> existingMoveOutPhotos = loadPhotos(contractId, InspectionPhoto.STAGE_MOVE_OUT);
 
@@ -216,6 +222,8 @@ public class InspectionServiceImpl
         snapshot.setMoveOutSubmittedBy(userId);
         snapshot.setUpdatedAt(now);
         updateById(snapshot);
+
+        leaseTerminationService.markPhotosSubmitted(userId, contractId);
 
         log.info("退租验收已提交: contractId={}, userId={}, photoCount={}",
                 contractId, userId, request.photos().size());
@@ -382,6 +390,8 @@ public class InspectionServiceImpl
         snapshot.setUpdatedAt(now);
         updateById(snapshot);
 
+        leaseTerminationService.completeInspectionByContract(adminId, contractId, request.comment());
+
         log.info("验房已锁定（线下验房完成，照片已归档）: contractId={}, adminId={}", contractId, adminId);
     }
 
@@ -511,6 +521,23 @@ public class InspectionServiceImpl
             log.error("反序列化验收 rooms 失败: {}", e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    /** App 端只需要可执行的验房项，禁用项仍保留在快照中供历史审计。 */
+    private List<InspectionDtos.TemplateRoomItem> enabledRooms(
+            List<InspectionDtos.TemplateRoomItem> rooms
+    ) {
+        if (rooms == null || rooms.isEmpty()) return List.of();
+        return rooms.stream()
+                .map(room -> new InspectionDtos.TemplateRoomItem(
+                        room.roomCode(),
+                        room.roomName(),
+                        room.items() == null ? List.of() : room.items().stream()
+                                .filter(InspectionDtos.TemplateCheckItem::enabled)
+                                .toList()
+                ))
+                .filter(room -> !room.items().isEmpty())
+                .toList();
     }
 
     private String serializeList(List<String> list) {

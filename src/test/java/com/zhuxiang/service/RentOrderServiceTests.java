@@ -64,7 +64,8 @@ class RentOrderServiceTests {
                 eventPublisher, fileRecordService, paymentRecordService,
                 rentBillService, alipayService, depositService, objectMapper,
                 realNameAuthService, userRealNameAuthMapper, idCardCryptoService,
-                esignV3Client, esignV3Properties, inspectionService, communityService
+                esignV3Client, esignV3Properties, inspectionService, communityService,
+                mock(com.zhuxiang.service.service.PaymentRefundService.class)
         ));
         ReflectionTestUtils.setField(service, "baseMapper", rentOrderMapper);
 
@@ -300,14 +301,18 @@ class RentOrderServiceTests {
     }
 
     @Test
-    void createOrder_shouldRejectWhenCompleted() {
+    void createOrder_shouldAllowNewApplicationAfterPreviousLeaseCompleted() {
         RentOrder existing = buildPendingRealNameOrder();
         existing.setStatus("completed");
         when(rentOrderMapper.selectOne(any())).thenReturn(existing);
+        doReturn(0L).when(service).count(any());
+        when(leaseService.count(any())).thenReturn(0L);
 
-        assertThatThrownBy(() -> service.createOrder(TEST_USER_ID, buildRequest()))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("已完成租住");
+        RentOrderResponse result = service.createOrder(TEST_USER_ID, buildRequest());
+
+        assertThat(result.status()).isEqualTo("pendingContract");
+        verify(rentOrderMapper).insert(any(RentOrder.class));
+        verify(rentContractMapper).insert(any(RentContract.class));
     }
 
     // ==================== 其他用户的合同草稿不锁房 ====================
@@ -335,6 +340,28 @@ class RentOrderServiceTests {
         assertThatThrownBy(() -> service.createOrder(TEST_USER_ID, buildRequest()))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessageContaining("DB error");
+    }
+
+    @Test
+    void preSignDraftTimeout_shouldDeleteLocalOrderAndContractInsteadOfLeavingCancelledRecord() {
+        LocalDateTime expiredBefore = LocalDateTime.now().minusMinutes(30);
+        RentOrder order = buildPendingRealNameOrder();
+        order.setStatus("pendingContract");
+        order.setPrePaymentDeadlineAt(expiredBefore.minusSeconds(1));
+        RentContract contract = new RentContract();
+        contract.setId("contract-draft-1");
+        contract.setOrderId(order.getId());
+        contract.setStatus("draft");
+        when(rentOrderMapper.selectByIdForUpdate(order.getId())).thenReturn(order);
+        when(rentContractMapper.selectByOrderIdForUpdate(order.getId())).thenReturn(contract);
+
+        service.processPrePaymentTimeout(order.getId(), expiredBefore);
+
+        verify(rentContractMapper).deleteById(contract.getId());
+        verify(rentOrderMapper).deleteById(order.getId());
+        verify(rentOrderMapper, never()).updateById(any(RentOrder.class));
+        verify(rentContractMapper, never()).updateById(any(RentContract.class));
+        verify(houseService).lambdaUpdate();
     }
 
     @Test
@@ -443,6 +470,7 @@ class RentOrderServiceTests {
         house.setPrice(200000);
         house.setDeposit(200000);
         house.setStatus("available");
+        house.setSourceType("LANDLORD");
         house.setAddress("测试地址");
         house.setLandlordId("landlord-user-1");
         return house;

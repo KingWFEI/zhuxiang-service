@@ -6,6 +6,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhuxiang.service.common.BusinessException;
+import com.zhuxiang.service.common.EsignException;
+import com.zhuxiang.service.client.EsignV3Client;
+import com.zhuxiang.service.config.EsignV3Properties;
 import com.zhuxiang.service.dto.LeaseTerminationDtos.*;
 import com.zhuxiang.service.entity.*;
 import com.zhuxiang.service.mapper.*;
@@ -14,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,14 +31,18 @@ public class LeaseTerminationServiceImpl
         implements LeaseTerminationService {
 
     private static final Logger log = LoggerFactory.getLogger(LeaseTerminationServiceImpl.class);
-
     private static final Map<String, String> STATUS_TEXT = Map.ofEntries(
             Map.entry("pending_review", "待审核"),
+            Map.entry("pending_photos", "待上传验房照片"),
             Map.entry("need_supplement", "待补充材料"),
             Map.entry("approved", "审核通过"),
             Map.entry("inspection_pending", "待验房"),
             Map.entry("settlement_pending", "待结算"),
             Map.entry("refund_pending", "待退款"),
+            Map.entry("refund_failed", "退款异常"),
+            Map.entry("rescission_pending", "待发起合同解约"),
+            Map.entry("rescission_signing", "解约协议签署中"),
+            Map.entry("rescission_failed", "合同解约异常"),
             Map.entry("completed", "已完成"),
             Map.entry("rejected", "已驳回"),
             Map.entry("cancelled", "已撤销")
@@ -49,15 +57,20 @@ public class LeaseTerminationServiceImpl
             Map.entry("cancelled", "已撤销"),
             Map.entry("inspection_completed", "验房完成"),
             Map.entry("settlement_confirmed", "结算确认"),
-            Map.entry("refund_completed", "退款完成")
+            Map.entry("refund_completed", "退款完成"),
+            Map.entry("photos_submitted", "验房照片已提交"),
+            Map.entry("rescission_started", "解约协议已发起"),
+            Map.entry("rescission_completed", "解约协议已完成"),
+            Map.entry("manual_rescission_completed", "管理端直接完成退租")
     );
 
     private static final Set<String> IN_PROGRESS_STATUSES = Set.of(
-            "pending_review", "need_supplement", "approved",
-            "inspection_pending", "settlement_pending", "refund_pending"
+            "pending_review", "need_supplement", "approved", "pending_photos",
+            "inspection_pending", "settlement_pending", "refund_pending", "refund_failed",
+            "rescission_pending", "rescission_signing", "rescission_failed"
     );
 
-    private static final Set<String> CANCELLABLE_STATUSES = Set.of("pending_review", "need_supplement");
+    private static final Set<String> CANCELLABLE_STATUSES = Set.of("pending_review", "need_supplement", "pending_photos");
 
     private final RentContractMapper rentContractMapper;
     private final LeaseService leaseService;
@@ -70,6 +83,9 @@ public class LeaseTerminationServiceImpl
     private final LeaseTerminationLogMapper logMapper;
     private final DepositService depositService;
     private final ObjectMapper objectMapper;
+    private final EsignV3Client esignV3Client;
+    private final EsignV3Properties esignProperties;
+    private final UserRealNameAuthMapper userRealNameAuthMapper;
 
     public LeaseTerminationServiceImpl(
             RentContractMapper rentContractMapper,
@@ -82,7 +98,10 @@ public class LeaseTerminationServiceImpl
             LockPasscodePermissionService lockPasscodePermissionService,
             LeaseTerminationLogMapper logMapper,
             DepositService depositService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            EsignV3Client esignV3Client,
+            EsignV3Properties esignProperties,
+            UserRealNameAuthMapper userRealNameAuthMapper
     ) {
         this.rentContractMapper = rentContractMapper;
         this.leaseService = leaseService;
@@ -95,6 +114,9 @@ public class LeaseTerminationServiceImpl
         this.logMapper = logMapper;
         this.depositService = depositService;
         this.objectMapper = objectMapper;
+        this.esignV3Client = esignV3Client;
+        this.esignProperties = esignProperties;
+        this.userRealNameAuthMapper = userRealNameAuthMapper;
     }
 
     @Override
@@ -160,12 +182,13 @@ public class LeaseTerminationServiceImpl
         app.setContactPhone(request.contactPhone());
         app.setRemark(request.remark());
         app.setAttachments(serializeAttachments(request.attachments()));
-        app.setStatus("pending_review");
+        app.setStatus(LeaseTerminationApplication.STATUS_PENDING_PHOTOS);
         app.setCreatedAt(now);
         app.setUpdatedAt(now);
         save(app);
 
-        writeLog(id, "applied", null, "pending_review", userId, userId, null);
+        writeLog(id, "applied", null, LeaseTerminationApplication.STATUS_PENDING_PHOTOS,
+                userId, userId, null);
 
         createMessage(userId, "退租申请已提交",
                 "您的退租申请（编号：" + app.getApplicationNo() + "）已提交，等待后台审核。",
@@ -173,7 +196,8 @@ public class LeaseTerminationServiceImpl
 
         return new ApplyResponse(
                 id, app.getApplicationNo(), lease.getId(),
-                "pending_review", STATUS_TEXT.get("pending_review")
+                LeaseTerminationApplication.STATUS_PENDING_PHOTOS,
+                STATUS_TEXT.get(LeaseTerminationApplication.STATUS_PENDING_PHOTOS)
         );
     }
 
@@ -235,6 +259,90 @@ public class LeaseTerminationServiceImpl
         updateById(app);
 
         writeLog(applicationId, "cancelled", fromStatus, "cancelled", userId, userId, request.cancelReason());
+    }
+
+    @Override
+    @Transactional
+    public TerminationDetailResponse adminCancel(
+            String adminId,
+            String applicationId,
+            CancelRequest request
+    ) {
+        LeaseTerminationApplication app = getById(applicationId);
+        if (app == null || app.getDeletedAt() != null) {
+            throw BusinessException.notFound("退租申请不存在");
+        }
+        if (LeaseTerminationApplication.STATUS_CANCELLED.equals(app.getStatus())) {
+            return toDetailResponse(app);
+        }
+        if (!Set.of(
+                LeaseTerminationApplication.STATUS_PENDING_PHOTOS,
+                LeaseTerminationApplication.STATUS_INSPECTION_PENDING
+        ).contains(app.getStatus())) {
+            throw BusinessException.badRequest("当前阶段已进入结算、退款或解约流程，不允许撤销");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        String fromStatus = app.getStatus();
+        String reason = request.cancelReason().trim();
+        app.setStatus(LeaseTerminationApplication.STATUS_CANCELLED);
+        app.setCancelReason(reason);
+        app.setCancelTime(now);
+        app.setUpdatedAt(now);
+        updateById(app);
+
+        String adminName = getAdminName(adminId);
+        writeLog(applicationId, "cancelled", fromStatus,
+                LeaseTerminationApplication.STATUS_CANCELLED,
+                adminId, adminName, reason);
+        createMessage(app.getTenantId(), "退租申请已撤销",
+                "您的退租申请已由管理端撤销，原租约继续有效。撤销原因：" + reason,
+                applicationId);
+        return toDetailResponse(app);
+    }
+
+    @Override
+    @Transactional
+    public RescissionSignUrlResponse getRescissionSignUrl(String userId, String applicationId) {
+        LeaseTerminationApplication app = baseMapper.selectByIdForUpdate(applicationId);
+        if (app == null || app.getDeletedAt() != null) {
+            throw BusinessException.notFound("退租申请不存在");
+        }
+        if (!userId.equals(app.getTenantId())) {
+            throw BusinessException.forbidden("无权操作该申请");
+        }
+        if (!Set.of(
+                LeaseTerminationApplication.STATUS_RESCISSION_PENDING,
+                LeaseTerminationApplication.STATUS_RESCISSION_SIGNING
+        ).contains(app.getStatus())) {
+            throw BusinessException.badRequest("解约协议尚未进入签署阶段");
+        }
+        User tenant = userService.getById(userId);
+        if (tenant == null || !StringUtils.hasText(tenant.getPhone())) {
+            throw BusinessException.badRequest("当前账号缺少手机号，无法打开解约签署页面");
+        }
+        UserRealNameAuth auth = getVerifiedAuth(app.getTenantId());
+        if (auth == null) throw BusinessException.badRequest("租客缺少已通过的实名认证记录");
+        String account = resolveEsignAccount(auth, tenant);
+        if (LeaseTerminationApplication.STATUS_RESCISSION_PENDING.equals(app.getStatus())) {
+            RentContract contract = rentContractMapper.selectById(app.getContractId());
+            if (contract == null || !StringUtils.hasText(contract.getSignFlowId())
+                    || !StringUtils.hasText(contract.getContractFileId())) {
+                throw BusinessException.badRequest("原合同缺少e签宝签署信息");
+            }
+            initiateRescission(app, LocalDateTime.now(), contract);
+        }
+
+        EsignV3Client.SignUrlResponse response = esignV3Client.getRescissionSignUrl(
+                app.getRescissionSignFlowId(), account);
+        if (response.getData() == null || !StringUtils.hasText(response.getData().getUrl())) {
+            throw new IllegalStateException("e签宝未返回解约协议签署链接");
+        }
+        return new RescissionSignUrlResponse(
+                "sign",
+                app.getRescissionSignFlowId(),
+                response.getData().getUrl(),
+                response.getData().getShortUrl());
     }
 
     @Override
@@ -324,6 +432,55 @@ public class LeaseTerminationServiceImpl
 
     @Override
     @Transactional
+    public void markPhotosSubmitted(String userId, String contractId) {
+        LeaseTerminationApplication app = getOne(
+                Wrappers.<LeaseTerminationApplication>lambdaQuery()
+                        .eq(LeaseTerminationApplication::getContractId, contractId)
+                        .eq(LeaseTerminationApplication::getTenantId, userId)
+                        .in(LeaseTerminationApplication::getStatus,
+                                LeaseTerminationApplication.STATUS_PENDING_PHOTOS,
+                                LeaseTerminationApplication.STATUS_INSPECTION_PENDING)
+                        .isNull(LeaseTerminationApplication::getDeletedAt)
+                        .orderByDesc(LeaseTerminationApplication::getCreatedAt)
+                        .last("LIMIT 1"), false);
+        if (app == null || LeaseTerminationApplication.STATUS_INSPECTION_PENDING.equals(app.getStatus())) return;
+
+        app.setStatus(LeaseTerminationApplication.STATUS_INSPECTION_PENDING);
+        app.setUpdatedAt(LocalDateTime.now());
+        updateById(app);
+        writeLog(app.getId(), "photos_submitted", LeaseTerminationApplication.STATUS_PENDING_PHOTOS,
+                LeaseTerminationApplication.STATUS_INSPECTION_PENDING, userId, userId, null);
+    }
+
+    @Override
+    @Transactional
+    public void completeInspectionByContract(String adminId, String contractId, String comment) {
+        LeaseTerminationApplication app = getOne(
+                Wrappers.<LeaseTerminationApplication>lambdaQuery()
+                        .eq(LeaseTerminationApplication::getContractId, contractId)
+                        .eq(LeaseTerminationApplication::getStatus,
+                                LeaseTerminationApplication.STATUS_INSPECTION_PENDING)
+                        .isNull(LeaseTerminationApplication::getDeletedAt)
+                        .orderByDesc(LeaseTerminationApplication::getCreatedAt)
+                        .last("LIMIT 1"), false);
+        if (app == null) return;
+
+        LocalDateTime now = LocalDateTime.now();
+        app.setStatus(LeaseTerminationApplication.STATUS_SETTLEMENT_PENDING);
+        app.setInspectionResult(serializeInspectionResult(adminId, comment, now));
+        app.setInspectionCompletedTime(now);
+        app.setUpdatedAt(now);
+        updateById(app);
+        writeLog(app.getId(), "inspection_completed",
+                LeaseTerminationApplication.STATUS_INSPECTION_PENDING,
+                LeaseTerminationApplication.STATUS_SETTLEMENT_PENDING,
+                adminId, getAdminName(adminId), comment);
+        createMessage(app.getTenantId(), "验房已完成",
+                "您的退租验房已完成，正在进行费用结算。", app.getId());
+    }
+
+    @Override
+    @Transactional
     public TerminationDetailResponse completeInspection(String adminId, String applicationId) {
         LeaseTerminationApplication app = getById(applicationId);
         if (app == null || app.getDeletedAt() != null) throw BusinessException.notFound("退租申请不存在");
@@ -360,43 +517,76 @@ public class LeaseTerminationServiceImpl
             throw BusinessException.badRequest("当前状态不允许结算确认");
         }
 
+        if (request == null) {
+            throw BusinessException.badRequest("请填写退租结算金额和明细");
+        }
         LocalDateTime now = LocalDateTime.now();
         String adminName = getAdminName(adminId);
 
-        if (request != null) {
-            app.setTotalDeduction(Optional.ofNullable(request.settlementAmount()).orElse(0));
-            app.setRefundAmount(Optional.ofNullable(request.refundAmount()).orElse(0));
-            app.setSettlementDetail(serializeSettlementDetail(request));
+        DepositRecord depositRecord = app.getLeaseId() == null
+                ? null : depositService.getByLeaseId(app.getLeaseId());
+        int depositAmount = depositRecord == null ? 0 : Optional.ofNullable(depositRecord.getAmount()).orElse(0);
+        List<DeductionItem> requestedItems = request.deductions() == null ? List.of() : request.deductions();
+        int itemDeduction = requestedItems.stream()
+                .mapToInt(item -> Optional.ofNullable(item.amount()).orElse(0)).sum();
+        if (itemDeduction < 0 || itemDeduction > depositAmount) {
+            throw BusinessException.badRequest("扣款明细金额超出押金范围");
+        }
+        int recommendedRefund = Math.max(0, depositAmount - itemDeduction);
+        int refundAmount = request.refundAmount();
+        if (refundAmount > depositAmount) {
+            throw BusinessException.badRequest("退款金额不能超过可退押金");
+        }
+        if (refundAmount != recommendedRefund
+                && (request.adjustmentReason() == null || request.adjustmentReason().isBlank())) {
+            throw BusinessException.badRequest("调整退款金额时必须填写调整原因");
+        }
 
-            // 写入押金扣款明细
-            if (request.deductions() != null && !request.deductions().isEmpty() && app.getLeaseId() != null) {
-                DepositRecord depositRecord = depositService.getByLeaseId(app.getLeaseId());
-                if (depositRecord != null) {
-                    List<DepositDeduction> deductions = request.deductions().stream()
-                            .map(d -> {
-                                DepositDeduction dd = new DepositDeduction();
-                                dd.setDeductionType(d.deductionType());
-                                dd.setAmount(d.amount());
-                                dd.setDescription(d.description());
-                                dd.setEvidenceUrls(serializeEvidenceUrls(d.evidenceUrls()));
-                                return dd;
-                            })
-                            .toList();
-                    String settlementJson = app.getSettlementDetail();
-                    depositService.settle(depositRecord.getId(), deductions, settlementJson);
-                }
+        int totalDeduction = depositAmount - refundAmount;
+        if (request.settlementAmount() != null && request.settlementAmount() != totalDeduction) {
+            throw BusinessException.badRequest("结算扣款金额必须等于押金减退款金额");
+        }
+        if (itemDeduction > totalDeduction) {
+            throw BusinessException.badRequest("退款金额与扣款明细不一致");
+        }
+        List<DepositDeduction> deductions = new ArrayList<>();
+        for (DeductionItem item : requestedItems) {
+            DepositDeduction deduction = new DepositDeduction();
+            deduction.setDeductionType(item.deductionType());
+            deduction.setAmount(item.amount());
+            deduction.setDescription(item.description());
+            deduction.setEvidenceUrls(serializeEvidenceUrls(item.evidenceUrls()));
+            deductions.add(deduction);
+        }
+        if (totalDeduction > itemDeduction) {
+            DepositDeduction adjustment = new DepositDeduction();
+            adjustment.setDeductionType("manual_adjustment");
+            adjustment.setAmount(totalDeduction - itemDeduction);
+            adjustment.setDescription(request.adjustmentReason());
+            deductions.add(adjustment);
+        }
+
+        app.setTotalDeduction(totalDeduction);
+        app.setRecommendedRefundAmount(recommendedRefund);
+        app.setRefundAmount(refundAmount);
+        app.setRefundAdjustmentReason(request.adjustmentReason());
+        app.setSettlementOperatorId(adminId);
+        app.setSettlementDetail(serializeSettlementDetail(request));
+        if (depositRecord != null) {
+            depositService.settle(depositRecord.getId(), deductions, app.getSettlementDetail());
+            // 退款金额为 0 时无需调用外部支付渠道，但仍应闭合押金记录状态。
+            if (refundAmount == 0) {
+                depositService.refund(depositRecord.getId());
             }
+        } else if (refundAmount > 0) {
+            throw BusinessException.badRequest("未找到押金记录，不能发起退款");
         }
 
-        int refundAmount = Optional.ofNullable(app.getRefundAmount()).orElse(0);
-
-        if (refundAmount > 0) {
-            app.setStatus("refund_pending");
-        } else {
-            app.setStatus("completed");
-            terminateLeaseAndHouse(app, now);
-            app.setCompletedTime(now);
-        }
+        app.setStatus(refundAmount > 0
+                ? LeaseTerminationApplication.STATUS_REFUND_PENDING
+                : LeaseTerminationApplication.STATUS_RESCISSION_PENDING);
+        app.setProcessRetryCount(0);
+        app.setProcessRetryAt(now);
 
         app.setSettlementConfirmedTime(now);
         app.setUpdatedAt(now);
@@ -406,7 +596,8 @@ public class LeaseTerminationServiceImpl
         writeLog(applicationId, "settlement_confirmed", "settlement_pending", toStatus,
                 adminId, adminName, null);
         createMessage(app.getTenantId(), "退租结算已确认",
-                "您的退租结算已确认" + (refundAmount > 0 ? "，等待退款处理。" : "，退租流程已完成。"), applicationId);
+                "您的退租结算已确认" + (refundAmount > 0
+                        ? "，等待退款处理。" : "，即将发起合同解约。"), applicationId);
 
         return toDetailResponse(app);
     }
@@ -420,36 +611,211 @@ public class LeaseTerminationServiceImpl
             throw BusinessException.badRequest("当前状态不允许退款完成");
         }
 
+        processPendingFlow(applicationId);
+        return toDetailResponse(getById(applicationId));
+    }
+
+    @Override
+    @Transactional
+    public void processPendingFlow(String applicationId) {
+        LeaseTerminationApplication app = getBaseMapper().selectByIdForUpdate(applicationId);
+        if (app == null || app.getDeletedAt() != null) return;
         LocalDateTime now = LocalDateTime.now();
-        String adminName = getAdminName(adminId);
+        try {
+            if (LeaseTerminationApplication.STATUS_REFUND_PENDING.equals(app.getStatus())) {
+                DepositRecord deposit = app.getLeaseId() == null
+                        ? null : depositService.getByLeaseId(app.getLeaseId());
+                if (deposit == null) throw new IllegalStateException("未找到押金记录");
+                depositService.refund(deposit.getId());
+                deposit = depositService.getById(deposit.getId());
+                if (deposit == null || !"refunded".equals(deposit.getStatus())) {
+                    app.setProcessRetryAt(now.plusSeconds(30));
+                    app.setUpdatedAt(now);
+                    updateById(app);
+                    return;
+                }
+                app.setRefundCompletedTime(now);
+                app.setStatus(LeaseTerminationApplication.STATUS_RESCISSION_PENDING);
+                app.setProcessLastError(null);
+                app.setProcessRetryCount(0);
+                app.setProcessRetryAt(now);
+                app.setUpdatedAt(now);
+                updateById(app);
+                writeLog(app.getId(), "refund_completed",
+                        LeaseTerminationApplication.STATUS_REFUND_PENDING,
+                        LeaseTerminationApplication.STATUS_RESCISSION_PENDING,
+                        "system", "系统", null);
+                createMessage(app.getTenantId(), "退租退款已完成",
+                        "退款已原路退回，即将发起电子合同解约。", app.getId());
+            }
 
-        app.setStatus("completed");
-        app.setRefundCompletedTime(now);
-        app.setCompletedTime(now);
-        app.setUpdatedAt(now);
-        updateById(app);
-
-        // 执行押金退款
-        if (app.getLeaseId() != null) {
-            DepositRecord depositRecord = depositService.getByLeaseId(app.getLeaseId());
-            if (depositRecord != null && "deducted".equals(depositRecord.getStatus())) {
-                try {
-                    depositService.refund(depositRecord.getId());
-                } catch (Exception e) {
-                    log.warn("押金退款执行失败 applicationId={} depositRecordId={} err={}",
-                            applicationId, depositRecord.getId(), e.getMessage());
+            if (LeaseTerminationApplication.STATUS_RESCISSION_PENDING.equals(app.getStatus())) {
+                initiateRescission(app, now);
+                return;
+            }
+            if (LeaseTerminationApplication.STATUS_RESCISSION_SIGNING.equals(app.getStatus())) {
+                EsignV3Client.SignFlowDetailResponse detail =
+                        esignV3Client.getSignFlowDetail(app.getRescissionSignFlowId());
+                Integer status = detail.getData() == null ? null : detail.getData().getSignFlowStatus();
+                if (Integer.valueOf(2).equals(status)) {
+                    completeTerminationAfterRescission(app, now);
+                } else {
+                    app.setProcessRetryAt(now.plusSeconds(30));
+                    app.setUpdatedAt(now);
+                    updateById(app);
                 }
             }
+        } catch (Exception exception) {
+            app.setProcessLastError(exception.getMessage());
+            int retryCount = app.getProcessRetryCount() == null
+                    ? 1 : app.getProcessRetryCount() + 1;
+            app.setProcessRetryCount(retryCount);
+            if (isTransientProcessFailure(exception)) {
+                long delayMinutes = retryDelayMinutes(retryCount);
+                app.setProcessRetryAt(now.plusMinutes(delayMinutes));
+                log.warn("退租流程临时异常，将延迟重试 applicationId={} status={} retryCount={} delayMinutes={} error={}",
+                        applicationId, app.getStatus(), retryCount, delayMinutes, exception.getMessage());
+            } else if (LeaseTerminationApplication.STATUS_RESCISSION_PENDING.equals(app.getStatus())) {
+                app.setStatus(LeaseTerminationApplication.STATUS_RESCISSION_FAILED);
+                app.setRescissionStatus("failed");
+                app.setProcessRetryAt(null);
+                log.error("合同解约发生确定性业务错误，已停止自动重试 applicationId={} error={}",
+                        applicationId, exception.getMessage());
+            } else {
+                if (LeaseTerminationApplication.STATUS_REFUND_PENDING.equals(app.getStatus())) {
+                    app.setStatus(LeaseTerminationApplication.STATUS_REFUND_FAILED);
+                } else if (LeaseTerminationApplication.STATUS_RESCISSION_SIGNING.equals(app.getStatus())) {
+                    app.setStatus(LeaseTerminationApplication.STATUS_RESCISSION_FAILED);
+                    app.setRescissionStatus("failed");
+                }
+                app.setProcessRetryAt(null);
+                log.error("退租流程发生不可重试错误，已停止自动重试 applicationId={} status={} error={}",
+                        applicationId, app.getStatus(), exception.getMessage());
+            }
+            app.setUpdatedAt(now);
+            updateById(app);
         }
+    }
 
+    private boolean isTransientProcessFailure(Exception exception) {
+        Throwable current = exception;
+        while (current != null) {
+            if (current instanceof EsignException esignException) {
+                String code = esignException.getEsignCode();
+                int httpStatus = esignException.getHttpStatus();
+                return "NETWORK".equals(code)
+                        || "10000001".equals(code)
+                        || httpStatus == 408 || httpStatus == 429 || httpStatus >= 500;
+            }
+            if (current instanceof java.net.SocketTimeoutException
+                    || current instanceof java.net.ConnectException
+                    || current instanceof java.io.IOException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private long retryDelayMinutes(int retryCount) {
+        if (retryCount <= 1) return 1;
+        if (retryCount == 2) return 5;
+        if (retryCount == 3) return 15;
+        return 60;
+    }
+
+    private void initiateRescission(LeaseTerminationApplication app, LocalDateTime now) {
+        if (!esignProperties.isCredentialsConfigured()) {
+            throw new IllegalStateException("e签宝未配置，无法发起合同解约");
+        }
+        RentContract contract = rentContractMapper.selectById(app.getContractId());
+        if (contract == null || contract.getSignFlowId() == null || contract.getContractFileId() == null) {
+            throw new IllegalStateException("原合同缺少签署流程或合同文件ID");
+        }
+        initiateRescission(app, now, contract);
+    }
+
+    private UserRealNameAuth getVerifiedAuth(String tenantId) {
+        return userRealNameAuthMapper.selectOne(
+                Wrappers.<UserRealNameAuth>lambdaQuery()
+                        .eq(UserRealNameAuth::getUserId, tenantId)
+                        .eq(UserRealNameAuth::getAuthStatus, "VERIFIED")
+                        .orderByDesc(UserRealNameAuth::getVerifiedAt)
+                        .last("LIMIT 1"));
+    }
+
+    private String resolveEsignAccount(UserRealNameAuth auth, User tenant) {
+        if (auth != null && StringUtils.hasText(auth.getAccountMobile())) {
+            return auth.getAccountMobile().trim();
+        }
+        if (tenant != null && StringUtils.hasText(tenant.getPhone())) {
+            return tenant.getPhone().trim();
+        }
+        throw BusinessException.badRequest("租客缺少可用于e签宝办理的手机号");
+    }
+
+    private void initiateRescission(
+            LeaseTerminationApplication app,
+            LocalDateTime now,
+            RentContract contract
+    ) {
+        House house = houseService.getById(contract.getHouseId());
+        boolean platformHouse = house == null
+                || !"LANDLORD".equalsIgnoreCase(house.getSourceType());
+        String reason = "租赁关系终止：" + app.getReason();
+        String flowId = platformHouse
+                ? esignV3Client.initiatePlatformRescission(
+                        contract.getSignFlowId(), contract.getContractFileId(), reason)
+                : esignV3Client.initiatePersonalHouseRescission(
+                        contract.getSignFlowId(), contract.getContractFileId(), reason);
+        app.setRescissionSignFlowId(flowId);
+        app.setRescissionStatus("signing");
+        app.setRescissionStartedAt(now);
+        app.setStatus(LeaseTerminationApplication.STATUS_RESCISSION_SIGNING);
+        app.setProcessLastError(null);
+        app.setProcessRetryCount(0);
+        app.setProcessRetryAt(now.plusSeconds(30));
+        app.setUpdatedAt(now);
+        updateById(app);
+        writeLog(app.getId(), "rescission_started",
+                LeaseTerminationApplication.STATUS_RESCISSION_PENDING,
+                LeaseTerminationApplication.STATUS_RESCISSION_SIGNING,
+                "system", "系统", null);
+        createMessage(app.getTenantId(), "解约协议已发起",
+                "电子合同解约协议已发起，请根据e签宝短信完成签署。", app.getId());
+    }
+
+
+    @Override
+    @Transactional
+    public boolean processRescissionCallback(String signFlowId, Integer signFlowStatus) {
+        LeaseTerminationApplication app =
+                baseMapper.selectByRescissionFlowIdForUpdate(signFlowId);
+        if (app == null) return false;
+        if (Integer.valueOf(2).equals(signFlowStatus)
+                && !LeaseTerminationApplication.STATUS_COMPLETED.equals(app.getStatus())) {
+            completeTerminationAfterRescission(app, LocalDateTime.now());
+        }
+        return true;
+    }
+
+    private void completeTerminationAfterRescission(LeaseTerminationApplication app, LocalDateTime now) {
+        app.setStatus(LeaseTerminationApplication.STATUS_COMPLETED);
+        app.setTerminationMode("ESIGN");
+        app.setRescissionStatus("completed");
+        app.setRescissionCompletedAt(now);
+        app.setCompletedTime(now);
+        app.setProcessLastError(null);
+        app.setProcessRetryAt(null);
+        app.setUpdatedAt(now);
+        updateById(app);
         terminateLeaseAndHouse(app, now);
-
-        writeLog(applicationId, "refund_completed", "refund_pending", "completed",
-                adminId, adminName, null);
-        createMessage(app.getTenantId(), "退租退款已完成",
-                "您的退租退款已完成，退租流程全部结束。", applicationId);
-
-        return toDetailResponse(app);
+        writeLog(app.getId(), "rescission_completed",
+                LeaseTerminationApplication.STATUS_RESCISSION_SIGNING,
+                LeaseTerminationApplication.STATUS_COMPLETED,
+                "system", "系统", null);
+        createMessage(app.getTenantId(), "退租已完成",
+                "解约协议已签署，租约和门锁权限已完成收尾。", app.getId());
     }
 
     private void terminateLeaseAndHouse(LeaseTerminationApplication app, LocalDateTime now) {
@@ -602,6 +968,9 @@ public class LeaseTerminationServiceImpl
         House house = houseService.getById(app.getHouseId());
         String houseName = house != null ? house.getTitle() : "";
         List<TimelineItem> timeline = getTimeline(app.getId());
+        DepositRecord deposit = app.getLeaseId() == null ? null : depositService.getByLeaseId(app.getLeaseId());
+        int depositAmount = deposit == null ? 0 : Optional.ofNullable(deposit.getAmount()).orElse(0);
+        int unpaidAmount = app.getLeaseId() == null ? 0 : calculateUnpaidAmount(app.getLeaseId());
 
         return new TerminationDetailResponse(
                 app.getId(), app.getApplicationNo(), app.getLeaseId(), app.getContractId(),
@@ -611,7 +980,14 @@ public class LeaseTerminationServiceImpl
                 deserializeAttachments(app.getAttachments()),
                 app.getStatus(), STATUS_TEXT.getOrDefault(app.getStatus(), app.getStatus()),
                 app.getRejectReason(), app.getSupplementReason(),
+                depositAmount, unpaidAmount,
                 app.getTotalDeduction(), app.getRefundAmount(),
+                app.getRecommendedRefundAmount(), app.getRefundAdjustmentReason(),
+                app.getRescissionSignFlowId(), app.getRescissionStatus(),
+                app.getTerminationMode(), app.getManualTerminationReason(),
+                deserializeStringList(app.getManualAgreementUrls()),
+                app.getManualCompletedBy(), app.getManualCompletedAt(),
+                app.getProcessLastError(),
                 app.getActualMoveOutDate(),
                 app.getCreatedAt(), app.getUpdatedAt(), timeline
         );
@@ -674,11 +1050,26 @@ public class LeaseTerminationServiceImpl
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("settlementAmount", Optional.ofNullable(request.settlementAmount()).orElse(0));
         detail.put("refundAmount", Optional.ofNullable(request.refundAmount()).orElse(0));
+        detail.put("adjustmentReason", request.adjustmentReason());
         detail.put("remark", request.remark());
         try {
             return objectMapper.writeValueAsString(detail);
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("序列化退租结算明细失败", exception);
+        }
+    }
+
+    private String serializeInspectionResult(String adminId, String comment, LocalDateTime completedAt) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("completedBy", adminId);
+        result.put("completedAt", completedAt.toString());
+        if (comment != null && !comment.isBlank()) {
+            result.put("comment", comment);
+        }
+        try {
+            return objectMapper.writeValueAsString(result);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("序列化验房结果失败", exception);
         }
     }
 
@@ -696,6 +1087,15 @@ public class LeaseTerminationServiceImpl
         try {
             return objectMapper.readValue(json, new TypeReference<List<AttachmentItem>>() {});
         } catch (JsonProcessingException e) {
+            return List.of();
+        }
+    }
+
+    private List<String> deserializeStringList(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {});
+        } catch (JsonProcessingException exception) {
             return List.of();
         }
     }

@@ -52,4 +52,16 @@ public interface RentOrderMapper extends BaseMapper<RentOrder> {
     List<String> selectExpiredPrePaymentOrderIds(
             @Param("now") LocalDateTime now,
             @Param("limit") int limit);
+
+    @Select("""
+            SELECT id FROM rent_order
+            WHERE status = 'pendingLandlordSign'
+              AND landlord_sign_deadline_at IS NOT NULL
+              AND landlord_sign_deadline_at <= #{now}
+            ORDER BY landlord_sign_deadline_at ASC
+            LIMIT #{limit}
+            """)
+    List<String> selectExpiredLandlordSignOrderIds(
+            @Param("now") LocalDateTime now,
+            @Param("limit") int limit);
 }

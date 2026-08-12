@@ -89,6 +89,13 @@ public class PaymentController {
 
         // 确认支付
         rentOrderService.confirmPayment(record.getId(), result.tradeNo());
+        PaymentRecord confirmed = paymentRecordService.getById(record.getId());
+        boolean paid = confirmed != null && "success".equals(confirmed.getStatus());
+        if (!paid) {
+            log.warn("支付宝交易已成功但本地订单不可继续，已进入退款流程 paymentNo={} status={}",
+                    paymentNo, confirmed == null ? null : confirmed.getStatus());
+            return ApiResponse.success("订单已失效，支付款将原路退回", false);
+        }
         log.info("支付宝主动确认成功 paymentNo={} tradeNo={}", paymentNo, result.tradeNo());
         return ApiResponse.success("支付确认成功", true);
     }

@@ -43,7 +43,7 @@ public interface AlipayService {
      * 支付宝退款。
      *
      * @param outTradeNo 原商户订单号
-     * @param refundAmount 退款金额，单位：分
+     * @param refundAmount 退款金额，单位：元，保留两位小数
      * @param outRequestNo 退款请求号（幂等标识）
      * @return 退款结果
      */
@@ -72,6 +72,8 @@ public interface AlipayService {
             String tradeNo,
             String outTradeNo,
             String refundFee,
-            String outRequestNo
+            String outRequestNo,
+            String fundChange,
+            String refundStatus
     ) {}
 }

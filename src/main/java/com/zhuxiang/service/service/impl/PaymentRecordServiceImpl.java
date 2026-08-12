@@ -34,6 +34,8 @@ public class PaymentRecordServiceImpl extends ServiceImpl<PaymentRecordMapper, P
             "success", "支付成功",
             "paid", "支付成功",
             "failed", "支付失败",
+            "refundPending", "退款处理中",
+            "refundFailed", "退款异常",
             "refunded", "已退款"
     );
 
@@ -86,7 +88,7 @@ public class PaymentRecordServiceImpl extends ServiceImpl<PaymentRecordMapper, P
 
     private PaymentItem toItem(PaymentRecord r) {
         return new PaymentItem(
-                r.getId(), r.getPaymentNo(), r.getBillId(), r.getLeaseId(),
+                r.getId(), r.getPaymentNo(), r.getOrderId(), r.getBillId(), r.getLeaseId(),
                 r.getHouseName(), r.getType(), typeText(r.getType()),
                 r.getAmount(), r.getStatus(), statusText(r.getStatus()),
                 r.getPaymentChannel(), methodText(r.getPaymentChannel()),
@@ -96,7 +98,7 @@ public class PaymentRecordServiceImpl extends ServiceImpl<PaymentRecordMapper, P
 
     private PaymentDetail toDetail(PaymentRecord r) {
         return new PaymentDetail(
-                r.getId(), r.getPaymentNo(), r.getBillId(), r.getLeaseId(),
+                r.getId(), r.getPaymentNo(), r.getOrderId(), r.getBillId(), r.getLeaseId(),
                 r.getHouseName(), r.getType(), typeText(r.getType()),
                 r.getAmount(), r.getStatus(), statusText(r.getStatus()),
                 r.getPaymentChannel(), methodText(r.getPaymentChannel()),

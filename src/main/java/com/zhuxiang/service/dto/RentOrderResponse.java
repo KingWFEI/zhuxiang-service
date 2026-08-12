@@ -34,6 +34,7 @@ public record RentOrderResponse(
         LocalDateTime updatedAt,
         String houseName,
         String roomName,
-        String address
+        String address,
+        String sourceType
 ) {
 }

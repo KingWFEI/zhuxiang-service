@@ -146,6 +146,8 @@ public class RealNameAuthServiceImpl implements RealNameAuthService {
             UserRealNameAuth updated = mapper.selectById(auth.getId());
             log.info("发起实名认证成功: userId={}, realNameAuthNo={}, flowId={}",
                     userId, auth.getRealNameAuthNo(), EsignFaceAuthClient.maskFlowId(updated.getEsignFaceFlowId()));
+            log.info("实名认证链接: userId={}, realNameAuthNo={}, authUrl={}, expireAt={}",
+                    userId, auth.getRealNameAuthNo(), updated.getAuthUrl(), updated.getAuthUrlExpireTime());
             return toStartResult(updated);
 
         } catch (EsignApiException e) {

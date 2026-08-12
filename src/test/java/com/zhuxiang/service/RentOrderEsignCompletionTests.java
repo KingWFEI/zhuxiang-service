@@ -8,6 +8,7 @@ import com.zhuxiang.service.entity.House;
 import com.zhuxiang.service.entity.Lease;
 import com.zhuxiang.service.entity.RentContract;
 import com.zhuxiang.service.entity.RentOrder;
+import com.zhuxiang.service.entity.PaymentRecord;
 import com.zhuxiang.service.dto.EsignSignStatusResponse;
 import com.zhuxiang.service.mapper.RentContractMapper;
 import com.zhuxiang.service.mapper.RentOrderMapper;
@@ -22,6 +23,7 @@ import com.zhuxiang.service.service.IdCardCryptoService;
 import com.zhuxiang.service.service.InspectionService;
 import com.zhuxiang.service.service.LeaseService;
 import com.zhuxiang.service.service.PaymentRecordService;
+import com.zhuxiang.service.service.PaymentRefundService;
 import com.zhuxiang.service.service.RealNameAuthService;
 import com.zhuxiang.service.service.RentBillService;
 import com.zhuxiang.service.service.UserService;
@@ -45,6 +47,58 @@ import static org.mockito.Mockito.when;
 class RentOrderEsignCompletionTests {
 
     @Test
+    void landlordRejectedCallbackImmediatelyRequestsRefundAndReleasesHouse() {
+        RentOrderMapper orderMapper = mock(RentOrderMapper.class);
+        RentContractMapper contractMapper = mock(RentContractMapper.class);
+        HouseService houseService = mock(HouseService.class);
+        mockHouseUpdate(houseService);
+        LeaseService leaseService = mock(LeaseService.class);
+        PaymentRecordService paymentService = mock(PaymentRecordService.class);
+        PaymentRefundService refundService = mock(PaymentRefundService.class);
+        RentOrderServiceImpl service = new RentOrderServiceImpl(
+                houseService, contractMapper, leaseService, mock(UserService.class),
+                mock(ApplicationEventPublisher.class), mock(FileRecordService.class),
+                paymentService, mock(RentBillService.class), mock(AlipayService.class),
+                mock(DepositService.class), new ObjectMapper(), mock(RealNameAuthService.class),
+                mock(UserRealNameAuthMapper.class), mock(IdCardCryptoService.class),
+                mock(EsignV3Client.class), mock(EsignV3Properties.class),
+                mock(InspectionService.class), mock(CommunityService.class), refundService);
+        ReflectionTestUtils.setField(service, "baseMapper", orderMapper);
+
+        RentOrder order = new RentOrder();
+        order.setId("order-1");
+        order.setUserId("tenant-1");
+        order.setHouseId("house-1");
+        order.setStatus("pendingLandlordSign");
+        order.setPaidAt(LocalDateTime.now());
+        RentContract contract = new RentContract();
+        contract.setId("contract-1");
+        contract.setOrderId("order-1");
+        contract.setSignFlowId("flow-1");
+        contract.setStatus("signing");
+        PaymentRecord payment = new PaymentRecord();
+        payment.setId("payment-1");
+        payment.setStatus("success");
+
+        when(contractMapper.selectOne(any(), eq(false))).thenReturn(contract);
+        when(orderMapper.selectByIdForUpdate("order-1")).thenReturn(order);
+        when(contractMapper.selectByOrderIdForUpdate("order-1")).thenReturn(contract);
+        when(leaseService.count(any())).thenReturn(0L);
+        when(paymentService.getOne(any(), eq(false))).thenReturn(payment);
+
+        EsignCallbackData callback = new EsignCallbackData();
+        callback.setSignFlowId("flow-1");
+        callback.setSignFlowStatus(5);
+        service.processEsignCallback(callback);
+
+        assertThat(contract.getStatus()).isEqualTo("canceled");
+        assertThat(contract.getFailureCode()).isEqualTo("ESIGN_LANDLORD_REJECTED");
+        verify(refundService).requestRefund(order, payment,
+                "房东拒绝签署：房东在电子签署平台拒绝签署", "LANDLORD_REJECTED");
+        verify(houseService).lambdaUpdate();
+    }
+
+    @Test
     void repeatedCompletedCallbackRepairsSignedPartyFlags() {
         RentOrderMapper orderMapper = mock(RentOrderMapper.class);
         RentContractMapper contractMapper = mock(RentContractMapper.class);
@@ -56,7 +110,8 @@ class RentOrderEsignCompletionTests {
                 mock(PaymentRecordService.class), mock(RentBillService.class), mock(AlipayService.class),
                 mock(DepositService.class), new ObjectMapper(), mock(RealNameAuthService.class),
                 mock(UserRealNameAuthMapper.class), mock(IdCardCryptoService.class), mock(EsignV3Client.class),
-                mock(EsignV3Properties.class), mock(InspectionService.class), mock(CommunityService.class));
+                mock(EsignV3Properties.class), mock(InspectionService.class), mock(CommunityService.class),
+                mock(com.zhuxiang.service.service.PaymentRefundService.class));
         ReflectionTestUtils.setField(service, "baseMapper", orderMapper);
 
         RentContract contract = new RentContract();
@@ -99,7 +154,8 @@ class RentOrderEsignCompletionTests {
                 mock(PaymentRecordService.class), rentBillService, mock(AlipayService.class),
                 mock(DepositService.class), new ObjectMapper(), mock(RealNameAuthService.class),
                 mock(UserRealNameAuthMapper.class), mock(IdCardCryptoService.class), esignClient,
-                mock(EsignV3Properties.class), mock(InspectionService.class), mock(CommunityService.class));
+                mock(EsignV3Properties.class), mock(InspectionService.class), mock(CommunityService.class),
+                mock(com.zhuxiang.service.service.PaymentRefundService.class));
         ReflectionTestUtils.setField(service, "baseMapper", orderMapper);
 
         RentOrder order = new RentOrder();
@@ -177,7 +233,8 @@ class RentOrderEsignCompletionTests {
                 mock(EsignV3Client.class),
                 mock(EsignV3Properties.class),
                 inspectionService,
-                mock(CommunityService.class));
+                mock(CommunityService.class),
+                mock(com.zhuxiang.service.service.PaymentRefundService.class));
         ReflectionTestUtils.setField(service, "baseMapper", orderMapper);
 
         RentContract contract = new RentContract();

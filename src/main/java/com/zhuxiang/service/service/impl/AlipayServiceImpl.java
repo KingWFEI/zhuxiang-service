@@ -168,7 +168,9 @@ public class AlipayServiceImpl implements AlipayService {
                     response.getTradeNo(),
                     response.getOutTradeNo(),
                     response.getRefundFee(),
-                    outRequestNo
+                    outRequestNo,
+                    response.getFundChange(),
+                    null
             );
         } catch (AlipayApiException e) {
             log.error("支付宝退款异常 outTradeNo={} outRequestNo={}", outTradeNo, outRequestNo, e);
@@ -195,7 +197,9 @@ public class AlipayServiceImpl implements AlipayService {
                     response.getTradeNo(),
                     response.getOutTradeNo(),
                     response.getRefundAmount(),
-                    outRequestNo
+                    outRequestNo,
+                    null,
+                    response.getRefundStatus()
             );
         } catch (AlipayApiException e) {
             log.error("支付宝退款查询异常 outTradeNo={} outRequestNo={}", outTradeNo, outRequestNo, e);

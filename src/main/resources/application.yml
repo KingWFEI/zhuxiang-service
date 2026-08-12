@@ -7,7 +7,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username:   ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:wf010931}
+    password: ${DB_PASSWORD:132135}
 #    url: ${DB_URL:jdbc:mysql://10.143.183.205:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
 #    username: ${DB_USERNAME:zhuxiang_app_user}
 #    password: ${DB_PASSWORD:Zhuxiang@2026!}
@@ -98,6 +98,10 @@ app:
     expiration-scan-ms: ${LOCK_PASSCODE_EXPIRATION_SCAN_MS:300000}
   lease:
     expiration-scan-ms: ${LEASE_EXPIRATION_SCAN_MS:300000}
+  lease-termination:
+    scan-ms: ${LEASE_TERMINATION_SCAN_MS:15000}
+  payment-refund:
+    scan-ms: ${PAYMENT_REFUND_SCAN_MS:15000}
   agent:
     base-url: ${AGENT_BASE_URL:http://localhost:8101}
     api-key: ${AGENT_API_KEY:}
@@ -157,6 +161,10 @@ esign:
   sign-order-mode: SIMULTANEOUS
   notify-url: ${ESIGN_NOTIFY_URL:}
   redirect-url: ${ESIGN_REDIRECT_URL:}
+  platform-org-id: ${ESIGN_PLATFORM_ORG_ID:}
+  platform-org-name: ${ESIGN_PLATFORM_ORG_NAME:重庆踏山河科技有限公司}
+  platform-transactor-psn-id: ${ESIGN_PLATFORM_TRANSACTOR_PSN_ID:}
+  platform-seal-id: ${ESIGN_PLATFORM_SEAL_ID:}
   connect-timeout-seconds: ${ESIGN_CONNECT_TIMEOUT_SECONDS:15}
   read-timeout-seconds: ${ESIGN_READ_TIMEOUT_SECONDS:60}
   face:

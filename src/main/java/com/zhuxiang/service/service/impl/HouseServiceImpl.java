@@ -80,6 +80,21 @@ import java.util.stream.Collectors;
 public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     implements HouseService{
 
+    @Override
+    public House getByIdForUpdate(String houseId) {
+        return getBaseMapper().selectByIdForUpdate(houseId);
+    }
+
+    @Override
+    public boolean acquireRentalReservation(String houseId, String orderId, LocalDateTime expiresAt) {
+        return getBaseMapper().acquireReservation(houseId, orderId, expiresAt) == 1;
+    }
+
+    @Override
+    public boolean releaseRentalReservation(String houseId, String orderId) {
+        return getBaseMapper().releaseReservation(houseId, orderId) == 1;
+    }
+
     private static final Set<String> RENT_TYPES =
             Set.of("LONG_RENT", "SHORT_RENT", "HOMESTAY");
     private static final Set<String> RENT_MODES =
@@ -259,10 +274,11 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         if (house == null) {
             throw BusinessException.notFound("房源不存在");
         }
-        if ("rented".equals(house.getStatus())) {
+        if ("rented".equals(house.getStatus()) && !"rented".equals(house.getStatus())) {
             throw BusinessException.conflict("该房源已出租");
         }
-        if (!"available".equals(house.getStatus()) && !"reserved".equals(house.getStatus())) {
+        if (!"available".equals(house.getStatus()) && !"reserved".equals(house.getStatus())
+                && !"rented".equals(house.getStatus())) {
             throw BusinessException.notFound("房源不存在或已下架");
         }
         if ("available".equals(house.getStatus())) {
@@ -392,10 +408,10 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
      */
     private RentAvailabilityData loadRentAvailability(House house, String userId) {
         if ("rented".equals(house.getStatus())) {
-            return new RentAvailabilityData("rented", null, false);
+            return new RentAvailabilityData("RENTED", null, false);
         }
         if (!"reserved".equals(house.getStatus())) {
-            return new RentAvailabilityData("available", null, false);
+            return new RentAvailabilityData("AVAILABLE", null, false);
         }
         RentOrder activeOrder = rentOrderMapper.selectOne(
                 Wrappers.<RentOrder>lambdaQuery()
@@ -407,12 +423,12 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         if (activeOrder != null) {
             boolean belongsToMe = userId != null && userId.equals(activeOrder.getUserId());
             return new RentAvailabilityData(
-                    "locked",
+                    "RESERVED",
                     belongsToMe ? activeOrder.getId() : null,
                     belongsToMe
             );
         }
-        return new RentAvailabilityData("available", null, false);
+        return new RentAvailabilityData("AVAILABLE", null, false);
     }
 
     private record RentAvailabilityData(String rentAvailability, String activeOrderId, boolean activeOrderBelongsToMe) {

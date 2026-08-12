@@ -15,6 +15,10 @@ public class EsignV3Properties {
     private String signOrderMode = "SIMULTANEOUS";
     private String notifyUrl;
     private String redirectUrl;
+    private String platformOrgId;
+    private String platformOrgName = "重庆踏山河科技有限公司";
+    private String platformTransactorPsnId;
+    private String platformSealId;
     private int connectTimeoutSeconds = 15;
     private int readTimeoutSeconds = 60;
 
@@ -41,6 +45,20 @@ public class EsignV3Properties {
 
     public String getRedirectUrl() { return redirectUrl; }
     public void setRedirectUrl(String redirectUrl) { this.redirectUrl = redirectUrl; }
+
+    public String getPlatformOrgId() { return platformOrgId; }
+    public void setPlatformOrgId(String platformOrgId) { this.platformOrgId = platformOrgId; }
+
+    public String getPlatformOrgName() { return platformOrgName; }
+    public void setPlatformOrgName(String platformOrgName) { this.platformOrgName = platformOrgName; }
+
+    public String getPlatformTransactorPsnId() { return platformTransactorPsnId; }
+    public void setPlatformTransactorPsnId(String platformTransactorPsnId) {
+        this.platformTransactorPsnId = platformTransactorPsnId;
+    }
+
+    public String getPlatformSealId() { return platformSealId; }
+    public void setPlatformSealId(String platformSealId) { this.platformSealId = platformSealId; }
 
     public int getConnectTimeoutSeconds() { return connectTimeoutSeconds; }
     public void setConnectTimeoutSeconds(int connectTimeoutSeconds) {

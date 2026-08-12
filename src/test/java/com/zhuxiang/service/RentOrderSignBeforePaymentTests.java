@@ -38,6 +38,7 @@ class RentOrderSignBeforePaymentTests {
     private final RentBillService rentBillService = mock(RentBillService.class);
     private final EsignV3Client esignClient = mock(EsignV3Client.class);
     private final EsignV3Properties esignProperties = mock(EsignV3Properties.class);
+    private final PaymentRefundService paymentRefundService = mock(PaymentRefundService.class);
     private RentOrderServiceImpl service;
 
     @BeforeEach
@@ -48,7 +49,8 @@ class RentOrderSignBeforePaymentTests {
                 paymentRecordService, rentBillService, mock(AlipayService.class),
                 mock(DepositService.class), new ObjectMapper(), mock(RealNameAuthService.class),
                 mock(UserRealNameAuthMapper.class), mock(IdCardCryptoService.class), esignClient,
-                esignProperties, mock(InspectionService.class), mock(CommunityService.class));
+                esignProperties, mock(InspectionService.class), mock(CommunityService.class),
+                paymentRefundService);
         ReflectionTestUtils.setField(service, "baseMapper", orderMapper);
         @SuppressWarnings("unchecked")
         LambdaUpdateChainWrapper<House> update = mock(LambdaUpdateChainWrapper.class,
@@ -128,8 +130,9 @@ class RentOrderSignBeforePaymentTests {
 
         service.confirmPayment("payment-1", "late-trade");
 
-        assertThat(record.getStatus()).isEqualTo("refundPending");
         assertThat(record.getChannelTradeNo()).isEqualTo("late-trade");
+        verify(paymentRefundService).requestRefund(
+                eq(order), eq(record), anyString(), eq("LATE_PAYMENT"));
         verify(leaseService, never()).save(any());
     }
 

@@ -37,7 +37,7 @@ public class LeaseTerminationAppController {
     }
 
     @PostMapping("/{leaseId}/termination/apply")
-    @Operation(summary = "提交退租申请", description = "按租约创建完整退租申请，状态为待审核。")
+    @Operation(summary = "提交退租申请", description = "按租约创建退租申请，提交后进入待上传验房照片状态。")
     public ApiResponse<LeaseTerminationDtos.ApplyResponse> apply(
             HttpServletRequest request,
             @PathVariable String leaseId,
@@ -66,6 +66,17 @@ public class LeaseTerminationAppController {
     ) {
         return ApiResponse.success(
                 leaseTerminationService.getDetail(CurrentUser.id(request), id)
+        );
+    }
+
+    @PostMapping("/termination-applications/{id}/rescission-sign-url")
+    @Operation(summary = "获取解约办理链接", description = "由平台企业发起解约，无需租客授予发起权限，返回租客的解约协议签署页。")
+    public ApiResponse<LeaseTerminationDtos.RescissionSignUrlResponse> getRescissionSignUrl(
+            HttpServletRequest request,
+            @PathVariable String id
+    ) {
+        return ApiResponse.success(
+                leaseTerminationService.getRescissionSignUrl(CurrentUser.id(request), id)
         );
     }
 
