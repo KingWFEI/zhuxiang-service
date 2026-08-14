@@ -3,16 +3,20 @@ package com.zhuxiang.service.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @Configuration
 public class CustomerServiceAsyncConfig {
 
-    @Bean(name = "customerServiceExecutor", destroyMethod = "shutdown")
-    public ExecutorService customerServiceExecutor() {
-        return Executors.newFixedThreadPool(8, Thread.ofPlatform()
-                .name("customer-service-chat-", 0)
-                .factory());
+    @Bean(name = "customerServiceExecutor")
+    public ThreadPoolTaskExecutor customerServiceExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(8);
+        executor.setMaxPoolSize(16);
+        executor.setQueueCapacity(100);
+        executor.setThreadNamePrefix("customer-service-chat-");
+        executor.setWaitForTasksToCompleteOnShutdown(false);
+        executor.initialize();
+        return executor;
     }
 }

@@ -222,10 +222,16 @@ public class AdminAdvertisementController {
         if (StringUtils.hasText(body.description()) && body.description().trim().length() > 500) {
             throw BusinessException.badRequest("广告描述不能超过500个字符");
         }
+        String position = normalize(body.position());
+        if ("home_banner".equals(position) && !StringUtils.hasText(body.tag())) {
+            throw BusinessException.badRequest("首页 Banner 标签不能为空");
+        }
+        if (StringUtils.hasText(body.tag()) && body.tag().trim().length() > 20) {
+            throw BusinessException.badRequest("广告标签不能超过20个字符");
+        }
         if (!StringUtils.hasText(body.imageUrl()) || body.imageUrl().trim().length() > 500) {
             throw BusinessException.badRequest("请上传有效的广告图片");
         }
-        String position = normalize(body.position());
         if (!POSITIONS.contains(position)) {
             throw BusinessException.badRequest("不支持的广告位置");
         }
@@ -277,6 +283,8 @@ public class AdminAdvertisementController {
     private void apply(Advertisement advertisement, AdminAdvertisementDtos.SaveRequest body) {
         advertisement.setTitle(body.title().trim());
         advertisement.setDescription(trimToNull(body.description()));
+        advertisement.setTag("home_banner".equals(normalize(body.position()))
+                ? trimToNull(body.tag()) : null);
         advertisement.setImageUrl(body.imageUrl().trim());
         advertisement.setTargetType(normalize(body.targetType()));
         advertisement.setTargetValue("none".equals(normalize(body.targetType()))
@@ -310,7 +318,7 @@ public class AdminAdvertisementController {
 
     private AdminAdvertisementDtos.AdvertisementView toView(Advertisement item) {
         return new AdminAdvertisementDtos.AdvertisementView(
-                item.getId(), item.getTitle(), item.getDescription(), item.getImageUrl(),
+                item.getId(), item.getTitle(), item.getDescription(), item.getTag(), item.getImageUrl(),
                 item.getTargetType(), item.getTargetValue(), item.getPosition(),
                 Integer.valueOf(1).equals(item.getEnabled()),
                 item.getSortOrder() == null ? 0 : item.getSortOrder(),

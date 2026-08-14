@@ -50,7 +50,7 @@ public class CustomerServiceMessageServiceImpl
         List<CustomerServiceMessage> messages = list(
                 Wrappers.<CustomerServiceMessage>lambdaQuery()
                         .eq(CustomerServiceMessage::getSessionId, sessionId)
-                        .orderByAsc(CustomerServiceMessage::getCreatedAt)
+                        .orderByAsc(CustomerServiceMessage::getSequenceNo)
         );
         return messages.stream().map(this::toItem).toList();
     }
@@ -61,6 +61,7 @@ public class CustomerServiceMessageServiceImpl
         CustomerServiceMessage message = new CustomerServiceMessage();
         message.setId(UUID.randomUUID().toString());
         message.setSessionId(sessionId);
+        message.setSequenceNo(allocateNextSequenceNo(sessionId));
         message.setRole(CustomerServiceEnums.MessageRole.USER);
         message.setContent(content);
         message.setStatus(CustomerServiceEnums.MessageStatus.SENT);
@@ -76,6 +77,7 @@ public class CustomerServiceMessageServiceImpl
         CustomerServiceMessage message = new CustomerServiceMessage();
         message.setId(UUID.randomUUID().toString());
         message.setSessionId(sessionId);
+        message.setSequenceNo(allocateNextSequenceNo(sessionId));
         message.setRole(CustomerServiceEnums.MessageRole.ASSISTANT);
         message.setContent("");
         message.setStatus(CustomerServiceEnums.MessageStatus.STREAMING);
@@ -162,6 +164,15 @@ public class CustomerServiceMessageServiceImpl
         }
         // 校验消息归属的会话是否属于当前用户
         sessionService.requireOwnedSession(userId, message.getSessionId());
+    }
+
+    private long allocateNextSequenceNo(String sessionId) {
+        String lockedSessionId = getBaseMapper().lockSessionForMessage(sessionId);
+        if (lockedSessionId == null) {
+            throw BusinessException.notFound("会话不存在");
+        }
+        Long nextSequenceNo = getBaseMapper().selectNextSequenceNo(sessionId);
+        return nextSequenceNo == null ? 1L : nextSequenceNo;
     }
 
     private CustomerServiceDtos.MessageItem toItem(CustomerServiceMessage message) {

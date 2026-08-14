@@ -10,6 +10,7 @@ public final class AdminAdvertisementDtos {
     public record SaveRequest(
             String title,
             String description,
+            String tag,
             String imageUrl,
             String imageFileId,
             String targetType,
@@ -39,6 +40,7 @@ public final class AdminAdvertisementDtos {
             String id,
             String title,
             String description,
+            String tag,
             String imageUrl,
             String targetType,
             String targetValue,

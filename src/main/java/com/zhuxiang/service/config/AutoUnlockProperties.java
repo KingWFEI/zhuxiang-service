@@ -22,6 +22,21 @@ public class AutoUnlockProperties {
     /** 成功开锁后的冷却秒数。 */
     private int cooldownSeconds = 30;
 
+    /** 进入该半径后才启动门锁蓝牙扫描，单位米。 */
+    private int geofenceRadiusMeters = 150;
+
+    /** 超出该半径并持续一段时间后，才重新布防下一次自动开锁。 */
+    private int exitRadiusMeters = 200;
+
+    /** 离开房屋范围的最短持续时间，单位秒。 */
+    private int exitDwellSeconds = 90;
+
+    /** 返回房屋范围后的蓝牙扫描窗口，单位秒。 */
+    private int scanWindowSeconds = 900;
+
+    /** 达到 RSSI 阈值所需的最少稳定采样数。 */
+    private int minRssiSamples = 5;
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -52,5 +67,45 @@ public class AutoUnlockProperties {
 
     public void setCooldownSeconds(int cooldownSeconds) {
         this.cooldownSeconds = cooldownSeconds;
+    }
+
+    public int getGeofenceRadiusMeters() {
+        return geofenceRadiusMeters;
+    }
+
+    public void setGeofenceRadiusMeters(int geofenceRadiusMeters) {
+        this.geofenceRadiusMeters = geofenceRadiusMeters;
+    }
+
+    public int getExitRadiusMeters() {
+        return exitRadiusMeters;
+    }
+
+    public void setExitRadiusMeters(int exitRadiusMeters) {
+        this.exitRadiusMeters = exitRadiusMeters;
+    }
+
+    public int getExitDwellSeconds() {
+        return exitDwellSeconds;
+    }
+
+    public void setExitDwellSeconds(int exitDwellSeconds) {
+        this.exitDwellSeconds = exitDwellSeconds;
+    }
+
+    public int getScanWindowSeconds() {
+        return scanWindowSeconds;
+    }
+
+    public void setScanWindowSeconds(int scanWindowSeconds) {
+        this.scanWindowSeconds = scanWindowSeconds;
+    }
+
+    public int getMinRssiSamples() {
+        return minRssiSamples;
+    }
+
+    public void setMinRssiSamples(int minRssiSamples) {
+        this.minRssiSamples = minRssiSamples;
     }
 }

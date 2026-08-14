@@ -32,6 +32,11 @@ public class Advertisement implements Serializable {
     private String description;
 
     /**
+     * Banner 左上角展示标签
+     */
+    private String tag;
+
+    /**
      * 广告图片URL
      */
     private String imageUrl;
@@ -99,6 +104,7 @@ public class Advertisement implements Serializable {
         return (this.getId() == null ? other.getId() == null : this.getId().equals(other.getId()))
             && (this.getTitle() == null ? other.getTitle() == null : this.getTitle().equals(other.getTitle()))
             && (this.getDescription() == null ? other.getDescription() == null : this.getDescription().equals(other.getDescription()))
+            && (this.getTag() == null ? other.getTag() == null : this.getTag().equals(other.getTag()))
             && (this.getImageUrl() == null ? other.getImageUrl() == null : this.getImageUrl().equals(other.getImageUrl()))
             && (this.getTargetType() == null ? other.getTargetType() == null : this.getTargetType().equals(other.getTargetType()))
             && (this.getTargetValue() == null ? other.getTargetValue() == null : this.getTargetValue().equals(other.getTargetValue()))
@@ -118,6 +124,7 @@ public class Advertisement implements Serializable {
         result = prime * result + ((getId() == null) ? 0 : getId().hashCode());
         result = prime * result + ((getTitle() == null) ? 0 : getTitle().hashCode());
         result = prime * result + ((getDescription() == null) ? 0 : getDescription().hashCode());
+        result = prime * result + ((getTag() == null) ? 0 : getTag().hashCode());
         result = prime * result + ((getImageUrl() == null) ? 0 : getImageUrl().hashCode());
         result = prime * result + ((getTargetType() == null) ? 0 : getTargetType().hashCode());
         result = prime * result + ((getTargetValue() == null) ? 0 : getTargetValue().hashCode());
@@ -140,6 +147,7 @@ public class Advertisement implements Serializable {
         sb.append(", id=").append(id);
         sb.append(", title=").append(title);
         sb.append(", description=").append(description);
+        sb.append(", tag=").append(tag);
         sb.append(", imageUrl=").append(imageUrl);
         sb.append(", targetType=").append(targetType);
         sb.append(", targetValue=").append(targetValue);

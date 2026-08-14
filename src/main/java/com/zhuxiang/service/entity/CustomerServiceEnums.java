@@ -21,9 +21,6 @@ public final class CustomerServiceEnums {
         public static final String SYSTEM_ERROR = "SYSTEM_ERROR";
     }
 
-    /** 会话超时时长（分钟） */
-    public static final long SESSION_TIMEOUT_MINUTES = 15;
-
     /** 消息角色 */
     public static final class MessageRole {
         public static final String USER = "USER";

@@ -34,13 +34,24 @@ public class CustomerServiceSessionServiceImpl
     @Override
     @Transactional
     public CustomerServiceDtos.SessionItem createSession(String userId) {
-        CustomerServiceSession session = new CustomerServiceSession();
-        session.setId(UUID.randomUUID().toString());
-        session.setUserId(userId);
-        session.setStatus(CustomerServiceEnums.SessionStatus.ACTIVE);
-        session.setMessageCount(0);
-        session.setCreatedAt(LocalDateTime.now());
-        session.setUpdatedAt(LocalDateTime.now());
+        CustomerServiceSession emptySession = getOne(
+                Wrappers.<CustomerServiceSession>lambdaQuery()
+                        .eq(CustomerServiceSession::getUserId, userId)
+                        .isNull(CustomerServiceSession::getDeletedAt)
+                        .and(wrapper -> wrapper
+                                .eq(CustomerServiceSession::getMessageCount, 0)
+                                .or()
+                                .isNull(CustomerServiceSession::getMessageCount))
+                        .orderByDesc(CustomerServiceSession::getUpdatedAt)
+                        .last("LIMIT 1 FOR UPDATE"),
+                false
+        );
+        if (emptySession != null) {
+            reopenIfNeeded(emptySession);
+            return toItem(emptySession);
+        }
+
+        CustomerServiceSession session = buildSession(userId);
         save(session);
         return toItem(session);
     }
@@ -123,19 +134,17 @@ public class CustomerServiceSessionServiceImpl
     @Override
     @Transactional
     public CustomerServiceDtos.EnterSessionResponse enterSession(String userId) {
-        // 查询当前用户最新一个ACTIVE会话
-        CustomerServiceSession activeSession = getOne(
+        // ChatGPT 式会话：进入客服时恢复最近使用的会话，不按空闲时间关闭。
+        CustomerServiceSession latestSession = getOne(
                 Wrappers.<CustomerServiceSession>lambdaQuery()
                         .eq(CustomerServiceSession::getUserId, userId)
-                        .eq(CustomerServiceSession::getStatus, CustomerServiceEnums.SessionStatus.ACTIVE)
                         .isNull(CustomerServiceSession::getDeletedAt)
                         .orderByDesc(CustomerServiceSession::getUpdatedAt)
                         .last("LIMIT 1"),
                 false
         );
 
-        if (activeSession == null) {
-            // 无活跃会话，创建新的
+        if (latestSession == null) {
             CustomerServiceSession newSession = buildSession(userId);
             save(newSession);
             return new CustomerServiceDtos.EnterSessionResponse(
@@ -144,21 +153,9 @@ public class CustomerServiceSessionServiceImpl
             );
         }
 
-        if (isSessionTimedOut(activeSession)) {
-            // 超时归档，创建新会话
-            archiveSession(activeSession.getId(), CustomerServiceEnums.ClosedReason.TIMEOUT);
-            CustomerServiceSession newSession = buildSession(userId);
-            save(newSession);
-            return new CustomerServiceDtos.EnterSessionResponse(
-                    newSession.getId(), newSession.getTitle(), newSession.getStatus(),
-                    true, CustomerServiceEnums.ClosedReason.TIMEOUT,
-                    "上次会话已超时，已为你开启新会话"
-            );
-        }
-
-        // 有活跃会话且未超时，恢复
+        reopenIfNeeded(latestSession);
         return new CustomerServiceDtos.EnterSessionResponse(
-                activeSession.getId(), activeSession.getTitle(), activeSession.getStatus(),
+                latestSession.getId(), latestSession.getTitle(), latestSession.getStatus(),
                 false, null, "恢复了上次的对话"
         );
     }
@@ -186,11 +183,22 @@ public class CustomerServiceSessionServiceImpl
     }
 
     @Override
-    public boolean isSessionTimedOut(CustomerServiceSession session) {
-        if (session.getLastMessageAt() == null) return false;
-        return session.getLastMessageAt()
-                .plusMinutes(CustomerServiceEnums.SESSION_TIMEOUT_MINUTES)
-                .isBefore(LocalDateTime.now());
+    @Transactional
+    public CustomerServiceSession resumeSession(String userId, String sessionId) {
+        CustomerServiceSession session = requireOwnedSession(userId, sessionId);
+        reopenIfNeeded(session);
+        return session;
+    }
+
+    private void reopenIfNeeded(CustomerServiceSession session) {
+        if (CustomerServiceEnums.SessionStatus.ACTIVE.equals(session.getStatus())
+                && session.getClosedReason() == null) {
+            return;
+        }
+        session.setStatus(CustomerServiceEnums.SessionStatus.ACTIVE);
+        session.setClosedReason(null);
+        session.setUpdatedAt(LocalDateTime.now());
+        updateById(session);
     }
 
     private CustomerServiceSession buildSession(String userId) {

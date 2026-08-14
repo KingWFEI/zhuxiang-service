@@ -39,7 +39,7 @@ public class HomeServiceImpl implements HomeService {
         this.advertisementService = advertisementService;
     }
 
-    /** 聚合首页标签与房源流；广告仅以信息流条目形式返回。 */
+    /** 聚合首页 Banner、标签与房源流。 */
     @Override
     public HomeDtos.HomeData getHomeData(
             String cityCode,
@@ -52,6 +52,7 @@ public class HomeServiceImpl implements HomeService {
         Advertisement feedAdvertisement = getActiveFeedAdvertisement();
         return new HomeDtos.HomeData(
                 TABS,
+                getActiveHomeBanners(),
                 buildHouseGroups(region, pageSize, userId, feedAdvertisement)
         );
     }
@@ -67,10 +68,12 @@ public class HomeServiceImpl implements HomeService {
     ) {
         Map<String, HouseDtos.FeedData> groups = new LinkedHashMap<>();
         for (HomeDtos.Tab tab : TABS) {
-            PageData<HouseDtos.HouseView> houses = houseService.searchHouses(
-                    null, tab.key(), null, null, region, null, null, null,
-                    null, null, null, null, null, null, "default", 1, pageSize, userId
-            );
+            PageData<HouseDtos.HouseView> houses = "recommended".equals(tab.key())
+                    ? houseService.recommendHouses(region, 1, pageSize, userId)
+                    : houseService.searchHouses(
+                            null, tab.key(), null, null, region, null, null, null,
+                            null, null, null, null, null, null, "default", 1, pageSize, userId
+                    );
             List<HouseDtos.FeedItem> items = new ArrayList<>(
                     houses.items().stream().map(HouseDtos.FeedItem::house).toList()
             );
@@ -106,13 +109,38 @@ public class HomeServiceImpl implements HomeService {
     }
 
     /**
+     * 查询当前时间有效的首页 Banner，并按运营配置的顺序返回。
+     */
+    private List<HouseDtos.AdvertisementView> getActiveHomeBanners() {
+        LocalDateTime now = LocalDateTime.now();
+        return advertisementService.list(
+                        Wrappers.<Advertisement>lambdaQuery()
+                                .eq(Advertisement::getPosition, "home_banner")
+                                .eq(Advertisement::getEnabled, 1)
+                                .and(query -> query.isNull(Advertisement::getStartTime)
+                                        .or().le(Advertisement::getStartTime, now))
+                                .and(query -> query.isNull(Advertisement::getEndTime)
+                                        .or().ge(Advertisement::getEndTime, now))
+                                .orderByAsc(Advertisement::getSortOrder)
+                                .orderByAsc(Advertisement::getCreatedAt)
+                ).stream()
+                .map(this::toAdvertisementView)
+                .toList();
+    }
+
+    /**
      * 将信息流广告转换为房源流广告视图。
      */
     private HouseDtos.AdvertisementView toFeedAdvertisement(Advertisement advertisement) {
+        return toAdvertisementView(advertisement);
+    }
+
+    private HouseDtos.AdvertisementView toAdvertisementView(Advertisement advertisement) {
         return new HouseDtos.AdvertisementView(
                 advertisement.getId(),
                 advertisement.getTitle(),
                 advertisement.getDescription(),
+                advertisement.getTag(),
                 advertisement.getImageUrl(),
                 advertisement.getTargetType(),
                 advertisement.getTargetValue()

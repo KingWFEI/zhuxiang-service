@@ -48,6 +48,7 @@ import com.zhuxiang.service.service.HouseTagRelationService;
 import com.zhuxiang.service.service.HouseTagService;
 import com.zhuxiang.service.service.LandlordService;
 import com.zhuxiang.service.service.RegionService;
+import com.zhuxiang.service.service.RecommendationRankingService;
 import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.mapper.HouseMapper;
 import com.zhuxiang.service.mapper.HouseLocationMapper;
@@ -121,6 +122,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
     private final FileRecordService fileRecordService;
     private final HousePropertyCertificateService propertyCertificateService;
     private final PlatformLandlordProperties platformLandlordProperties;
+    private final RecommendationRankingService recommendationRankingService;
     @Autowired
     private HouseLocationMapper houseLocationMapper;
 
@@ -141,7 +143,8 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             UserService userService,
             FileRecordService fileRecordService,
             HousePropertyCertificateService propertyCertificateService,
-            PlatformLandlordProperties platformLandlordProperties
+            PlatformLandlordProperties platformLandlordProperties,
+            RecommendationRankingService recommendationRankingService
     ) {
         this.communityService = communityService;
         this.imageService = imageService;
@@ -160,6 +163,7 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         this.fileRecordService = fileRecordService;
         this.propertyCertificateService = propertyCertificateService;
         this.platformLandlordProperties = platformLandlordProperties;
+        this.recommendationRankingService = recommendationRankingService;
     }
 
     /**
@@ -172,6 +176,16 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
             long pageSize,
             String userId
     ) {
+        if (!StringUtils.hasText(category) || "recommended".equals(category)) {
+            PageData<HouseDtos.HouseView> recommended = recommendHouses(null, page, pageSize, userId);
+            List<HouseDtos.FeedItem> recommendedItems = recommended.items().stream()
+                    .map(HouseDtos.FeedItem::house)
+                    .collect(Collectors.toCollection(ArrayList::new));
+            insertFeedAdvertisement(page, recommendedItems);
+            return new HouseDtos.FeedData(
+                    recommendedItems, page, pageSize, page * pageSize < recommended.total()
+            );
+        }
         IPage<House> result = queryHouses(
                 null, category, null, null, null, null, null, null, null, null,
                 null, null, null, null,
@@ -180,22 +194,46 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         List<HouseDtos.FeedItem> items = result.getRecords().stream()
                 .map(house -> HouseDtos.FeedItem.house(toHouseView(house, userId)))
                 .collect(Collectors.toCollection(ArrayList::new));
-        if (page == 1 && !items.isEmpty()) {
-            Advertisement advertisement = findActiveAdvertisement();
-            if (advertisement != null) {
-                items.add(Math.min(1, items.size()), HouseDtos.FeedItem.advertisement(
-                        new HouseDtos.AdvertisementView(
-                                advertisement.getId(),
-                                advertisement.getTitle(),
-                                advertisement.getDescription(),
-                                advertisement.getImageUrl(),
-                                advertisement.getTargetType(),
-                                advertisement.getTargetValue()
-                        )
-                ));
-            }
-        }
+        insertFeedAdvertisement(page, items);
         return new HouseDtos.FeedData(items, page, pageSize, result.getCurrent() < result.getPages());
+    }
+
+    @Override
+    public PageData<HouseDtos.HouseView> recommendHouses(
+            String region,
+            long page,
+            long pageSize,
+            String userId
+    ) {
+        IPage<House> candidates = queryHouses(
+                null, "recommended", null, null, region, null, null, null,
+                null, null, null, null, null, null, "default", 1, 200
+        );
+        List<House> ranked = recommendationRankingService.rank(candidates.getRecords(), userId);
+        int fromIndex = (int) Math.min(ranked.size(), (page - 1) * pageSize);
+        int toIndex = (int) Math.min(ranked.size(), fromIndex + pageSize);
+        List<HouseDtos.HouseView> items = ranked.subList(fromIndex, toIndex).stream()
+                .map(house -> toHouseView(house, userId))
+                .toList();
+        return PageData.of(items, page, pageSize, ranked.size());
+    }
+
+    private void insertFeedAdvertisement(long page, List<HouseDtos.FeedItem> items) {
+        if (page != 1 || items.isEmpty()) return;
+        Advertisement advertisement = findActiveAdvertisement();
+        if (advertisement != null) {
+            items.add(Math.min(1, items.size()), HouseDtos.FeedItem.advertisement(
+                    new HouseDtos.AdvertisementView(
+                            advertisement.getId(),
+                            advertisement.getTitle(),
+                            advertisement.getDescription(),
+                            advertisement.getTag(),
+                            advertisement.getImageUrl(),
+                            advertisement.getTargetType(),
+                            advertisement.getTargetValue()
+                    )
+            ));
+        }
     }
 
     /**

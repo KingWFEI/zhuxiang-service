@@ -31,6 +31,20 @@ class InternalAgentRequestValidatorTests {
     }
 
     @Test
+    void acceptsEquivalentExpandedIpv6LoopbackAddress() {
+        MockHttpServletRequest request = request(
+                "test-secret", "zhuxiang-agent", "0:0:0:0:0:0:0:1");
+        assertEquals("request-123", validator.validate(withRequestId(request)));
+    }
+
+    @Test
+    void acceptsIpv4MappedIpv6Address() {
+        MockHttpServletRequest request = request(
+                "test-secret", "zhuxiang-agent", "::ffff:127.0.0.1");
+        assertEquals("request-123", validator.validate(withRequestId(request)));
+    }
+
+    @Test
     void rejectsWrongKey() {
         assertThrows(BusinessException.class,
                 () -> validator.validate(request("wrong", "zhuxiang-agent", "127.0.0.1")));
@@ -49,6 +63,11 @@ class InternalAgentRequestValidatorTests {
         request.addHeader("X-Internal-Api-Key", key);
         request.addHeader("X-Internal-Source", source);
         request.setRemoteAddr(address);
+        return request;
+    }
+
+    private MockHttpServletRequest withRequestId(MockHttpServletRequest request) {
+        request.addHeader("X-Request-Id", "request-123");
         return request;
     }
 }

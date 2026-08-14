@@ -8,6 +8,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Set;
@@ -31,12 +34,14 @@ public class InternalAgentRequestValidator {
         String source = request.getHeader("X-Internal-Source");
         String remoteAddress = normalizeAddress(request.getRemoteAddr());
 
-        boolean valid = secureEquals(actualKey, properties.getApiKey())
-                && secureEquals(source, properties.getExpectedSource())
-                && allowedAddresses().contains(remoteAddress);
-        if (!valid) {
-            log.warn("拒绝内部客服接口调用: requestId={} source={} remote={}",
-                    requestId, source, remoteAddress);
+        boolean keyValid = secureEquals(actualKey, properties.getApiKey());
+        boolean sourceValid = secureEquals(source, properties.getExpectedSource());
+        boolean addressValid = allowedAddresses().contains(remoteAddress);
+        if (!(keyValid && sourceValid && addressValid)) {
+            log.warn(
+                    "拒绝内部客服接口调用: requestId={} source={} remote={} "
+                            + "keyValid={} sourceValid={} addressValid={}",
+                    requestId, source, remoteAddress, keyValid, sourceValid, addressValid);
             throw BusinessException.forbidden("内部接口鉴权失败");
         }
         return requestId;
@@ -53,7 +58,27 @@ public class InternalAgentRequestValidator {
     private String normalizeAddress(String address) {
         if (address == null) return "";
         String normalized = address.trim().toLowerCase();
-        return normalized.startsWith("::ffff:") ? normalized.substring(7) : normalized;
+        if (normalized.isEmpty()) return "";
+        try {
+            InetAddress inetAddress = InetAddress.getByName(normalized);
+            byte[] bytes = inetAddress.getAddress();
+            if (inetAddress instanceof Inet6Address && isIpv4Mapped(bytes)) {
+                return InetAddress.getByAddress(Arrays.copyOfRange(bytes, 12, 16)).getHostAddress();
+            }
+            String canonical = inetAddress.getHostAddress().toLowerCase();
+            int scopeIndex = canonical.indexOf('%');
+            return scopeIndex >= 0 ? canonical.substring(0, scopeIndex) : canonical;
+        } catch (UnknownHostException ignored) {
+            return normalized;
+        }
+    }
+
+    private boolean isIpv4Mapped(byte[] bytes) {
+        if (bytes.length != 16) return false;
+        for (int i = 0; i < 10; i++) {
+            if (bytes[i] != 0) return false;
+        }
+        return bytes[10] == (byte) 0xff && bytes[11] == (byte) 0xff;
     }
 
     private boolean secureEquals(String actual, String expected) {

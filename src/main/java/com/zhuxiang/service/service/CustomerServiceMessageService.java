@@ -12,7 +12,7 @@ import java.util.List;
 public interface CustomerServiceMessageService extends IService<CustomerServiceMessage> {
 
     /**
-     * 查询指定会话的消息列表，按创建时间正序。
+     * 查询指定会话的消息列表，按会话内消息顺序号正序。
      */
     List<CustomerServiceDtos.MessageItem> getMessages(String userId, String sessionId);
 

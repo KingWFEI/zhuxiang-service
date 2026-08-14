@@ -55,7 +55,7 @@ public class RealNameAuthController {
      * 重新发起个人实名认证（强制过期旧 VERIFYING 任务）。
      */
     @PostMapping("/restart")
-    @Operation(summary = "重新发起个人实名认证", description = "强制将旧 VERIFYING 记录标记为 EXPIRED 后重新创建认证任务。适用于认证链接失效但状态仍为 VERIFYING 的场景。")
+    @Operation(summary = "重新发起个人实名认证", description = "强制将旧 VERIFYING 记录标记为 EXPIRED 后重新创建认证任务；已认证用户也可使用，旧 VERIFIED 记录保留用于审计。")
     public ApiResponse<RealNameAuthDtos.StartResult> restartAuth(
             @Valid @RequestBody RealNameAuthDtos.RestartRequest request,
             HttpServletRequest servletRequest

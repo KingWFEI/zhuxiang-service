@@ -39,7 +39,7 @@ class AdminAdvertisementControllerTests {
         LocalDateTime start = LocalDateTime.now().plusHours(1);
         LocalDateTime end = start.plusDays(2);
         AdminAdvertisementDtos.SaveRequest body = new AdminAdvertisementDtos.SaveRequest(
-                "暑期租房季", "新客专享", "https://cdn.example.com/ad.jpg", "file-1",
+                "暑期租房季", "新客专享", "限时特惠", "https://cdn.example.com/ad.jpg", "file-1",
                 "none", null, "home_banner", true, 10, start, end
         );
 
@@ -51,6 +51,7 @@ class AdminAdvertisementControllerTests {
         ArgumentCaptor<Advertisement> captor = ArgumentCaptor.forClass(Advertisement.class);
         verify(advertisementService).save(captor.capture());
         assertThat(captor.getValue().getPosition()).isEqualTo("home_banner");
+        assertThat(captor.getValue().getTag()).isEqualTo("限时特惠");
         assertThat(captor.getValue().getTargetType()).isEqualTo("none");
         assertThat(response.data().displayStatus()).isEqualTo("SCHEDULED");
     }
@@ -72,13 +73,27 @@ class AdminAdvertisementControllerTests {
         when(userService.requireActiveUser("operator-1")).thenReturn(user("HOUSEKEEPER"));
         LocalDateTime start = LocalDateTime.now().plusDays(1);
         AdminAdvertisementDtos.SaveRequest body = new AdminAdvertisementDtos.SaveRequest(
-                "广告", null, "https://cdn.example.com/ad.jpg", "file-1",
+                "广告", null, null, "https://cdn.example.com/ad.jpg", "file-1",
                 "none", null, "home_feed", true, 0, start, start.minusMinutes(1)
         );
 
         assertThatThrownBy(() -> controller.create(request, body))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("结束时间必须晚于开始时间");
+    }
+
+    @Test
+    void rejectsBannerWithoutTag() {
+        HttpServletRequest request = request("operator-1");
+        when(userService.requireActiveUser("operator-1")).thenReturn(user("ADMIN"));
+        AdminAdvertisementDtos.SaveRequest body = new AdminAdvertisementDtos.SaveRequest(
+                "首页活动", "活动内容", null, "https://cdn.example.com/ad.jpg", "file-1",
+                "none", null, "home_banner", true, 0, null, null
+        );
+
+        assertThatThrownBy(() -> controller.create(request, body))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("首页 Banner 标签不能为空");
     }
 
     private HttpServletRequest request(String userId) {

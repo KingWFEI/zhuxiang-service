@@ -11,7 +11,7 @@ import com.zhuxiang.service.entity.CustomerServiceSession;
 public interface CustomerServiceSessionService extends IService<CustomerServiceSession> {
 
     /**
-     * 为用户创建新的客服会话。
+     * 创建新会话；如果用户已经有一个空白会话，则直接复用，避免重复空会话。
      */
     CustomerServiceDtos.SessionItem createSession(String userId);
 
@@ -41,8 +41,7 @@ public interface CustomerServiceSessionService extends IService<CustomerServiceS
     void updateLastMessagePreview(String sessionId, String preview);
 
     /**
-     * 进入智能客服 —— 自动判断是否有可继续的ACTIVE会话，超时则归档并新建。
-     * @return EnterSessionResponse，isNew标识是否新会话
+     * 进入智能客服：恢复最近使用的会话；没有会话时创建一个。
      */
     CustomerServiceDtos.EnterSessionResponse enterSession(String userId);
 
@@ -51,15 +50,11 @@ public interface CustomerServiceSessionService extends IService<CustomerServiceS
      */
     void archiveSession(String sessionId, String closedReason);
 
-    /**
-     * 用户发送消息时更新会话活跃时间，重置15min计时器。
-     */
+    /** 用户发送消息时记录最后消息时间，用于排序和展示，不再用于关闭会话。 */
     void touchSession(String sessionId);
 
-    /**
-     * 检查会话是否已超时（lastMessageAt距今超过15分钟）。
-     */
-    boolean isSessionTimedOut(CustomerServiceSession session);
+    /** 恢复指定历史会话，使其可以继续发送消息。 */
+    CustomerServiceSession resumeSession(String userId, String sessionId);
 
     /**
      * 查询并校验会话归属于指定用户。

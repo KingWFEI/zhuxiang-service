@@ -29,6 +29,7 @@ import com.zhuxiang.service.service.HouseTagRelationService;
 import com.zhuxiang.service.service.HouseTagService;
 import com.zhuxiang.service.service.LandlordService;
 import com.zhuxiang.service.service.RegionService;
+import com.zhuxiang.service.service.RecommendationRankingService;
 import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.service.impl.HouseServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -83,7 +84,8 @@ class AdminHouseImageCreationTests {
                 facilityService, facilityRelationService, roomTypeService, landlordService,
                 advertisementService, regionService, smartLockMapper,
                 favoriteHouseMapper, rentOrderMapper, userService, fileRecordService,
-                propertyCertificateService, platformLandlordProperties
+                propertyCertificateService, platformLandlordProperties,
+                mock(RecommendationRankingService.class)
         );
         ReflectionTestUtils.setField(service, "baseMapper", houseMapper);
         when(houseMapper.insert(any(House.class))).thenReturn(1);

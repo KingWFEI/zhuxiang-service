@@ -8,6 +8,7 @@
             <id property="id" column="id" />
             <result property="title" column="title" />
             <result property="description" column="description" />
+            <result property="tag" column="tag" />
             <result property="imageUrl" column="image_url" />
             <result property="targetType" column="target_type" />
             <result property="targetValue" column="target_value" />
@@ -21,7 +22,7 @@
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,title,description,image_url,target_type,target_value,
+        id,title,description,tag,image_url,target_type,target_value,
         position,enabled,sort_order,start_time,end_time,
         created_at,updated_at
     </sql>

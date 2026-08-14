@@ -571,16 +571,23 @@ class RealNameAuthServiceTests {
     }
 
     @Test
-    void restartAuth_shouldRejectVerifiedUser() {
+    void restartAuth_shouldAllowVerifiedUserAndKeepOldRecord() {
         User user = buildUser();
         when(userService.requireActiveUser(TEST_USER_ID)).thenReturn(user);
-        when(mapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L); // isVerified → true
+        when(mapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L); // 存在旧 VERIFIED 记录
+        when(mapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null);
+
+        EsignFaceAuthCreateResponse esignResp = buildCreateResponse();
+        when(esignClient.createFaceAuth(any())).thenReturn(esignResp);
+        when(mapper.selectById(100L)).thenReturn(buildResultAuth());
 
         RealNameAuthDtos.RestartRequest req = new RealNameAuthDtos.RestartRequest(
                 TEST_REAL_NAME, TEST_ID_CARD_TYPE, TEST_ID_CARD);
-        assertThatThrownBy(() -> service.restartAuth(TEST_USER_ID, req))
-                .isInstanceOf(BusinessException.class)
-                .matches(e -> ((BusinessException) e).getCode() == 409);
+        RealNameAuthDtos.StartResult result = service.restartAuth(TEST_USER_ID, req);
+
+        assertThat(result.authStatus()).isEqualTo(RealNameAuthStatus.VERIFYING.getValue());
+        verify(esignClient).createFaceAuth(any());
+        verify(mapper, never()).selectCount(any(LambdaQueryWrapper.class));
     }
 
     @Test

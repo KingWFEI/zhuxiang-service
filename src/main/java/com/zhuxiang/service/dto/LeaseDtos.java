@@ -2,6 +2,7 @@ package com.zhuxiang.service.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,7 +37,14 @@ public final class LeaseDtos {
             boolean autoUnlockAvailable,
             int autoUnlockMinRssi,
             int autoUnlockStableMillis,
-            int autoUnlockCooldownSeconds
+            int autoUnlockCooldownSeconds,
+            BigDecimal longitude,
+            BigDecimal latitude,
+            int autoUnlockGeofenceRadiusMeters,
+            int autoUnlockExitRadiusMeters,
+            int autoUnlockExitDwellSeconds,
+            int autoUnlockScanWindowSeconds,
+            int autoUnlockMinRssiSamples
     ) {
     }
 

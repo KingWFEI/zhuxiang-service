@@ -11,6 +11,7 @@ import com.zhuxiang.service.dto.ProfileDtos;
 import com.zhuxiang.service.entity.*;
 import com.zhuxiang.service.event.LeaseActivatedEvent;
 import com.zhuxiang.service.mapper.LeaseMapper;
+import com.zhuxiang.service.mapper.HouseLocationMapper;
 import com.zhuxiang.service.mapper.RentContractMapper;
 import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.service.*;
@@ -46,6 +47,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
     private final HouseService houseService;
     private final CommunityService communityService;
     private final SmartLockMapper smartLockMapper;
+    private final HouseLocationMapper houseLocationMapper;
     private final LockPermissionService lockPermissionService;
     private final LockPasscodePermissionService lockPasscodePermissionService;
     private final RentContractMapper rentContractMapper;
@@ -60,6 +62,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
             HouseService houseService,
             CommunityService communityService,
             SmartLockMapper smartLockMapper,
+            HouseLocationMapper houseLocationMapper,
             LockPermissionService lockPermissionService,
             LockPasscodePermissionService lockPasscodePermissionService,
             RentContractMapper rentContractMapper,
@@ -72,6 +75,7 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
         this.houseService = houseService;
         this.communityService = communityService;
         this.smartLockMapper = smartLockMapper;
+        this.houseLocationMapper = houseLocationMapper;
         this.lockPermissionService = lockPermissionService;
         this.lockPasscodePermissionService = lockPasscodePermissionService;
         this.rentContractMapper = rentContractMapper;
@@ -423,8 +427,19 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 && passcodePermission.getEndTime() != null
                 && !now.isBefore(passcodePermission.getStartTime())
                 && now.isBefore(passcodePermission.getEndTime());
+        HouseLocation houseLocation = houseLocationMapper.selectOne(
+                Wrappers.<HouseLocation>lambdaQuery()
+                        .eq(HouseLocation::getHouseId, house.getId())
+                        .last("LIMIT 1")
+        );
+        boolean hasValidCoordinates = houseLocation != null
+                && houseLocation.getLongitude() != null
+                && houseLocation.getLatitude() != null
+                && houseLocation.getLongitude().signum() != 0
+                && houseLocation.getLatitude().signum() != 0;
         boolean autoUnlockAvailable = autoUnlockProperties.isEnabled()
                 && bluetoothAvailable
+                && hasValidCoordinates
                 && permission.getTtlockLockId() != null
                 && permission.getTtlockLockId().equals(smartLock.getLockId())
                 && StringUtils.hasText(smartLock.getLockMac())
@@ -455,7 +470,14 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 autoUnlockAvailable,
                 autoUnlockProperties.getMinRssi(),
                 autoUnlockProperties.getStableMillis(),
-                autoUnlockProperties.getCooldownSeconds()
+                autoUnlockProperties.getCooldownSeconds(),
+                houseLocation == null ? null : houseLocation.getLongitude(),
+                houseLocation == null ? null : houseLocation.getLatitude(),
+                autoUnlockProperties.getGeofenceRadiusMeters(),
+                autoUnlockProperties.getExitRadiusMeters(),
+                autoUnlockProperties.getExitDwellSeconds(),
+                autoUnlockProperties.getScanWindowSeconds(),
+                autoUnlockProperties.getMinRssiSamples()
         );
     }
 
@@ -486,7 +508,14 @@ public class LeaseServiceImpl extends ServiceImpl<LeaseMapper, Lease>
                 false,
                 autoUnlockProperties.getMinRssi(),
                 autoUnlockProperties.getStableMillis(),
-                autoUnlockProperties.getCooldownSeconds()
+                autoUnlockProperties.getCooldownSeconds(),
+                null,
+                null,
+                autoUnlockProperties.getGeofenceRadiusMeters(),
+                autoUnlockProperties.getExitRadiusMeters(),
+                autoUnlockProperties.getExitDwellSeconds(),
+                autoUnlockProperties.getScanWindowSeconds(),
+                autoUnlockProperties.getMinRssiSamples()
         );
     }
 

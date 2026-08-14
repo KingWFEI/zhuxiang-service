@@ -20,6 +20,7 @@ import com.zhuxiang.service.service.HouseTagRelationService;
 import com.zhuxiang.service.service.HouseTagService;
 import com.zhuxiang.service.service.LandlordService;
 import com.zhuxiang.service.service.RegionService;
+import com.zhuxiang.service.service.RecommendationRankingService;
 import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.service.impl.HouseServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,7 +59,8 @@ class LandlordHouseDeletionTests {
                 userService,
                 mock(FileRecordService.class),
                 mock(HousePropertyCertificateService.class),
-                new PlatformLandlordProperties()
+                new PlatformLandlordProperties(),
+                mock(RecommendationRankingService.class)
         );
         ReflectionTestUtils.setField(service, "baseMapper", houseMapper);
         when(houseMapper.updateById(any(House.class))).thenReturn(1);

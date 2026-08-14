@@ -118,10 +118,8 @@ public class RealNameAuthServiceImpl implements RealNameAuthService {
         String idCardNo = request.idCardNo().trim();
         String idCardType = request.idCardType();
 
-        if (isVerified(userId)) {
-            throw BusinessException.conflict("您已完成实名认证，无需重新认证");
-        }
-
+        // 已认证用户也允许重新认证。旧 VERIFIED 记录保留用于审计，
+        // 新认证成功后会因 created_at 更新而成为业务读取的最新记录。
         // 事务中：将旧 VERIFYING 强制过期 + 创建新记录
         CreateResult createResult = self.forceExpireAndCreate(userId, realName, idCardType, idCardNo, user.getPhone());
 
@@ -156,9 +154,14 @@ public class RealNameAuthServiceImpl implements RealNameAuthService {
             log.warn("e签宝创建认证任务失败: userId={}, realNameAuthNo={}, esignCode={}",
                     userId, auth.getRealNameAuthNo(), e.getEsignCode());
             throw e;
+        } catch (BusinessException e) {
+            self.updateStatusIfVerifying(auth.getId(), RealNameAuthStatus.FAILED, null, null);
+            log.warn("发起实名认证前置校验失败: userId={}, realNameAuthNo={}, message={}",
+                    userId, auth.getRealNameAuthNo(), e.getMessage());
+            throw e;
         } catch (Exception e) {
             self.updateStatusIfVerifying(auth.getId(), RealNameAuthStatus.FAILED, null, null);
-            log.error("发起实名认证网络异常: userId={}, realNameAuthNo={}", userId, auth.getRealNameAuthNo(), e);
+            log.error("发起实名认证未预期异常: userId={}, realNameAuthNo={}", userId, auth.getRealNameAuthNo(), e);
             throw new EsignApiException(0, 0, "e签宝认证任务创建失败", "/v2/identity/auth/api/individual/face");
         }
     }

@@ -33,6 +33,14 @@ public interface HouseService extends IService<House> {
             String userId
     );
 
+    /** First-stage personalized recommendation page used by the home feed. */
+    PageData<HouseDtos.HouseView> recommendHouses(
+            String region,
+            long page,
+            long pageSize,
+            String userId
+    );
+
     /**
      * 按筛选条件分页搜索房源。
      */

@@ -21,6 +21,9 @@ public class CustomerServiceMessage implements Serializable {
     /** 所属会话ID */
     private String sessionId;
 
+    /** 会话内单调递增的消息顺序号 */
+    private Long sequenceNo;
+
     /** 消息角色：USER ASSISTANT SYSTEM */
     private String role;
 

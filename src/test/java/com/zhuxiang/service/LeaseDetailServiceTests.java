@@ -8,6 +8,7 @@ import com.zhuxiang.service.dto.LeaseDtos;
 import com.zhuxiang.service.dto.ProfileDtos;
 import com.zhuxiang.service.entity.Community;
 import com.zhuxiang.service.entity.House;
+import com.zhuxiang.service.entity.HouseLocation;
 import com.zhuxiang.service.entity.Landlord;
 import com.zhuxiang.service.entity.Lease;
 import com.zhuxiang.service.entity.LockPermission;
@@ -15,6 +16,7 @@ import com.zhuxiang.service.entity.RentBill;
 import com.zhuxiang.service.entity.RentContract;
 import com.zhuxiang.service.entity.SmartLock;
 import com.zhuxiang.service.mapper.LeaseMapper;
+import com.zhuxiang.service.mapper.HouseLocationMapper;
 import com.zhuxiang.service.mapper.RentContractMapper;
 import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.service.CommunityService;
@@ -51,6 +53,7 @@ class LeaseDetailServiceTests {
     private final HouseService houseService = mock(HouseService.class);
     private final CommunityService communityService = mock(CommunityService.class);
     private final SmartLockMapper smartLockMapper = mock(SmartLockMapper.class);
+    private final HouseLocationMapper houseLocationMapper = mock(HouseLocationMapper.class);
     private final LockPermissionService lockPermissionService = mock(LockPermissionService.class);
     private final LockPasscodePermissionService passcodePermissionService = mock(LockPasscodePermissionService.class);
     private final RentContractMapper contractMapper = mock(RentContractMapper.class);
@@ -65,7 +68,7 @@ class LeaseDetailServiceTests {
     @BeforeEach
     void setUp() {
         service = new LeaseServiceImpl(
-                houseService, communityService, smartLockMapper, lockPermissionService,
+                houseService, communityService, smartLockMapper, houseLocationMapper, lockPermissionService,
                 passcodePermissionService, contractMapper, billService, landlordService,
                 autoUnlockProperties, eventPublisher, esignV3Client
         );
@@ -215,10 +218,14 @@ class LeaseDetailServiceTests {
         permission.setTtlockLockId(123456L);
         permission.setStartTime(LocalDateTime.now().minusDays(1));
         permission.setEndTime(LocalDateTime.now().plusDays(1));
+        HouseLocation houseLocation = new HouseLocation();
+        houseLocation.setLongitude(new BigDecimal("106.530000"));
+        houseLocation.setLatitude(new BigDecimal("29.580000"));
 
         when(leaseMapper.selectById("lease-1")).thenReturn(lease());
         when(houseService.getById("house-1")).thenReturn(house());
         when(smartLockMapper.selectLatestByHouseId("house-1")).thenReturn(smartLock);
+        when(houseLocationMapper.selectOne(any(Wrapper.class))).thenReturn(houseLocation);
         when(lockPermissionService.getOne(any(Wrapper.class), eq(false))).thenReturn(permission);
 
         LeaseDtos.UnlockDataResponse result = service.getUnlockData("lease-1", "tenant-1");
@@ -231,6 +238,9 @@ class LeaseDetailServiceTests {
         assertThat(result.autoUnlockMinRssi()).isEqualTo(-60);
         assertThat(result.autoUnlockStableMillis()).isEqualTo(2000);
         assertThat(result.autoUnlockCooldownSeconds()).isEqualTo(30);
+        assertThat(result.longitude()).isEqualByComparingTo("106.530000");
+        assertThat(result.latitude()).isEqualByComparingTo("29.580000");
+        assertThat(result.autoUnlockMinRssiSamples()).isEqualTo(5);
     }
 
     @Test

@@ -10,6 +10,8 @@ import com.zhuxiang.service.entity.House;
 import com.zhuxiang.service.entity.UserFavoriteHouse;
 import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.UserFavoriteHouseService;
+import com.zhuxiang.service.service.RecommendationEventService;
+import com.zhuxiang.service.common.RecommendationEventType;
 import com.zhuxiang.service.mapper.UserFavoriteHouseMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,9 +31,14 @@ public class UserFavoriteHouseServiceImpl extends ServiceImpl<UserFavoriteHouseM
     implements UserFavoriteHouseService{
 
     private final HouseService houseService;
+    private final RecommendationEventService recommendationEventService;
 
-    public UserFavoriteHouseServiceImpl(HouseService houseService) {
+    public UserFavoriteHouseServiceImpl(
+            HouseService houseService,
+            RecommendationEventService recommendationEventService
+    ) {
         this.houseService = houseService;
+        this.recommendationEventService = recommendationEventService;
     }
 
     /**
@@ -52,6 +59,9 @@ public class UserFavoriteHouseServiceImpl extends ServiceImpl<UserFavoriteHouseM
             save(favorite);
             house.setFavoriteCount((house.getFavoriteCount() == null ? 0 : house.getFavoriteCount()) + 1);
             houseService.updateById(house);
+            recommendationEventService.recordSystemEvent(
+                    userId, houseId, RecommendationEventType.FAVORITE
+            );
         }
         return new HouseDtos.FavoriteResult(houseId, true);
     }
@@ -74,6 +84,9 @@ public class UserFavoriteHouseServiceImpl extends ServiceImpl<UserFavoriteHouseM
                     (house.getFavoriteCount() == null ? 0 : house.getFavoriteCount()) - 1
             ));
             houseService.updateById(house);
+            recommendationEventService.recordSystemEvent(
+                    userId, houseId, RecommendationEventType.UNFAVORITE
+            );
         }
         return new HouseDtos.FavoriteResult(houseId, false);
     }

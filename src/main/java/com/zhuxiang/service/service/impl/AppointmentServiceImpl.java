@@ -11,6 +11,7 @@ import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.common.HouseSourceType;
 import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.common.ViewingMode;
+import com.zhuxiang.service.common.RecommendationEventType;
 import com.zhuxiang.service.dto.AppointmentDtos;
 import com.zhuxiang.service.entity.Appointment;
 import com.zhuxiang.service.entity.AppointmentAccessGrant;
@@ -29,6 +30,7 @@ import com.zhuxiang.service.service.AppointmentService;
 import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.MessageService;
 import com.zhuxiang.service.service.UserService;
+import com.zhuxiang.service.service.RecommendationEventService;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -88,6 +90,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     private final AppointmentStatusLogMapper statusLogMapper;
     private final MessageService messageService;
     private final AppointmentCheckinCodeService checkinCodeService;
+    private final RecommendationEventService recommendationEventService;
 
     @Value("${app.appointment.test-slot-enabled:false}")
     private boolean testSlotEnabled;
@@ -100,7 +103,8 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
             AppointmentAccessGrantMapper accessGrantMapper,
             AppointmentStatusLogMapper statusLogMapper,
             MessageService messageService,
-            AppointmentCheckinCodeService checkinCodeService
+            AppointmentCheckinCodeService checkinCodeService,
+            RecommendationEventService recommendationEventService
     ) {
         this.houseService = houseService;
         this.userService = userService;
@@ -110,6 +114,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         this.statusLogMapper = statusLogMapper;
         this.messageService = messageService;
         this.checkinCodeService = checkinCodeService;
+        this.recommendationEventService = recommendationEventService;
     }
 
     @Override
@@ -209,6 +214,9 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         writeStatusLog(
                 appointment.getId(), null, appointment.getStatus(),
                 userId, "TENANT", "创建预约"
+        );
+        recommendationEventService.recordSystemEvent(
+                userId, house.getId(), RecommendationEventType.APPOINTMENT
         );
         notifyCreated(appointment, house);
         return toCreateResult(appointment);

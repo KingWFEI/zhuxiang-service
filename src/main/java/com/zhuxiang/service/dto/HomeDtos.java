@@ -13,6 +13,7 @@ public final class HomeDtos {
 
     public record HomeData(
             List<Tab> tabs,
+            List<HouseDtos.AdvertisementView> homeBanners,
             Map<String, HouseDtos.FeedData> houseGroups
     ) {
     }

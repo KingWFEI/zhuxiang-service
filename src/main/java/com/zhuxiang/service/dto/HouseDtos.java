@@ -115,6 +115,7 @@ public final class HouseDtos {
             String id,
             String title,
             String description,
+            String tag,
             String imageUrl,
             String targetType,
             String targetValue

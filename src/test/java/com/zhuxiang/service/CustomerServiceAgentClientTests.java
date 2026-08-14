@@ -13,6 +13,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CustomerServiceAgentClientTests {
 
@@ -34,7 +35,8 @@ class CustomerServiceAgentClientTests {
             byte[] body = ("event: delta\n"
                     + "data: {\"content\":\"你好\"}\n\n"
                     + "event: done\n"
-                    + "data: {\"intent\":\"GREETING\",\"needHuman\":false}\n\n")
+                    + "data: {\"intent\":\"LEASE_QUERY\",\"needHuman\":false,"
+                    + "\"degraded\":true,\"businessDataAvailable\":false}\n\n")
                     .getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
             exchange.sendResponseHeaders(200, body.length);
@@ -54,8 +56,10 @@ class CustomerServiceAgentClientTests {
                 "你好", List.of(), events::add);
 
         assertEquals(2, events.size());
-        assertEquals("GREETING", metadata.intent());
+        assertEquals("LEASE_QUERY", metadata.intent());
         assertFalse(metadata.needHuman());
         assertFalse(metadata.failed());
+        assertTrue(metadata.degraded());
+        assertFalse(metadata.businessDataAvailable());
     }
 }

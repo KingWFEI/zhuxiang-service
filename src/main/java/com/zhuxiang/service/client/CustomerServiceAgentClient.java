@@ -86,7 +86,13 @@ public class CustomerServiceAgentClient {
     /** Agent SSE 事件。解析工作集中在客户端，Controller 不再处理 HTTP 协议细节。 */
     public record AgentSseEvent(String event, String data) {}
 
-    public record AgentStreamMetadata(String intent, boolean needHuman, boolean failed) {}
+    public record AgentStreamMetadata(
+            String intent,
+            boolean needHuman,
+            boolean failed,
+            boolean degraded,
+            boolean businessDataAvailable
+    ) {}
 
     @FunctionalInterface
     public interface AgentSseEventConsumer {
@@ -144,6 +150,8 @@ public class CustomerServiceAgentClient {
             boolean needHuman = false;
             boolean failed = false;
             boolean doneReceived = false;
+            boolean degraded = false;
+            boolean businessDataAvailable = true;
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
                 String line;
                 String event = "";
@@ -163,6 +171,9 @@ public class CustomerServiceAgentClient {
                             Map<String, Object> done = objectMapper.readValue(data.toString(), Map.class);
                             intent = done.get("intent") == null ? null : done.get("intent").toString();
                             needHuman = Boolean.TRUE.equals(done.get("needHuman"));
+                            degraded = Boolean.TRUE.equals(done.get("degraded"));
+                            businessDataAvailable = !Boolean.FALSE.equals(
+                                    done.get("businessDataAvailable"));
                         }
                         event = "";
                         data.setLength(0);
@@ -177,10 +188,18 @@ public class CustomerServiceAgentClient {
                         Map<String, Object> done = objectMapper.readValue(finalData, Map.class);
                         intent = done.get("intent") == null ? null : done.get("intent").toString();
                         needHuman = Boolean.TRUE.equals(done.get("needHuman"));
+                        degraded = Boolean.TRUE.equals(done.get("degraded"));
+                        businessDataAvailable = !Boolean.FALSE.equals(
+                                done.get("businessDataAvailable"));
                     }
                 }
             }
-            return new AgentStreamMetadata(intent, needHuman, failed || !doneReceived);
+            return new AgentStreamMetadata(
+                    intent,
+                    needHuman,
+                    failed || !doneReceived,
+                    degraded,
+                    businessDataAvailable);
         } finally {
             conn.disconnect();
         }

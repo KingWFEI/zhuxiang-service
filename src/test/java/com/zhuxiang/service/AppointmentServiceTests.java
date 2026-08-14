@@ -17,6 +17,7 @@ import com.zhuxiang.service.mapper.SmartLockMapper;
 import com.zhuxiang.service.security.AppointmentCheckinCodeService;
 import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.MessageService;
+import com.zhuxiang.service.service.RecommendationEventService;
 import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.service.impl.AppointmentServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,7 +67,8 @@ class AppointmentServiceTests {
                 accessGrantMapper,
                 statusLogMapper,
                 messageService,
-                checkinCodeService
+                checkinCodeService,
+                mock(RecommendationEventService.class)
         );
         ReflectionTestUtils.setField(service, "baseMapper", appointmentMapper);
         User tenant = new User();

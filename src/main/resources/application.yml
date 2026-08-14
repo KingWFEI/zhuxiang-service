@@ -118,6 +118,11 @@ app:
     stable-millis: ${AUTO_UNLOCK_STABLE_MILLIS:2000}
 #    冷却时间 秒
     cooldown-seconds: ${AUTO_UNLOCK_COOLDOWN_SECONDS:120}
+    geofence-radius-meters: ${AUTO_UNLOCK_GEOFENCE_RADIUS_METERS:150}
+    exit-radius-meters: ${AUTO_UNLOCK_EXIT_RADIUS_METERS:200}
+    exit-dwell-seconds: ${AUTO_UNLOCK_EXIT_DWELL_SECONDS:90}
+    scan-window-seconds: ${AUTO_UNLOCK_SCAN_WINDOW_SECONDS:900}
+    min-rssi-samples: ${AUTO_UNLOCK_MIN_RSSI_SAMPLES:5}
   super-admin:
     enabled: ${SUPER_ADMIN_ENABLED:true}
     phone: ${SUPER_ADMIN_PHONE:13800000000}
@@ -168,9 +173,10 @@ esign:
   connect-timeout-seconds: ${ESIGN_CONNECT_TIMEOUT_SECONDS:15}
   read-timeout-seconds: ${ESIGN_READ_TIMEOUT_SECONDS:60}
   face:
-    host: ${ESIGN_FACE_HOST:https://smlopenapi.esign.cn}
-    app-id: ${ESIGN_FACE_APP_ID:}
-    app-secret: ${ESIGN_FACE_APP_SECRET:}
+    host: ${ESIGN_FACE_HOST:${ESIGN_HOST:https://smlopenapi.esign.cn}}
+    # 人脸认证默认复用同一个 e签宝应用凭证；如需独立应用，再设置 ESIGN_FACE_* 覆盖。
+    app-id: ${ESIGN_FACE_APP_ID}
+    app-secret: ${ESIGN_FACE_APP_SECRET}
     mode: ${ESIGN_FACE_MODE:ESIGN}
     callback-url: ${ESIGN_FACE_CALLBACK_URL:}
 

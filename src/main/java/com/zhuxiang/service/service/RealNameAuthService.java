@@ -13,7 +13,7 @@ public interface RealNameAuthService {
     RealNameAuthDtos.StartResult startAuth(String userId, RealNameAuthDtos.StartRequest request);
 
     /**
-     * 重新发起个人实名认证（强制将旧 VERIFYING 记录标记为 EXPIRED）。
+     * 重新发起个人实名认证（强制将旧 VERIFYING 记录标记为 EXPIRED，允许已认证用户重新认证）。
      */
     RealNameAuthDtos.StartResult restartAuth(String userId, RealNameAuthDtos.RestartRequest request);
 

@@ -34,9 +34,8 @@ class CustomerServiceChatServiceTests {
         Executor directExecutor = Runnable::run;
 
         CustomerServiceSession session = new CustomerServiceSession();
-        session.setStatus(CustomerServiceEnums.SessionStatus.ACTIVE);
-        when(sessionService.requireOwnedSession("user", "session")).thenReturn(session);
-        when(sessionService.isSessionTimedOut(session)).thenReturn(false);
+        session.setStatus(CustomerServiceEnums.SessionStatus.CLOSED);
+        when(sessionService.resumeSession("user", "session")).thenReturn(session);
 
         CustomerServiceDtos.MessageItem currentMessage = new CustomerServiceDtos.MessageItem(
                 "user-message", "session", CustomerServiceEnums.MessageRole.USER,
@@ -59,13 +58,15 @@ class CustomerServiceChatServiceTests {
                     consumer.accept(new CustomerServiceAgentClient.AgentSseEvent(
                             "done", "{\"intent\":\"BILL_QUERY\",\"needHuman\":false}"));
                     return new CustomerServiceAgentClient.AgentStreamMetadata(
-                            "BILL_QUERY", false, false);
+                            "BILL_QUERY", false, false, false, true);
                 });
 
         CustomerServiceChatService service = new CustomerServiceChatService(
                 sessionService, messageService, agentClient, llmLogMapper,
                 retrievalLogMapper, directExecutor);
         service.streamMessage("user", "session", "我的账单", "request-123");
+
+        verify(sessionService).resumeSession("user", "session");
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<CustomerServiceDtos.AgentHistoryItem>> historyCaptor =

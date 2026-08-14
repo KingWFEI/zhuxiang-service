@@ -2,7 +2,6 @@ package com.zhuxiang.service.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhuxiang.service.client.CustomerServiceAgentClient;
-import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.dto.CustomerServiceDtos;
 import com.zhuxiang.service.entity.CustomerServiceEnums;
 import com.zhuxiang.service.entity.CustomerServiceLlmLog;
@@ -22,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -32,6 +32,7 @@ public class CustomerServiceChatService {
     private static final Logger log = LoggerFactory.getLogger(CustomerServiceChatService.class);
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private static final long SSE_TIMEOUT_MS = 120_000L;
+    private static final int MAX_HISTORY_MESSAGES = 20;
 
     private final CustomerServiceSessionService sessionService;
     private final CustomerServiceMessageService messageService;
@@ -75,10 +76,25 @@ public class CustomerServiceChatService {
             log.warn("客服 SSE 断开: requestId={} sessionId={} error={}",
                     requestId, sessionId, error.getClass().getSimpleName());
         });
+        emitter.onCompletion(() -> connectionClosed.set(true));
 
-        executor.execute(() -> process(
-                emitter, connectionClosed, assistantMessageId, fullAnswer,
-                requestId, userId, sessionId, content));
+        try {
+            executor.execute(() -> process(
+                    emitter, connectionClosed, assistantMessageId, fullAnswer,
+                    requestId, userId, sessionId, content));
+        } catch (RejectedExecutionException rejected) {
+            connectionClosed.set(true);
+            log.warn("客服并发已满: requestId={} sessionId={}", requestId, sessionId);
+            try {
+                send(emitter, "error", Map.of(
+                        "requestId", requestId,
+                        "code", "SERVICE_BUSY",
+                        "message", "当前咨询人数较多，请稍后再试"));
+            } catch (Exception ignored) {
+                // 客户端可能已经断开。
+            }
+            emitter.complete();
+        }
         return emitter;
     }
 
@@ -94,18 +110,8 @@ public class CustomerServiceChatService {
     ) {
         long startMs = System.currentTimeMillis();
         try {
-            var session = sessionService.requireOwnedSession(userId, sessionId);
-            if (CustomerServiceEnums.SessionStatus.CLOSED.equals(session.getStatus())) {
-                throw BusinessException.badRequest("会话已关闭");
-            }
-            if (sessionService.isSessionTimedOut(session)) {
-                sessionService.archiveSession(sessionId, CustomerServiceEnums.ClosedReason.TIMEOUT);
-                send(emitter, "session_timeout", Map.of(
-                        "requestId", requestId,
-                        "message", "当前会话已超时，请重新进入"));
-                emitter.complete();
-                return;
-            }
+            // 历史会话可随时恢复；会话空闲不等于 SSE 连接常驻。
+            sessionService.resumeSession(userId, sessionId);
 
             CustomerServiceDtos.MessageItem userMessage =
                     messageService.saveUserMessage(sessionId, userId, content);
@@ -149,7 +155,13 @@ public class CustomerServiceChatService {
                 messageService.updateAssistantMessage(
                         assistantMessage.getId(), fullAnswer.toString(),
                         CustomerServiceEnums.MessageStatus.DONE, null);
-                writeLlmLog(requestId, sessionId, assistantMessage.getId(), metadata, latencyMs, null);
+                writeLlmLog(
+                        requestId,
+                        sessionId,
+                        assistantMessage.getId(),
+                        metadata,
+                        latencyMs,
+                        metadata.degraded() ? "BUSINESS_DATA_UNAVAILABLE" : null);
             }
 
             sessionService.incrementMessageCount(sessionId);
@@ -157,8 +169,15 @@ public class CustomerServiceChatService {
                     sessionId,
                     fullAnswer.isEmpty() ? "AI 回复失败，请稍后重试" : fullAnswer.toString());
             if (!connectionClosed.get()) emitter.complete();
-            log.info("Agent 调用结束: requestId={} sessionId={} latencyMs={} failed={}",
-                    requestId, sessionId, latencyMs, metadata.failed());
+            log.info(
+                    "Agent 调用结束: requestId={} sessionId={} latencyMs={} "
+                            + "failed={} degraded={} businessDataAvailable={}",
+                    requestId,
+                    sessionId,
+                    latencyMs,
+                    metadata.failed(),
+                    metadata.degraded(),
+                    metadata.businessDataAvailable());
         } catch (Exception error) {
             String assistantMessageId = assistantMessageIdRef.get();
             String safeError = safeErrorMessage(error);
@@ -219,7 +238,9 @@ public class CustomerServiceChatService {
                     CustomerServiceEnums.MessageRole.USER.equals(message.role()) ? "user" : "assistant",
                     message.content() == null ? "" : message.content()));
         }
-        return history;
+        if (history.size() <= MAX_HISTORY_MESSAGES) return history;
+        return new ArrayList<>(history.subList(
+                history.size() - MAX_HISTORY_MESSAGES, history.size()));
     }
 
     private void writeRetrievalLog(
