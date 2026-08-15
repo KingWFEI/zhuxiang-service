@@ -72,21 +72,23 @@ public class UserFavoriteHouseServiceImpl extends ServiceImpl<UserFavoriteHouseM
     @Override
     @Transactional
     public HouseDtos.FavoriteResult unfavorite(String userId, String houseId) {
-        House house = houseService.requireAvailableHouse(houseId);
         boolean removed = remove(
                 Wrappers.<UserFavoriteHouse>lambdaQuery()
                         .eq(UserFavoriteHouse::getUserId, userId)
                         .eq(UserFavoriteHouse::getHouseId, houseId)
         );
         if (removed) {
-            house.setFavoriteCount(Math.max(
-                    0,
-                    (house.getFavoriteCount() == null ? 0 : house.getFavoriteCount()) - 1
-            ));
-            houseService.updateById(house);
-            recommendationEventService.recordSystemEvent(
-                    userId, houseId, RecommendationEventType.UNFAVORITE
-            );
+            House house = houseService.getById(houseId);
+            if (house != null) {
+                house.setFavoriteCount(Math.max(
+                        0,
+                        (house.getFavoriteCount() == null ? 0 : house.getFavoriteCount()) - 1
+                ));
+                houseService.updateById(house);
+                recommendationEventService.recordSystemEvent(
+                        userId, houseId, RecommendationEventType.UNFAVORITE
+                );
+            }
         }
         return new HouseDtos.FavoriteResult(houseId, false);
     }

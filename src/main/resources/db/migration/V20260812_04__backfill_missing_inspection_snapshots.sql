@@ -12,7 +12,9 @@ SELECT UUID(),
        NOW(),
        NOW()
 FROM lease
-LEFT JOIN house_inspection_template template ON template.house_id = lease.house_id
-LEFT JOIN lease_inspection_snapshot snapshot ON snapshot.contract_id = lease.contract_id
+LEFT JOIN house_inspection_template template
+       ON CAST(template.house_id AS BINARY) = CAST(lease.house_id AS BINARY)
+LEFT JOIN lease_inspection_snapshot snapshot
+       ON CAST(snapshot.contract_id AS BINARY) = CAST(lease.contract_id AS BINARY)
 WHERE lease.contract_id IS NOT NULL
   AND snapshot.id IS NULL;
