@@ -73,6 +73,47 @@ public final class RepairDtos {
     ) {
     }
 
+    @Schema(description = "管理端报修详情")
+    public record AdminRepairDetail(
+            @Schema(description = "报修记录 ID") String id,
+            @Schema(description = "报修编号") String repairNo,
+            @Schema(description = "房源 ID") String houseId,
+            @Schema(description = "房源名称") String houseName,
+            @Schema(description = "房源地址") String houseAddress,
+            @Schema(description = "房间名称") String roomName,
+            @Schema(description = "租客 ID") String tenantId,
+            @Schema(description = "租客姓名") String tenantName,
+            @Schema(description = "租客手机号") String tenantPhone,
+            @Schema(description = "报修类型") String repairType,
+            @Schema(description = "问题描述") String description,
+            @Schema(description = "报修图片 URL 列表") List<String> imageUrls,
+            @Schema(description = "联系人姓名") String contactName,
+            @Schema(description = "联系人手机号") String contactPhone,
+            @Schema(description = "期望上门时间") LocalDateTime expectedVisitTime,
+            @Schema(description = "当前状态") String status,
+            @Schema(description = "当前处理人") String assignee,
+            @Schema(description = "维修人员姓名") String repairmanName,
+            @Schema(description = "管家姓名") String housekeeperName,
+            @Schema(description = "管家电话") String housekeeperPhone,
+            @Schema(description = "维修完成时间") LocalDateTime completedAt,
+            @Schema(description = "用户评分") Integer rating,
+            @Schema(description = "用户评价内容") String reviewContent,
+            @Schema(description = "取消原因") String cancelReason,
+            @Schema(description = "取消时间") LocalDateTime cancelTime,
+            @Schema(description = "创建时间") LocalDateTime createdAt,
+            @Schema(description = "更新时间") LocalDateTime updatedAt,
+            @Schema(description = "处理时间线") List<TimelineItem> timeline,
+            @Schema(description = "当前允许的管理端操作") List<String> availableActions
+    ) {
+    }
+
+    @Schema(description = "报修派单请求")
+    public record AssignRepairRequest(
+            @Schema(description = "处理人") @NotBlank @Size(max = 100) String assignee,
+            @Schema(description = "维修人员姓名") @Size(max = 100) String repairmanName
+    ) {
+    }
+
     @Schema(description = "创建报修请求")
     public record CreateRepairRequest(
             @Schema(description = "房源 ID") @NotBlank @Size(max = 36) String houseId,

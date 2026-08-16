@@ -1,6 +1,7 @@
 package com.zhuxiang.service.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -24,6 +25,7 @@ public class Region implements Serializable {
     /**
      * 父级区域ID，用于城市-区域-商圈层级
      */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String parentId;
 
     /**
@@ -34,6 +36,7 @@ public class Region implements Serializable {
     /**
      * 区域编码
      */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String code;
 
     /**

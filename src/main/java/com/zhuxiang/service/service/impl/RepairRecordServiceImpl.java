@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.RepairDtos.AdminRepairItem;
+import com.zhuxiang.service.dto.RepairDtos.AdminRepairDetail;
+import com.zhuxiang.service.dto.RepairDtos.AssignRepairRequest;
 import com.zhuxiang.service.dto.RepairDtos.CreateRepairRequest;
 import com.zhuxiang.service.dto.RepairDtos.RepairItem;
 import com.zhuxiang.service.dto.RepairDtos.TimelineItem;
@@ -28,8 +30,15 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, RepairRecord>
@@ -53,6 +62,7 @@ public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, Rep
             Map.entry("completed", "已完成"),
             Map.entry("cancelled", "已取消")
     );
+    private static final Set<String> REPAIR_STATUSES = STATUS_TITLE.keySet();
 
     private static final String DEFAULT_HOUSEKEEPER_NAME = "小住管家";
     private static final String DEFAULT_HOUSEKEEPER_PHONE = "400-800-1234";
@@ -163,7 +173,9 @@ public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, Rep
         record.setRating(rating);
         record.setReviewContent(reviewContent);
         record.setReviewTime(now);
-        record.setCompletedTime(now);
+        if (record.getCompletedTime() == null) {
+            record.setCompletedTime(now);
+        }
         record.setUpdatedAt(now);
         updateById(record);
 
@@ -171,13 +183,22 @@ public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, Rep
     }
 
     @Override
-    public PageData<AdminRepairItem> listAdminRepairs(String keyword, String status, long page, long pageSize) {
+    public PageData<AdminRepairItem> listAdminRepairs(
+            String operatorId, String keyword, String status, long page, long pageSize
+    ) {
+        User operator = requireAdminOperator(operatorId);
+        Set<String> accessibleHouseIds = accessibleHouseIds(operator);
+        if (accessibleHouseIds != null && accessibleHouseIds.isEmpty()) {
+            return PageData.of(List.of(), page, pageSize, 0);
+        }
+        String normalizedStatus = normalizeStatus(status);
         var query = Wrappers.<RepairRecord>lambdaQuery()
                 .isNull(RepairRecord::getDeletedAt)
+                .in(accessibleHouseIds != null, RepairRecord::getHouseId, accessibleHouseIds)
                 .orderByDesc(RepairRecord::getCreatedAt);
 
-        if (status != null && !status.isBlank()) {
-            query.eq(RepairRecord::getStatus, status);
+        if (normalizedStatus != null) {
+            query.eq(RepairRecord::getStatus, normalizedStatus);
         }
 
         if (keyword != null && !keyword.isBlank()) {
@@ -206,40 +227,207 @@ public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, Rep
         }
 
         var result = page(new Page<>(page, pageSize), query);
-        List<AdminRepairItem> items = result.getRecords().stream()
-                .map(this::toAdminItem)
-                .toList();
+        List<AdminRepairItem> items = toAdminItems(result.getRecords());
 
         return PageData.of(items, page, pageSize, result.getTotal());
     }
 
-    private AdminRepairItem toAdminItem(RepairRecord r) {
-        User user = userService.getById(r.getUserId());
-        House house = houseService.getById(r.getHouseId());
+    @Override
+    public AdminRepairDetail getAdminRepairDetail(String operatorId, String repairId) {
+        RepairRecord record = requireAdminRecord(repairId);
+        ensureAdminAccessible(requireAdminOperator(operatorId), record);
+        return toAdminDetail(record);
+    }
 
+    @Override
+    @Transactional
+    public AdminRepairDetail acceptAdminRepair(String operatorId, String repairId) {
+        RepairRecord record = requireAdminRecord(repairId);
+        ensureAdminAccessible(requireAdminOperator(operatorId), record);
+        requireStatus(record, Set.of("submitted"), "当前状态不能受理");
+        changeStatus(record, "submitted", "accepted", "已受理", "管理端已受理报修");
+        return toAdminDetail(record);
+    }
+
+    @Override
+    @Transactional
+    public AdminRepairDetail assignAdminRepair(
+            String operatorId, String repairId, AssignRepairRequest request
+    ) {
+        RepairRecord record = requireAdminRecord(repairId);
+        ensureAdminAccessible(requireAdminOperator(operatorId), record);
+        requireStatus(record, Set.of("accepted"), "当前状态不能派单");
+        String assignee = request.assignee().trim();
+        String repairmanName = request.repairmanName() == null || request.repairmanName().isBlank()
+                ? request.assignee().trim() : request.repairmanName().trim();
+        LocalDateTime now = LocalDateTime.now();
+        int updated = getBaseMapper().assignIfCurrent(
+                record.getId(), assignee, repairmanName, now
+        );
+        requireUpdated(updated, "当前状态不能派单");
+        record.setAssignee(assignee);
+        record.setRepairmanName(repairmanName);
+        record.setStatus("assigned");
+        record.setUpdatedAt(now);
+        writeLog(record.getId(), "已分派", "已分派给 " + assignee, "assigned", now);
+        return toAdminDetail(record);
+    }
+
+    @Override
+    @Transactional
+    public AdminRepairDetail startAdminRepair(String operatorId, String repairId) {
+        RepairRecord record = requireAdminRecord(repairId);
+        ensureAdminAccessible(requireAdminOperator(operatorId), record);
+        requireStatus(record, Set.of("assigned"), "当前状态不能开始处理");
+        changeStatus(record, "assigned", "processing", "处理中", "维修人员已开始处理");
+        return toAdminDetail(record);
+    }
+
+    @Override
+    @Transactional
+    public AdminRepairDetail finishAdminRepair(String operatorId, String repairId) {
+        RepairRecord record = requireAdminRecord(repairId);
+        ensureAdminAccessible(requireAdminOperator(operatorId), record);
+        requireStatus(record, Set.of("processing"), "当前状态不能完成维修");
+        LocalDateTime now = LocalDateTime.now();
+        requireUpdated(getBaseMapper().finishIfProcessing(record.getId(), now), "当前状态不能完成维修");
+        record.setCompletedTime(now);
+        record.setStatus("pendingReview");
+        record.setUpdatedAt(now);
+        writeLog(record.getId(), "待评价", "维修已完成，等待用户评价", "pendingReview", now);
+        return toAdminDetail(record);
+    }
+
+    private List<AdminRepairItem> toAdminItems(List<RepairRecord> records) {
+        if (records.isEmpty()) {
+            return List.of();
+        }
+        Map<String, User> users = byId(userService.listByIds(ids(records.stream()
+                .map(RepairRecord::getUserId).toList())));
+        Map<String, House> houses = byId(houseService.listByIds(ids(records.stream()
+                .map(RepairRecord::getHouseId).toList())));
+        return records.stream().map(r -> toAdminItem(r, users.get(r.getUserId()), houses.get(r.getHouseId()))).toList();
+    }
+
+    private AdminRepairItem toAdminItem(RepairRecord r, User user, House house) {
         return new AdminRepairItem(
-                r.getId(),
-                r.getOrderNo(),
-                r.getHouseId(),
-                r.getHouseName(),
-                house != null ? house.getAddress() : null,
-                r.getRoomName(),
-                r.getUserId(),
+                r.getId(), r.getOrderNo(), r.getHouseId(), r.getHouseName(),
+                house != null ? house.getAddress() : null, r.getRoomName(), r.getUserId(),
                 user != null ? user.getNickname() : r.getContactName(),
                 user != null ? user.getPhone() : r.getContactPhone(),
-                r.getRepairType(),
-                r.getDescription(),
-                r.getStatus(),
-                r.getAssignee(),
-                r.getRepairmanName(),
-                r.getHousekeeperName(),
-                r.getExpectedVisitTime(),
-                r.getCompletedTime(),
-                r.getRating(),
-                r.getReviewContent(),
-                r.getCreatedAt(),
-                r.getUpdatedAt()
+                r.getRepairType(), r.getDescription(), r.getStatus(), r.getAssignee(),
+                r.getRepairmanName(), r.getHousekeeperName(), r.getExpectedVisitTime(),
+                r.getCompletedTime(), r.getRating(), r.getReviewContent(), r.getCreatedAt(), r.getUpdatedAt()
         );
+    }
+
+    private AdminRepairDetail toAdminDetail(RepairRecord r) {
+        User user = userService.getById(r.getUserId());
+        House house = houseService.getById(r.getHouseId());
+        return new AdminRepairDetail(
+                r.getId(), r.getOrderNo(), r.getHouseId(), r.getHouseName(),
+                house == null ? null : house.getAddress(), r.getRoomName(), r.getUserId(),
+                user == null ? r.getContactName() : user.getNickname(),
+                user == null ? r.getContactPhone() : user.getPhone(),
+                r.getRepairType(), r.getDescription(), deserializeImageUrls(r.getImageUrls()),
+                r.getContactName(), r.getContactPhone(), r.getExpectedVisitTime(), r.getStatus(),
+                r.getAssignee(), r.getRepairmanName(), r.getHousekeeperName(), r.getHousekeeperPhone(),
+                r.getCompletedTime(), r.getRating(), r.getReviewContent(), r.getCancelReason(),
+                r.getCancelTime(), r.getCreatedAt(), r.getUpdatedAt(), getTimeline(r.getId()),
+                availableActions(r.getStatus())
+        );
+    }
+
+    private RepairRecord requireAdminRecord(String repairId) {
+        RepairRecord record = getById(repairId);
+        if (record == null || record.getDeletedAt() != null) {
+            throw BusinessException.notFound("报修记录不存在");
+        }
+        return record;
+    }
+
+    private void requireStatus(RepairRecord record, Set<String> allowed, String message) {
+        if (!allowed.contains(record.getStatus())) {
+            throw BusinessException.conflict(message);
+        }
+    }
+
+    private void changeStatus(
+            RepairRecord record, String expectedStatus, String status, String title, String description
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+        requireUpdated(
+                getBaseMapper().updateStatusIfCurrent(record.getId(), expectedStatus, status, now),
+                "报修状态已变化，请刷新后重试"
+        );
+        record.setStatus(status);
+        record.setUpdatedAt(now);
+        writeLog(record.getId(), title, description, status, now);
+    }
+
+    private void requireUpdated(int updated, String message) {
+        if (updated != 1) throw BusinessException.conflict(message);
+    }
+
+    private User requireAdminOperator(String operatorId) {
+        User operator = userService.requireActiveUser(operatorId);
+        if (!Set.of("ADMIN", "HOUSEKEEPER", "LANDLORD").contains(operator.getRole())) {
+            throw BusinessException.forbidden("无权处理管理端报修");
+        }
+        return operator;
+    }
+
+    private Set<String> accessibleHouseIds(User operator) {
+        if (!"LANDLORD".equals(operator.getRole())) return null;
+        return houseService.list(
+                Wrappers.<House>lambdaQuery()
+                        .select(House::getId)
+                        .eq(House::getLandlordId, operator.getId())
+        ).stream().map(House::getId).collect(Collectors.toSet());
+    }
+
+    private void ensureAdminAccessible(User operator, RepairRecord record) {
+        if (!"LANDLORD".equals(operator.getRole())) return;
+        House house = houseService.getById(record.getHouseId());
+        if (house == null || !operator.getId().equals(house.getLandlordId())) {
+            throw BusinessException.forbidden("无权查看或处理该报修");
+        }
+    }
+
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank()) return null;
+        String normalized = status.trim();
+        String canonical = REPAIR_STATUSES.stream()
+                .filter(value -> value.toLowerCase(Locale.ROOT).equals(normalized.toLowerCase(Locale.ROOT)))
+                .findFirst().orElse(null);
+        if (canonical == null) throw BusinessException.badRequest("不支持的报修状态");
+        return canonical;
+    }
+
+    private List<String> availableActions(String status) {
+        return switch (status) {
+            case "submitted" -> List.of("accept");
+            case "accepted" -> List.of("assign");
+            case "assigned" -> List.of("start");
+            case "processing" -> List.of("finish");
+            default -> List.of();
+        };
+    }
+
+    private Set<String> ids(Collection<String> values) {
+        return values.stream().filter(Objects::nonNull).collect(Collectors.toSet());
+    }
+
+    private <T> Map<String, T> byId(List<T> values) {
+        if (values == null || values.isEmpty()) return Collections.emptyMap();
+        if (values.getFirst() instanceof User) {
+            @SuppressWarnings("unchecked") Map<String, T> result = (Map<String, T>) values.stream()
+                    .map(User.class::cast).collect(Collectors.toMap(User::getId, Function.identity()));
+            return result;
+        }
+        @SuppressWarnings("unchecked") Map<String, T> result = (Map<String, T>) values.stream()
+                .map(House.class::cast).collect(Collectors.toMap(House::getId, Function.identity()));
+        return result;
     }
 
     private RepairRecord getOwnedRecord(String userId, String repairId) {

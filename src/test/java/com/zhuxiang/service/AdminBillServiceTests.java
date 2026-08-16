@@ -121,6 +121,43 @@ class AdminBillServiceTests {
     }
 
     @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void resolvesInitialRentPaymentThroughLeaseOrderForPaidBill() {
+        User admin = user("admin-1", "ADMIN");
+        Lease lease = new Lease();
+        lease.setId("lease-1");
+        lease.setOrderId("order-1");
+
+        RentBill bill = new RentBill();
+        bill.setId("bill-1");
+        bill.setLeaseId("lease-1");
+        bill.setAmountDue(300000);
+        bill.setAmountPaid(300000);
+        bill.setStatus("paid");
+
+        PaymentRecord payment = new PaymentRecord();
+        payment.setOrderId("order-1");
+        payment.setPaymentNo("ORDER-PAY-001");
+        payment.setType("rent");
+        payment.setStatus("success");
+        payment.setPaidAt(LocalDateTime.of(2026, 8, 1, 9, 30));
+
+        Page<RentBill> databasePage = new Page<>(1, 20, 1);
+        databasePage.setRecords(List.of(bill));
+        when(userService.requireActiveUser("admin-1")).thenReturn(admin);
+        when(rentBillMapper.selectPage(any(Page.class), any(Wrapper.class))).thenReturn(databasePage);
+        when(leaseService.listByIds(any(Collection.class))).thenReturn(List.of(lease));
+        when(paymentRecordService.list(any(Wrapper.class))).thenReturn(List.of(payment));
+
+        AdminBillDtos.BillView item = service.getBills(
+                "admin-1", null, null, null, null, 1, 20
+        ).items().getFirst();
+
+        assertThat(item.paymentNo()).isEqualTo("ORDER-PAY-001");
+        assertThat(item.paidAt()).isEqualTo(LocalDateTime.of(2026, 8, 1, 9, 30));
+    }
+
+    @Test
     void rejectsTenantAndInvalidDateRangeBeforeQueryingBills() {
         when(userService.requireActiveUser("tenant-1")).thenReturn(user("tenant-1", "TENANT"));
         assertThatThrownBy(() -> service.getBills(
