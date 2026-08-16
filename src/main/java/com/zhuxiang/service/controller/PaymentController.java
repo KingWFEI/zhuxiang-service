@@ -39,18 +39,6 @@ public class PaymentController {
     }
 
     @RequireAuth
-    @PostMapping("/payment-records/{recordId}/mock-callback")
-    @Operation(summary = "模拟支付回调", description = "仅供开发和测试环境模拟支付网关回调，按支付记录 ID 确认付款。生产环境应由支付网关异步通知替代。")
-    @SecurityRequirement(name = "bearerAuth")
-    public ApiResponse<Void> mockCallback(
-            HttpServletRequest request,
-            @Parameter(description = "支付记录 ID", example = "payment_001") @PathVariable String recordId
-    ) {
-        rentOrderService.confirmPayment(recordId, null);
-        return ApiResponse.<Void>success("支付回调确认成功", null);
-    }
-
-    @RequireAuth
     @PostMapping("/payments/alipay/{paymentNo}/confirm")
     @Operation(summary = "主动确认支付宝支付", description = "客户端支付完成后主动查询支付宝订单状态并确认支付。用于开发阶段支付宝异步通知无法到达本地时的兜底方案。")
     @SecurityRequirement(name = "bearerAuth")
@@ -61,6 +49,8 @@ public class PaymentController {
         // 查找支付记录
         PaymentRecord record = paymentRecordService.lambdaQuery()
                 .eq(PaymentRecord::getPaymentNo, paymentNo)
+                .eq(PaymentRecord::getUserId, CurrentUser.id(request))
+                .eq(PaymentRecord::getPaymentChannel, "alipay")
                 .one();
         if (record == null) {
             return new ApiResponse<>(400, "支付记录不存在", false);

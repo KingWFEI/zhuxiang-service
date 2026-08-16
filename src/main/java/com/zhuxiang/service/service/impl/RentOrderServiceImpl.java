@@ -551,7 +551,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
                 order.getPaymentMonths(),
                 order.getDeposit(),
                 order.getServiceFee(),
-                List.of("mock", "wechat", "alipay")
+                List.of("支付宝")
         );
     }
 
@@ -572,6 +572,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         House payHouse = houseService.getById(order.getHouseId());
         String houseName = payHouse != null ? payHouse.getTitle() : "";
         String channel = request.paymentChannel();
+        alipayService.validatePaymentChannel(channel);
 
         PaymentRecord activePayment = paymentRecordService.getOne(
                 Wrappers.<PaymentRecord>lambdaQuery()
@@ -596,12 +597,15 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
                             .last("LIMIT 1 FOR UPDATE"), false);
             if (existingRecord != null) {
                 String subject = "勿忧管家租房-" + houseName;
-                String existingPaymentUrl = alipayService.buildH5PayUrl(
+                String payType = alipayService.getPayType();
+                String payload = alipayService.buildPayPayload(
                         existingRecord.getPaymentNo(), existingRecord.getAmount(), subject);
                 log.info("复用支付宝待支付单 paymentNo={}", existingRecord.getPaymentNo());
                 return new PayResponse(
-                        orderId, existingRecord.getId(), alipayService.getPayType(),
-                        existingPaymentUrl, order.getStatus(), existingRecord.getPaymentNo(),
+                        orderId, existingRecord.getId(), payType,
+                        "h5".equals(payType) ? payload : null,
+                        "app".equals(payType) ? payload : null,
+                        order.getStatus(), existingRecord.getPaymentNo(),
                         existingRecord.getAmount());
             }
         }
@@ -625,6 +629,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
 
         String payType = null;
         String paymentUrl = null;
+        String orderString = null;
 
         // mock 渠道自动确认支付（开发阶段），真实渠道等待回调确认
         if ("mock".equals(channel)) {
@@ -632,8 +637,14 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
         } else if ("alipay".equals(channel)) {
             String subject = "勿忧管家租房-" + houseName;
             try {
-                paymentUrl = alipayService.buildH5PayUrl(record.getPaymentNo(), record.getAmount(), subject);
                 payType = alipayService.getPayType();
+                String payload = alipayService.buildPayPayload(
+                        record.getPaymentNo(), record.getAmount(), subject);
+                if ("app".equals(payType)) {
+                    orderString = payload;
+                } else {
+                    paymentUrl = payload;
+                }
                 log.info("支付宝下单成功 paymentNo={}, payType={}", record.getPaymentNo(), payType);
             } catch (Exception e) {
                 log.error("支付宝下单失败 paymentNo={}", record.getPaymentNo(), e);
@@ -648,6 +659,7 @@ public class RentOrderServiceImpl extends ServiceImpl<RentOrderMapper, RentOrder
                 record.getId(),
                 payType,
                 paymentUrl,
+                orderString,
                 order.getStatus(),
                 record.getPaymentNo(),
                 record.getAmount()

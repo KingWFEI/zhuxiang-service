@@ -19,3 +19,14 @@ app:
       rate-limit-store: redis
       fixed-code: ""
       expose-code: false
+
+alipay:
+  # 生产网关固定为支付宝正式网关，不允许通过环境变量切回沙箱。
+  gateway-url: https://openapi.alipay.com/gateway.do
+  app-id: ${ALIPAY_APP_ID:}
+  merchant-private-key: ${ALIPAY_MERCHANT_PRIVATE_KEY:}
+  alipay-public-key: ${ALIPAY_ALIPAY_PUBLIC_KEY:}
+  notify-url: ${ALIPAY_NOTIFY_URL:}
+  pay-type: app
+  # 生产环境硬关闭模拟支付，不接受环境变量覆盖。
+  mock-enabled: false

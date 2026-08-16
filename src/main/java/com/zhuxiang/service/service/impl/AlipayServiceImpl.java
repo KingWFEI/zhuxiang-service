@@ -5,13 +5,16 @@ import com.alipay.api.AlipayClient;
 import com.alipay.api.DefaultAlipayClient;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.alipay.api.request.AlipayTradeFastpayRefundQueryRequest;
+import com.alipay.api.request.AlipayTradeAppPayRequest;
 import com.alipay.api.request.AlipayTradeQueryRequest;
 import com.alipay.api.request.AlipayTradeRefundRequest;
 import com.alipay.api.request.AlipayTradeWapPayRequest;
 import com.alipay.api.response.AlipayTradeFastpayRefundQueryResponse;
+import com.alipay.api.response.AlipayTradeAppPayResponse;
 import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.alipay.api.response.AlipayTradeRefundResponse;
 import com.zhuxiang.service.config.AlipayProperties;
+import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.service.AlipayService;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -74,6 +77,56 @@ public class AlipayServiceImpl implements AlipayService {
             log.error("支付宝统一下单失败 outTradeNo={}", outTradeNo, e);
             throw new RuntimeException("支付宝支付下单失败，请稍后重试", e);
         }
+    }
+
+    @Override
+    public String buildAppPayOrder(String outTradeNo, int totalAmount, String subject) {
+        AlipayTradeAppPayRequest request = new AlipayTradeAppPayRequest();
+        request.setNotifyUrl(props.getNotifyUrl());
+
+        BigDecimal amount = BigDecimal.valueOf(totalAmount)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        Map<String, Object> bizContent = new java.util.LinkedHashMap<>();
+        bizContent.put("out_trade_no", outTradeNo);
+        bizContent.put("total_amount", amount.toPlainString());
+        bizContent.put("subject", subject);
+        bizContent.put("product_code", "QUICK_MSECURITY_PAY");
+        request.setBizContent(toJson(bizContent));
+
+        try {
+            AlipayTradeAppPayResponse response = alipayClient.sdkExecute(request);
+            if (!response.isSuccess() || response.getBody() == null || response.getBody().isBlank()) {
+                throw new IllegalStateException("支付宝 APP 支付订单串生成失败");
+            }
+            return response.getBody();
+        } catch (AlipayApiException e) {
+            log.error("支付宝 APP 支付下单失败 outTradeNo={}", outTradeNo, e);
+            throw new RuntimeException("支付宝支付下单失败，请稍后重试", e);
+        }
+    }
+
+    @Override
+    public String buildPayPayload(String outTradeNo, int totalAmount, String subject) {
+        return "app".equals(getPayType())
+                ? buildAppPayOrder(outTradeNo, totalAmount, subject)
+                : buildH5PayUrl(outTradeNo, totalAmount, subject);
+    }
+
+    @Override
+    public String getPayType() {
+        String payType = props.getPayType() == null
+                ? "" : props.getPayType().trim().toLowerCase();
+        if (!"h5".equals(payType) && !"app".equals(payType)) {
+            throw new IllegalStateException("alipay.pay-type 只能配置为 h5 或 app");
+        }
+        return payType;
+    }
+
+    @Override
+    public void validatePaymentChannel(String channel) {
+        if ("alipay".equals(channel)) return;
+        if ("mock".equals(channel) && props.isMockEnabled()) return;
+        throw BusinessException.badRequest("不支持或未启用的支付渠道");
     }
 
     @Override

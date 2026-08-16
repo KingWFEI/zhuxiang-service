@@ -9,6 +9,7 @@ import com.zhuxiang.service.entity.RepairLog;
 import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.mapper.RepairLogMapper;
 import com.zhuxiang.service.mapper.RepairRecordMapper;
+import com.zhuxiang.service.service.FileRecordService;
 import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.service.impl.RepairRecordServiceImpl;
@@ -34,11 +35,13 @@ class AdminRepairServiceTests {
     private final RepairRecordMapper recordMapper = mock(RepairRecordMapper.class);
     private final UserService userService = mock(UserService.class);
     private final HouseService houseService = mock(HouseService.class);
+    private final FileRecordService fileRecordService = mock(FileRecordService.class);
     private RepairRecordServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = spy(new RepairRecordServiceImpl(logMapper, new ObjectMapper(), userService, houseService));
+        service = spy(new RepairRecordServiceImpl(
+                logMapper, new ObjectMapper(), userService, houseService, fileRecordService));
         ReflectionTestUtils.setField(service, "baseMapper", recordMapper);
         when(recordMapper.updateStatusIfCurrent(any(), any(), any(), any())).thenReturn(1);
         when(recordMapper.assignIfCurrent(any(), any(), any(), any())).thenReturn(1);

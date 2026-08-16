@@ -112,7 +112,7 @@ public class RentOrderController {
     }
 
     @PostMapping("/rent-orders/{orderId}/pay")
-    @Operation(summary = "支付租房订单", description = "按支付方式和支付渠道发起付款；mock 渠道自动确认，alipay 渠道返回 H5 支付页面 URL。")
+    @Operation(summary = "支付租房订单", description = "发起支付宝付款；开发环境返回 H5 URL，生产环境返回 APP SDK 签名订单串。")
     public ApiResponse<PayResponse> pay(
             HttpServletRequest request,
             @Parameter(description = "租房订单 ID", example = "order_001") @PathVariable String orderId,

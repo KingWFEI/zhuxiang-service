@@ -63,37 +63,38 @@ public class RepairAppController {
 
     @PostMapping
     @Operation(summary = "创建报修", description = "提交新的报修申请")
-    public ApiResponse<String> createRepair(
+    public ApiResponse<RepairItem> createRepair(
             @Valid @RequestBody CreateRepairRequest body,
             HttpServletRequest request
     ) {
         String userId = CurrentUser.id(request);
-        String repairId = repairRecordService.createRepair(userId, body);
-        return ApiResponse.success("报修提交成功", repairId);
+        RepairItem repair = repairRecordService.createRepair(userId, body);
+        return ApiResponse.success("报修提交成功", repair);
     }
 
     @PostMapping("/{repairId}/cancel")
     @Operation(summary = "取消报修", description = "取消已提交的报修申请（仅待受理状态可取消）")
-    public ApiResponse<Void> cancelRepair(
+    public ApiResponse<RepairItem> cancelRepair(
             @Parameter(description = "报修记录 ID") @PathVariable String repairId,
             @RequestBody(required = false) CancelRepairRequest body,
             HttpServletRequest request
     ) {
         String userId = CurrentUser.id(request);
         String cancelReason = body != null ? body.cancelReason() : null;
-        repairRecordService.cancelRepair(userId, repairId, cancelReason);
-        return ApiResponse.success("报修已取消", null);
+        RepairItem repair = repairRecordService.cancelRepair(userId, repairId, cancelReason);
+        return ApiResponse.success("报修已取消", repair);
     }
 
     @PostMapping("/{repairId}/review")
     @Operation(summary = "评价报修", description = "对已完成的维修服务进行评价（仅待评价状态可评价）")
-    public ApiResponse<Void> reviewRepair(
+    public ApiResponse<RepairItem> reviewRepair(
             @Parameter(description = "报修记录 ID") @PathVariable String repairId,
             @Valid @RequestBody ReviewRepairRequest body,
             HttpServletRequest request
     ) {
         String userId = CurrentUser.id(request);
-        repairRecordService.reviewRepair(userId, repairId, body.rating(), body.reviewContent());
-        return ApiResponse.success("评价提交成功", null);
+        RepairItem repair = repairRecordService.reviewRepair(
+                userId, repairId, body.rating(), body.reviewContent());
+        return ApiResponse.success("评价提交成功", repair);
     }
 }

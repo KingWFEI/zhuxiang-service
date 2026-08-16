@@ -27,6 +27,12 @@ public class AlipayProperties {
     /** 支付完成后的同步跳转地址 */
     private String returnUrl;
 
+    /** 支付载荷类型：开发/沙箱使用 h5，生产使用 app。 */
+    private String payType = "h5";
+
+    /** 是否允许 mock 支付。默认关闭，生产配置不可开启。 */
+    private boolean mockEnabled = false;
+
     /** 签名算法，默认 RSA2 */
     private String signType = "RSA2";
 

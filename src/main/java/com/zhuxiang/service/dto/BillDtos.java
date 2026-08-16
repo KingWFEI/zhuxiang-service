@@ -35,8 +35,13 @@ public final class BillDtos {
 
     @Schema(description = "账单支付请求")
     public record BillPayRequest(
-            @Schema(description = "支付渠道：alipay/wechat/mock") String paymentChannel
-    ) {}
+            @Schema(description = "支付渠道，缺省为 alipay") String paymentChannel
+    ) {
+        public String paymentChannel() {
+            return paymentChannel != null && !paymentChannel.isBlank()
+                    ? paymentChannel : "alipay";
+        }
+    }
 
     @Schema(description = "账单支付响应")
     public record BillPayResponse(
@@ -45,6 +50,7 @@ public final class BillDtos {
             @Schema(description = "支付编号") String paymentNo,
             @Schema(description = "支付类型") String payType,
             @Schema(description = "支付页面 URL") String paymentUrl,
+            @Schema(description = "支付宝 APP SDK 签名订单串") String orderString,
             @Schema(description = "支付金额，单位分") Integer amount
     ) {}
 }
