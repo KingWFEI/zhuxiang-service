@@ -4,3 +4,8 @@ app:
       rate-limit-store: memory
       fixed-code: ${FIXED_SMS_CODE:123456}
       expose-code: ${SMS_EXPOSE_CODE:true}
+
+alipay:
+  # 开发/沙箱固定使用网页支付；mock 必须另外显式开启。
+  pay-type: h5
+  mock-enabled: ${ALIPAY_MOCK_ENABLED:false}

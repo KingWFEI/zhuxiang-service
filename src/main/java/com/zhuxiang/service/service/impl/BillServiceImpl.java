@@ -144,8 +144,8 @@ public class BillServiceImpl extends ServiceImpl<RentBillMapper, RentBill>
         int totalAmount = bill.getAmountDue() - bill.getAmountPaid()
                 + (bill.getOverdueAmount() != null ? bill.getOverdueAmount() : 0);
 
-        String channel = request.paymentChannel() != null && !request.paymentChannel().isBlank()
-                ? request.paymentChannel() : "mock";
+        String channel = request.paymentChannel();
+        alipayService.validatePaymentChannel(channel);
 
         PaymentRecord record = new PaymentRecord();
         record.setId(UUID.randomUUID().toString());
@@ -168,14 +168,22 @@ public class BillServiceImpl extends ServiceImpl<RentBillMapper, RentBill>
 
         String payType = null;
         String paymentUrl = null;
+        String orderString = null;
 
         if ("alipay".equals(channel)) {
             String subject = "勿忧管家租房-第" + bill.getPeriodNo() + "期租金-" + houseName;
             try {
-                paymentUrl = alipayService.buildH5PayUrl(record.getPaymentNo(), totalAmount, subject);
                 payType = alipayService.getPayType();
+                String payload = alipayService.buildPayPayload(
+                        record.getPaymentNo(), totalAmount, subject);
+                if ("app".equals(payType)) {
+                    orderString = payload;
+                } else {
+                    paymentUrl = payload;
+                }
             } catch (Exception e) {
                 log.error("支付宝下单失败 billId={}", billId, e);
+                throw BusinessException.badRequest("支付宝支付下单失败，请稍后重试");
             }
         } else if ("mock".equals(channel)) {
             confirmBillPayment(record.getId(), null);
@@ -183,7 +191,7 @@ public class BillServiceImpl extends ServiceImpl<RentBillMapper, RentBill>
 
         return new BillDtos.BillPayResponse(
                 billId, record.getId(), record.getPaymentNo(),
-                payType, paymentUrl, totalAmount
+                payType, paymentUrl, orderString, totalAmount
         );
     }
 

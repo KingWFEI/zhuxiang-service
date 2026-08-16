@@ -21,6 +21,7 @@ import com.zhuxiang.service.entity.User;
 import com.zhuxiang.service.mapper.RepairLogMapper;
 import com.zhuxiang.service.mapper.RepairRecordMapper;
 import com.zhuxiang.service.service.HouseService;
+import com.zhuxiang.service.service.FileRecordService;
 import com.zhuxiang.service.service.RepairRecordService;
 import com.zhuxiang.service.service.UserService;
 import org.springframework.stereotype.Service;
@@ -71,18 +72,22 @@ public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, Rep
     private final ObjectMapper objectMapper;
     private final UserService userService;
     private final HouseService houseService;
+    private final FileRecordService fileRecordService;
 
     public RepairRecordServiceImpl(RepairLogMapper repairLogMapper, ObjectMapper objectMapper,
-                                   UserService userService, HouseService houseService) {
+                                   UserService userService, HouseService houseService,
+                                   FileRecordService fileRecordService) {
         this.repairLogMapper = repairLogMapper;
         this.objectMapper = objectMapper;
         this.userService = userService;
         this.houseService = houseService;
+        this.fileRecordService = fileRecordService;
     }
 
     @Override
     @Transactional
-    public String createRepair(String userId, CreateRepairRequest request) {
+    public RepairItem createRepair(String userId, CreateRepairRequest request) {
+        List<String> imageUrls = validatedRepairImages(userId, request.imageUrls());
         LocalDateTime now = LocalDateTime.now();
         String id = UUID.randomUUID().toString();
 
@@ -95,7 +100,7 @@ public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, Rep
         record.setRoomName(request.roomName());
         record.setRepairType(request.repairType());
         record.setDescription(request.description());
-        record.setImageUrls(serializeImageUrls(request.imageUrls()));
+        record.setImageUrls(serializeImageUrls(imageUrls));
         record.setContactName(request.contactName());
         record.setContactPhone(request.contactPhone());
         record.setExpectedVisitTime(request.expectedVisitTime());
@@ -108,7 +113,7 @@ public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, Rep
 
         writeLog(id, "已提交", "用户提交报修", "submitted", now);
 
-        return id;
+        return toItem(record);
     }
 
     @Override
@@ -142,7 +147,7 @@ public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, Rep
 
     @Override
     @Transactional
-    public void cancelRepair(String userId, String repairId, String cancelReason) {
+    public RepairItem cancelRepair(String userId, String repairId, String cancelReason) {
         RepairRecord record = getOwnedRecord(userId, repairId);
 
         if (!"submitted".equals(record.getStatus())) {
@@ -157,11 +162,12 @@ public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, Rep
         updateById(record);
 
         writeLog(repairId, "已取消", cancelReason != null ? cancelReason : "用户取消报修", "cancelled", now);
+        return toItem(record);
     }
 
     @Override
     @Transactional
-    public void reviewRepair(String userId, String repairId, Integer rating, String reviewContent) {
+    public RepairItem reviewRepair(String userId, String repairId, Integer rating, String reviewContent) {
         RepairRecord record = getOwnedRecord(userId, repairId);
 
         if (!"pendingReview".equals(record.getStatus())) {
@@ -180,6 +186,7 @@ public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, Rep
         updateById(record);
 
         writeLog(repairId, "已完成", "用户评价完成", "completed", now);
+        return toItem(record);
     }
 
     @Override
@@ -496,6 +503,24 @@ public class RepairRecordServiceImpl extends ServiceImpl<RepairRecordMapper, Rep
         } catch (JsonProcessingException e) {
             throw new RuntimeException("序列化图片URL失败", e);
         }
+    }
+
+    private List<String> validatedRepairImages(String userId, List<String> urls) {
+        if (urls == null || urls.isEmpty()) return List.of();
+        if (urls.size() > 6) {
+            throw BusinessException.badRequest("报修图片最多上传 6 张");
+        }
+        List<String> normalized = urls.stream()
+                .map(String::trim)
+                .filter(url -> !url.isEmpty())
+                .distinct()
+                .toList();
+        if (normalized.size() != urls.size()) {
+            throw BusinessException.badRequest("报修图片不能为空或重复");
+        }
+        normalized.forEach(url ->
+                fileRecordService.validateFileOwnership(userId, url, "repair_image"));
+        return normalized;
     }
 
     private List<String> deserializeImageUrls(String json) {

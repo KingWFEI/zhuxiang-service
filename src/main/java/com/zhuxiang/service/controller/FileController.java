@@ -26,6 +26,7 @@ public class FileController {
 
     private static final Set<String> ALLOWED_BIZ_TYPES = Set.of(
             "id_card_front", "id_card_back", "move_in_inspection", "move_out_inspection",
+            "repair_image",
             "landlord_id_card_front", "landlord_id_card_back",
             "landlord_proof_property", "landlord_proof_purchase",
             "landlord_proof_lease", "landlord_proof_court", "landlord_proof_other");
@@ -37,11 +38,11 @@ public class FileController {
     }
 
     @PostMapping("/files/upload")
-    @Operation(summary = "上传实名认证图片", description = "上传不超过 5MB 的身份证人像面或国徽面图片，返回可访问 URL 和文件 ID。")
+    @Operation(summary = "上传业务图片", description = "上传不超过 5MB 的业务图片，返回可访问 URL 和文件 ID。")
     public ApiResponse<FileUploadResponse> upload(
             HttpServletRequest request,
             @Parameter(description = "待上传的图片文件，最大 5MB", required = true) @RequestParam("file") MultipartFile file,
-            @Parameter(description = "业务类型：id_card_front-身份证人像面，id_card_back-身份证国徽面", example = "id_card_front", required = true)
+            @Parameter(description = "业务类型，例如 id_card_front、repair_image", example = "repair_image", required = true)
             @RequestParam("bizType") String bizType
     ) {
         if (!ALLOWED_BIZ_TYPES.contains(bizType)) {

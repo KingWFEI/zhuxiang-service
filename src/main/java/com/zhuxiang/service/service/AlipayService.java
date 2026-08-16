@@ -4,7 +4,7 @@ import java.util.Map;
 
 /**
  * 支付宝支付服务。
- * 开发阶段使用沙箱 H5 支付，上线后切换到 APP 支付只需改配置 + 返回 payType。
+ * 开发阶段使用沙箱 H5 支付，生产环境生成 APP SDK 签名订单串。
  */
 public interface AlipayService {
 
@@ -17,6 +17,12 @@ public interface AlipayService {
      * @return 支付宝支付页面完整 URL
      */
     String buildH5PayUrl(String outTradeNo, int totalAmount, String subject);
+
+    /** 构建支付宝 APP SDK 所需的服务端签名订单串。 */
+    String buildAppPayOrder(String outTradeNo, int totalAmount, String subject);
+
+    /** 根据当前环境配置生成 H5 URL 或 APP SDK 订单串。 */
+    String buildPayPayload(String outTradeNo, int totalAmount, String subject);
 
     /**
      * 验证支付宝异步通知签名并解析参数。
@@ -34,10 +40,11 @@ public interface AlipayService {
      */
     AlipayNotifyResult queryOrder(String outTradeNo);
 
-    /** 当前支付类型：开发返回 "h5"，上线后改为 "app" */
-    default String getPayType() {
-        return "h5";
-    }
+    /** 当前支付类型：h5 或 app。 */
+    String getPayType();
+
+    /** 校验渠道是否允许；mock 仅可在显式开启的开发环境使用。 */
+    void validatePaymentChannel(String channel);
 
     /**
      * 支付宝退款。

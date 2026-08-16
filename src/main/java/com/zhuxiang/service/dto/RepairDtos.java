@@ -24,7 +24,7 @@ public final class RepairDtos {
             @Schema(description = "房间名称", example = "3栋2单元1201") String roomName,
             @Schema(description = "报修类型", example = "plumbing") String repairType,
             @Schema(description = "问题描述") String description,
-            @Schema(description = "图片URL列表") List<String> imageUrls,
+            @Schema(description = "图片 URL 列表") List<String> imageUrls,
             @Schema(description = "联系人姓名") String contactName,
             @Schema(description = "联系人手机号") String contactPhone,
             @Schema(description = "期望上门时间") LocalDateTime expectedVisitTime,
@@ -122,7 +122,8 @@ public final class RepairDtos {
             @Schema(description = "报修类型：plumbing/electrical/appliance/furniture/door_window/other")
             @NotBlank String repairType,
             @Schema(description = "问题描述") @NotBlank @Size(max = 1000) String description,
-            @Schema(description = "图片URL列表") List<String> imageUrls,
+            @Schema(description = "已通过 repair_image 业务上传的图片 URL，最多 6 张")
+            @Size(max = 6, message = "报修图片最多上传 6 张") List<@NotBlank String> imageUrls,
             @Schema(description = "联系人姓名") @NotBlank @Size(max = 100) String contactName,
             @Schema(description = "联系人手机号") @NotBlank @Size(max = 20) String contactPhone,
             @Schema(description = "期望上门时间") LocalDateTime expectedVisitTime

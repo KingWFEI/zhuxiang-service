@@ -41,9 +41,14 @@ public class FileRecordServiceImpl extends ServiceImpl<FileRecordMapper, FileRec
     /** 校验图片并保存到当前环境配置的对象存储。 */
     @Override
     public FileUploadResponse upload(String userId, MultipartFile file, String bizType) {
-        String directory = bizType.startsWith("landlord_")
-                ? "landlord-auth"
-                : "id-card";
+        String directory;
+        if ("repair_image".equals(bizType)) {
+            directory = "repair-images";
+        } else if (bizType.startsWith("landlord_")) {
+            directory = "landlord-auth";
+        } else {
+            directory = "id-card";
+        }
         return uploadImage(userId, file, bizType, directory);
     }
 

@@ -11,15 +11,15 @@ import com.zhuxiang.service.entity.RepairRecord;
 
 public interface RepairRecordService extends IService<RepairRecord> {
 
-    String createRepair(String userId, CreateRepairRequest request);
+    RepairItem createRepair(String userId, CreateRepairRequest request);
 
     RepairItem getRepairDetail(String userId, String repairId);
 
     PageData<RepairItem> listMyRepairs(String userId, long page, long pageSize);
 
-    void cancelRepair(String userId, String repairId, String cancelReason);
+    RepairItem cancelRepair(String userId, String repairId, String cancelReason);
 
-    void reviewRepair(String userId, String repairId, Integer rating, String reviewContent);
+    RepairItem reviewRepair(String userId, String repairId, Integer rating, String reviewContent);
 
     PageData<AdminRepairItem> listAdminRepairs(
             String operatorId, String keyword, String status, long page, long pageSize
