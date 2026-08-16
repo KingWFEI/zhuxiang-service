@@ -3,6 +3,8 @@ package com.zhuxiang.service.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.zhuxiang.service.common.PageData;
 import com.zhuxiang.service.dto.RepairDtos.AdminRepairItem;
+import com.zhuxiang.service.dto.RepairDtos.AdminRepairDetail;
+import com.zhuxiang.service.dto.RepairDtos.AssignRepairRequest;
 import com.zhuxiang.service.dto.RepairDtos.CreateRepairRequest;
 import com.zhuxiang.service.dto.RepairDtos.RepairItem;
 import com.zhuxiang.service.entity.RepairRecord;
@@ -19,5 +21,17 @@ public interface RepairRecordService extends IService<RepairRecord> {
 
     void reviewRepair(String userId, String repairId, Integer rating, String reviewContent);
 
-    PageData<AdminRepairItem> listAdminRepairs(String keyword, String status, long page, long pageSize);
+    PageData<AdminRepairItem> listAdminRepairs(
+            String operatorId, String keyword, String status, long page, long pageSize
+    );
+
+    AdminRepairDetail getAdminRepairDetail(String operatorId, String repairId);
+
+    AdminRepairDetail acceptAdminRepair(String operatorId, String repairId);
+
+    AdminRepairDetail assignAdminRepair(String operatorId, String repairId, AssignRepairRequest request);
+
+    AdminRepairDetail startAdminRepair(String operatorId, String repairId);
+
+    AdminRepairDetail finishAdminRepair(String operatorId, String repairId);
 }

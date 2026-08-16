@@ -28,9 +28,18 @@ public interface RentBillMapper extends BaseMapper<RentBill> {
                     THEN GREATEST(bill.amount_due + COALESCE(bill.overdue_amount, 0) - bill.amount_paid, 0) ELSE 0 END), 0)
                     AS overdue_outstanding_amount
             FROM rent_bill bill
-            LEFT JOIN lease lease_record ON lease_record.id = bill.lease_id
-            LEFT JOIN house ON house.id = lease_record.house_id
-            WHERE (#{landlordId} IS NULL OR house.landlord_id = #{landlordId})
+            LEFT JOIN lease lease_record ON BINARY lease_record.id = BINARY bill.lease_id
+            LEFT JOIN house ON BINARY house.id = BINARY lease_record.house_id
+            WHERE bill.status <> 'cancelled'
+              AND EXISTS (
+                  SELECT 1
+                  FROM payment_record payment
+                  WHERE payment.type = 'rent'
+                    AND payment.status = 'success'
+                    AND (BINARY payment.bill_id = BINARY bill.id
+                         OR BINARY payment.order_id = BINARY lease_record.order_id)
+              )
+              AND (#{landlordId} IS NULL OR BINARY house.landlord_id = BINARY #{landlordId})
             """)
     @ConstructorArgs({
             @Arg(column = "total_bill_count", javaType = long.class),

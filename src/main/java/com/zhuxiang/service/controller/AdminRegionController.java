@@ -152,14 +152,14 @@ public class AdminRegionController {
                 updated++;
             }
             region.setName(item.name().trim());
-            region.setCode(item.code() == null ? "" : item.code().trim());
+            region.setCode(normalizeCode(item.code()));
             region.setLevel(item.level());
             region.setParentId(parentId);
             region.setSortOrder(item.sortOrder() == null ? 0 : item.sortOrder());
             region.setEnabled(Boolean.FALSE.equals(item.enabled()) ? 0 : 1);
             region.setUpdatedAt(LocalDateTime.now());
             regionService.saveOrUpdate(region);
-            if (!region.getCode().isBlank()) codeToId.put(region.getCode(), region.getId());
+            if (region.getCode() != null) codeToId.put(region.getCode(), region.getId());
         }
         return ApiResponse.success(Map.of("created", created, "updated", updated, "total", requests.size()));
     }
@@ -200,17 +200,40 @@ public class AdminRegionController {
                 .eq(Region::getLevel, body.level())
                 .ne(excludeId != null, Region::getId, excludeId)) > 0)
             throw BusinessException.conflict("同层级下已存在同名区域");
-        if (body.parentId() != null && !body.parentId().isBlank() && regionService.getById(body.parentId()) == null)
-            throw BusinessException.badRequest("上级区域不存在");
+        String code = normalizeCode(body.code());
+        if (code != null && regionService.count(Wrappers.<Region>lambdaQuery()
+                .eq(Region::getCode, code)
+                .ne(excludeId != null, Region::getId, excludeId)) > 0)
+            throw BusinessException.conflict("行政编码已存在");
+        if (body.parentId() != null && !body.parentId().isBlank()) {
+            if (excludeId != null && excludeId.equals(body.parentId()))
+                throw BusinessException.badRequest("区域不能将自身设置为上级区域");
+            Region parent = regionService.getById(body.parentId());
+            if (parent == null)
+                throw BusinessException.badRequest("上级区域不存在");
+            String expectedParentLevel = "district".equals(body.level()) ? "city" : "district";
+            if (!expectedParentLevel.equals(parent.getLevel())) {
+                String message = "district".equals(body.level())
+                        ? "区县的上级区域必须是城市"
+                        : "商圈的上级区域必须是区县";
+                throw BusinessException.badRequest(message);
+            }
+        }
     }
 
     private void apply(Region region, SaveRequest body) {
         region.setName(body.name().trim());
-        region.setCode(body.code() == null ? "" : body.code().trim());
+        region.setCode(normalizeCode(body.code()));
         region.setLevel(body.level());
         region.setParentId("city".equals(body.level()) ? null : body.parentId());
         region.setSortOrder(body.sortOrder() == null ? 0 : body.sortOrder());
         region.setEnabled(Boolean.FALSE.equals(body.enabled()) ? 0 : 1);
+    }
+
+    private String normalizeCode(String code) {
+        if (code == null) return null;
+        String normalized = code.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private Map<String, Object> toMap(Region r) {

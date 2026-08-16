@@ -197,18 +197,37 @@ public class AdminBillServiceImpl implements AdminBillService {
                 .stream().collect(Collectors.toMap(House::getId, Function.identity()));
 
         Set<String> billIds = bills.stream().map(RentBill::getId).collect(Collectors.toSet());
-        Map<String, PaymentRecord> payments = new LinkedHashMap<>();
+        Set<String> orderIds = leases.values().stream().map(Lease::getOrderId)
+                .filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<String, PaymentRecord> billPayments = new LinkedHashMap<>();
+        Map<String, PaymentRecord> orderPayments = new LinkedHashMap<>();
         paymentRecordService.list(
                 Wrappers.<PaymentRecord>lambdaQuery()
-                        .in(PaymentRecord::getBillId, billIds)
+                        .and(wrapper -> {
+                            wrapper.in(PaymentRecord::getBillId, billIds);
+                            if (!orderIds.isEmpty()) {
+                                wrapper.or().in(PaymentRecord::getOrderId, orderIds);
+                            }
+                        })
+                        .eq(PaymentRecord::getType, "rent")
                         .orderByDesc(PaymentRecord::getCreatedAt)
-        ).forEach(record -> payments.putIfAbsent(record.getBillId(), record));
+        ).forEach(record -> {
+            if (record.getBillId() != null) {
+                billPayments.putIfAbsent(record.getBillId(), record);
+            }
+            if (record.getOrderId() != null && "success".equals(record.getStatus())) {
+                orderPayments.putIfAbsent(record.getOrderId(), record);
+            }
+        });
 
         return bills.stream().map(bill -> {
             Lease lease = leases.get(bill.getLeaseId());
             User tenant = lease == null ? null : tenants.get(lease.getUserId());
             House house = lease == null ? null : houses.get(lease.getHouseId());
-            PaymentRecord payment = payments.get(bill.getId());
+            PaymentRecord payment = billPayments.get(bill.getId());
+            if (payment == null && "paid".equals(bill.getStatus()) && lease != null) {
+                payment = orderPayments.get(lease.getOrderId());
+            }
             int amountDue = bill.getAmountDue() == null ? 0 : bill.getAmountDue();
             int amountPaid = bill.getAmountPaid() == null ? 0 : bill.getAmountPaid();
             int overdueAmount = bill.getOverdueAmount() == null ? 0 : bill.getOverdueAmount();
@@ -216,7 +235,9 @@ public class AdminBillServiceImpl implements AdminBillService {
                     ? 0 : Math.max(amountDue + overdueAmount - amountPaid, 0);
             return new AdminBillDtos.BillView(
                     bill.getId(), bill.getLeaseId(), bill.getPeriodNo(), amountDue, amountPaid,
-                    overdueAmount, outstandingAmount, bill.getDueDate(), bill.getPaidAt(), bill.getStatus(),
+                    overdueAmount, outstandingAmount, bill.getDueDate(),
+                    payment != null && payment.getPaidAt() != null ? payment.getPaidAt() : bill.getPaidAt(),
+                    bill.getStatus(),
                     tenant == null ? null : tenant.getId(),
                     tenant == null ? null : tenant.getNickname(),
                     tenant == null ? null : tenant.getPhone(),
