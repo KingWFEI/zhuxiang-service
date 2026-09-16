@@ -1,0 +1,132 @@
+name: easenest
+
+services:
+  mysql:
+    image: docker.m.daocloud.io/library/mysql:8.0.43
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_DATABASE: easenest
+      MYSQL_USER: easenest
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - backend
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  redis:
+    image: docker.m.daocloud.io/library/redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: easenest-backend:local
+    restart: unless-stopped
+    env_file:
+      - ../secrets/backend.env
+    environment:
+      TZ: Asia/Shanghai
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70.0 -Duser.timezone=Asia/Shanghai
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: "8000"
+      DB_URL: jdbc:mysql://mysql:3306/easenest?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: easenest
+      DB_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      FLYWAY_ENABLED: "true"
+      FLYWAY_OUT_OF_ORDER: "false"
+      UPLOAD_DIRECTORY: /app/uploads
+      ALIPAY_GATEWAY_URL: https://openapi.alipay.com/gateway.do
+      ALIPAY_NOTIFY_URL: https://kingwangf.fun/api/payments/alipay/notify
+      ALIPAY_RETURN_URL: https://kingwangf.fun/zhuxiang-payment-done
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?SUPER_ADMIN_PASSWORD is required}
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/127.0.0.1/8000'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    networks:
+      - backend
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  gateway:
+    image: docker.m.daocloud.io/library/nginx:1.27-alpine
+    container_name: easenest-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "--no-check-certificate", "https://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  uploads:

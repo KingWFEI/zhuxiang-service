@@ -3,6 +3,7 @@ package com.zhuxiang.service;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.config.SmsCodeProperties;
+import com.zhuxiang.service.config.TestUserProperties;
 import com.zhuxiang.service.dto.AuthDtos;
 import com.zhuxiang.service.entity.SmsCode;
 import com.zhuxiang.service.mapper.SmsCodeMapper;
@@ -28,11 +29,12 @@ class SmsCodeServiceTests {
     private final SmsCodeMapper mapper = mock(SmsCodeMapper.class);
     private final SmsRateLimiter rateLimiter = mock(SmsRateLimiter.class);
     private final SmsCodeProperties properties = new SmsCodeProperties();
+    private final TestUserProperties testUserProperties = new TestUserProperties();
     private SmsCodeServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new SmsCodeServiceImpl(properties, rateLimiter);
+        service = new SmsCodeServiceImpl(properties, rateLimiter, testUserProperties);
         ReflectionTestUtils.setField(service, "baseMapper", mapper);
         when(rateLimiter.acquire(any(), any(), any()))
                 .thenReturn(SmsRateLimiter.RateLimitDecision.permit());
@@ -66,6 +68,21 @@ class SmsCodeServiceTests {
             assertThat(exception.getCode()).isEqualTo(429);
             assertThat(exception.getData()).isEqualTo(new AuthDtos.SmsCodeRetry(37));
         });
+    }
+
+    @Test
+    void configuredTestUserGetsFixedCodeOnlyForLogin() {
+        testUserProperties.setEnabled(true);
+        testUserProperties.setPhone("13900000000");
+        testUserProperties.setVerificationCode("246810");
+
+        service.sendSmsCode(
+                new AuthDtos.SmsCodeRequest("13900000000", "login"), "127.0.0.1"
+        );
+
+        ArgumentCaptor<SmsCode> captor = ArgumentCaptor.forClass(SmsCode.class);
+        verify(mapper).insert(captor.capture());
+        assertThat(captor.getValue().getCode()).isEqualTo("246810");
     }
 
     @Test

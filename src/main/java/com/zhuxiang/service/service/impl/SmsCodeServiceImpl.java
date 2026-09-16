@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.config.SmsCodeProperties;
+import com.zhuxiang.service.config.TestUserProperties;
 import com.zhuxiang.service.dto.AuthDtos;
 import com.zhuxiang.service.entity.SmsCode;
 import com.zhuxiang.service.service.SmsCodeService;
@@ -39,10 +40,16 @@ public class SmsCodeServiceImpl extends ServiceImpl<SmsCodeMapper, SmsCode>
 
     private final SmsCodeProperties properties;
     private final SmsRateLimiter rateLimiter;
+    private final TestUserProperties testUserProperties;
 
-    public SmsCodeServiceImpl(SmsCodeProperties properties, SmsRateLimiter rateLimiter) {
+    public SmsCodeServiceImpl(
+            SmsCodeProperties properties,
+            SmsRateLimiter rateLimiter,
+            TestUserProperties testUserProperties
+    ) {
         this.properties = properties;
         this.rateLimiter = rateLimiter;
+        this.testUserProperties = testUserProperties;
     }
 
     /**
@@ -76,7 +83,7 @@ public class SmsCodeServiceImpl extends ServiceImpl<SmsCodeMapper, SmsCode>
         smsCode.setId(UUID.randomUUID().toString());
         smsCode.setPhone(request.phone());
         smsCode.setScene(request.scene());
-        smsCode.setCode(generateCode());
+        smsCode.setCode(generateCode(request.phone(), request.scene()));
         smsCode.setExpiresAt(now.plusSeconds(properties.getExpiresSeconds()));
         smsCode.setUsed(0);
         smsCode.setFailedAttempts(0);
@@ -135,7 +142,11 @@ public class SmsCodeServiceImpl extends ServiceImpl<SmsCodeMapper, SmsCode>
         updateById(smsCode);
     }
 
-    private String generateCode() {
+    private String generateCode(String phone, String scene) {
+        if (testUserProperties.matchesLogin(phone, scene)) {
+            testUserProperties.validate();
+            return testUserProperties.getVerificationCode();
+        }
         String fixedCode = properties.getFixedCode();
         if (fixedCode != null && !fixedCode.isBlank()) {
             if (!fixedCode.matches("\\d{6}")) {

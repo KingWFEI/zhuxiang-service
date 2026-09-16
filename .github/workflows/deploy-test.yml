@@ -1,0 +1,93 @@
+name: Deploy test backend
+
+on:
+  push:
+    branches: [test]
+  workflow_dispatch:
+
+concurrency:
+  group: easenest-test-backend
+  cancel-in-progress: false
+
+jobs:
+  verify-and-deploy:
+    runs-on: ubuntu-latest
+    environment: test
+    permissions:
+      contents: read
+    services:
+      mysql:
+        image: mysql:8.0.43
+        env:
+          MYSQL_ROOT_PASSWORD: "132135"
+          MYSQL_DATABASE: zhuxiang_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p132135 --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Verify backend
+        run: |
+          chmod +x mvnw
+          ./mvnw -B clean verify
+
+      - name: Prepare release
+        run: |
+          mkdir -p release/backend release/deploy
+          cp target/zhuxiang-service-0.0.1-SNAPSHOT.jar release/backend/app.jar
+          cp Dockerfile .dockerignore release/backend/
+          cp deploy/docker-compose.prod.yml deploy/nginx.conf release/deploy/
+          cp deploy/backup-mysql.sh deploy/reload-gateway.sh release/deploy/
+          cp deploy/easenest-backup.service deploy/easenest-backup.timer release/deploy/
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.TEST_SERVER_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload and deploy
+        env:
+          TEST_SERVER_HOST: ${{ secrets.TEST_SERVER_HOST }}
+          TEST_SERVER_USER: ${{ secrets.TEST_SERVER_USER }}
+        run: |
+          remote_dir="/home/${TEST_SERVER_USER}/easenest-release-${GITHUB_SHA}"
+          scp -r release "${TEST_SERVER_USER}@${TEST_SERVER_HOST}:${remote_dir}"
+          ssh "${TEST_SERVER_USER}@${TEST_SERVER_HOST}" \
+            "sudo install -d /opt/apps/easenest/backend /opt/apps/easenest/deploy && \
+             sudo cp '${remote_dir}/backend/app.jar' /opt/apps/easenest/backend/app.jar && \
+             sudo cp '${remote_dir}/backend/Dockerfile' /opt/apps/easenest/backend/Dockerfile && \
+             sudo cp '${remote_dir}/backend/.dockerignore' /opt/apps/easenest/backend/.dockerignore && \
+             sudo cp '${remote_dir}/deploy/'* /opt/apps/easenest/deploy/ && \
+             cd /opt/apps/easenest/deploy && \
+             sudo docker compose --env-file ../secrets/compose.env -f docker-compose.prod.yml up -d --build && \
+             rm -rf -- '${remote_dir}'"
+
+      - name: Verify deployment
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error https://kingwangf.fun/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
