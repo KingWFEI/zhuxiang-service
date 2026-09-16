@@ -42,7 +42,10 @@ jobs:
 
       - name: Verify backend
         env:
-          STORAGE_TYPE: local
+          # The SDK client is constructed during Spring integration tests but
+          # no request is sent to COS. Use non-secret placeholders in CI.
+          TENCENT_COS_SECRET_ID: ci-placeholder-id
+          TENCENT_COS_SECRET_KEY: ci-placeholder-key
         run: |
           chmod +x mvnw
           # The repository-wide OpenAPI documentation audit currently contains
