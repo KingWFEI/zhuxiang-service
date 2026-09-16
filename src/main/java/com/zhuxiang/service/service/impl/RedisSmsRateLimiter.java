@@ -57,11 +57,11 @@ public class RedisSmsRateLimiter implements SmsRateLimiter {
                 key("ip-day", ip)
         );
         Object[] args = {
-                1, properties.getRetryAfterSeconds(),
-                properties.getPhoneHourlyLimit(), 3600,
-                properties.getPhoneDailyLimit(), 86400,
-                properties.getIpMinuteLimit(), 60,
-                properties.getIpDailyLimit(), 86400
+                "1", Integer.toString(properties.getRetryAfterSeconds()),
+                Integer.toString(properties.getPhoneHourlyLimit()), "3600",
+                Integer.toString(properties.getPhoneDailyLimit()), "86400",
+                Integer.toString(properties.getIpMinuteLimit()), "60",
+                Integer.toString(properties.getIpDailyLimit()), "86400"
         };
         try {
             Long retryAfter = redisTemplate.execute(ACQUIRE_SCRIPT, keys, args);
