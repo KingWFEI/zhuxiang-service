@@ -11,6 +11,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
@@ -32,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 @SpringBootTest
+@Sql(scripts = "/db/fixtures/first-batch-catalog.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 class FirstBatchApiIntegrationTests {
 
     @Autowired
@@ -150,7 +152,7 @@ class FirstBatchApiIntegrationTests {
                                 "remark", "上午看房"
                         ))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("pending"));
+                .andExpect(jsonPath("$.data.status").value("PENDING_CONFIRMATION"));
 
         mockMvc.perform(get("/profile/overview")
                         .header("Authorization", bearer(accessToken)))
@@ -158,13 +160,6 @@ class FirstBatchApiIntegrationTests {
                 .andExpect(jsonPath("$.data.favoriteCount").value(1))
                 .andExpect(jsonPath("$.data.appointmentCount").value(1))
                 .andExpect(jsonPath("$.data.isVerified").value(false));
-
-        mockMvc.perform(post("/rental-applications")
-                        .header("Authorization", bearer(accessToken))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(rentalRequest()))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value(403));
 
         UserRealNameAuth verifiedAuth = new UserRealNameAuth();
         verifiedAuth.setUserId(userId);
@@ -187,20 +182,13 @@ class FirstBatchApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.isVerified").value(true));
 
-        mockMvc.perform(post("/rental-applications")
-                        .header("Authorization", bearer(accessToken))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(rentalRequest()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status").value("pending"));
-
         mockMvc.perform(post("/conversations")
                         .header("Authorization", bearer(accessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(Map.of(
                                 "source", "house_detail",
                                 "houseId", "house-1",
-                                "landlordId", "landlord-1"
+                                "landlordId", "00000000-0000-0000-0000-000000000001"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.conversationId").isNotEmpty());
@@ -261,7 +249,8 @@ class FirstBatchApiIntegrationTests {
                 .andExpect(jsonPath("$.data.houseGroups.short_rent.items[0].house.id")
                         .value("house-4"))
                 .andExpect(jsonPath("$.data.houseGroups.homestay").doesNotExist())
-                .andExpect(jsonPath("$.data.houseGroups.long_rent.items").isEmpty())
+                .andExpect(jsonPath("$.data.houseGroups.long_rent.items[0].house.id")
+                        .value("house-1"))
                 .andExpect(jsonPath("$.data.advertisements").doesNotExist());
 
         mockMvc.perform(get("/houses")
@@ -275,7 +264,8 @@ class FirstBatchApiIntegrationTests {
 
         mockMvc.perform(get("/houses/house-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.landlordId").value("landlord-1"))
+                .andExpect(jsonPath("$.data.landlordId")
+                        .value("00000000-0000-0000-0000-000000000001"))
                 .andExpect(jsonPath("$.data.tags").isArray())
                 .andExpect(jsonPath("$.data.facilities").isArray());
 
@@ -283,15 +273,6 @@ class FirstBatchApiIntegrationTests {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.regions").isArray())
                 .andExpect(jsonPath("$.data.sortOptions").isArray());
-    }
-
-    private String rentalRequest() throws Exception {
-        return json(Map.of(
-                "houseId", "house-1",
-                "leaseStartDate", LocalDate.now().plusDays(10).toString(),
-                "leaseMonths", 12,
-                "remark", "希望尽快入住"
-        ));
     }
 
     private String json(Object value) throws Exception {

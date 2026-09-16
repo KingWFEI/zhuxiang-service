@@ -16,6 +16,8 @@ import com.zhuxiang.service.service.FileRecordService;
 import com.zhuxiang.service.service.HouseService;
 import com.zhuxiang.service.service.UserService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,12 +69,18 @@ public class AdminAdvertisementController {
     }
 
     @GetMapping
+    @Operation(summary = "分页查询广告", description = "按关键词、广告位置和展示状态分页查询广告。")
     public ApiResponse<PageData<AdminAdvertisementDtos.AdvertisementView>> list(
             HttpServletRequest request,
+            @Parameter(description = "标题或描述关键词")
             @RequestParam(required = false) String keyword,
+            @Parameter(description = "广告位置：home_banner 或 home_feed")
             @RequestParam(required = false) String position,
+            @Parameter(description = "展示状态：ACTIVE、DISABLED、SCHEDULED 或 EXPIRED")
             @RequestParam(required = false) String status,
+            @Parameter(description = "页码，从 1 开始")
             @RequestParam(defaultValue = "1") long page,
+            @Parameter(description = "每页数量，最大 100")
             @RequestParam(defaultValue = "20") long pageSize
     ) {
         requireOperator(request);
@@ -101,17 +109,22 @@ public class AdminAdvertisementController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "查询广告详情", description = "根据广告 ID 查询管理端广告详情。")
     public ApiResponse<AdminAdvertisementDtos.AdvertisementView> detail(
-            HttpServletRequest request, @PathVariable String id
+            HttpServletRequest request,
+            @Parameter(description = "广告 ID") @PathVariable String id
     ) {
         requireOperator(request);
         return ApiResponse.success(toView(requireAdvertisement(id)));
     }
 
     @GetMapping("/house-options/search")
+    @Operation(summary = "搜索广告跳转房源", description = "按关键词搜索可作为广告跳转目标的房源。")
     public ApiResponse<List<AdminAdvertisementDtos.HouseOption>> searchHouseOptions(
             HttpServletRequest request,
+            @Parameter(description = "房源标题、位置或小区关键词")
             @RequestParam String keyword,
+            @Parameter(description = "返回数量，最大 20")
             @RequestParam(defaultValue = "20") long limit
     ) {
         requireOperator(request);
@@ -132,6 +145,7 @@ public class AdminAdvertisementController {
     }
 
     @PostMapping
+    @Operation(summary = "创建广告", description = "创建首页 Banner 或信息流广告。")
     @Transactional
     public ApiResponse<AdminAdvertisementDtos.AdvertisementView> create(
             HttpServletRequest request,
@@ -150,10 +164,11 @@ public class AdminAdvertisementController {
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "更新广告", description = "更新指定广告的展示内容、跳转目标和排期。")
     @Transactional
     public ApiResponse<AdminAdvertisementDtos.AdvertisementView> update(
             HttpServletRequest request,
-            @PathVariable String id,
+            @Parameter(description = "广告 ID") @PathVariable String id,
             @RequestBody AdminAdvertisementDtos.SaveRequest body
     ) {
         String operatorId = requireOperator(request);
@@ -166,9 +181,10 @@ public class AdminAdvertisementController {
     }
 
     @PatchMapping("/{id}/enabled")
+    @Operation(summary = "启用或停用广告", description = "切换指定广告的启用状态。")
     public ApiResponse<AdminAdvertisementDtos.AdvertisementView> setEnabled(
             HttpServletRequest request,
-            @PathVariable String id,
+            @Parameter(description = "广告 ID") @PathVariable String id,
             @RequestBody AdminAdvertisementDtos.EnableRequest body
     ) {
         requireOperator(request);
@@ -183,7 +199,11 @@ public class AdminAdvertisementController {
     }
 
     @DeleteMapping("/{id}")
-    public ApiResponse<Boolean> delete(HttpServletRequest request, @PathVariable String id) {
+    @Operation(summary = "删除广告", description = "永久删除指定广告。")
+    public ApiResponse<Boolean> delete(
+            HttpServletRequest request,
+            @Parameter(description = "广告 ID") @PathVariable String id
+    ) {
         requireOperator(request);
         requireAdvertisement(id);
         advertisementService.removeById(id);
