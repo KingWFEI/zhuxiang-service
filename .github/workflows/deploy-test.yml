@@ -55,8 +55,9 @@ jobs:
 
       - name: Prepare release
         run: |
-          mkdir -p release/backend release/deploy
-          cp target/zhuxiang-service-0.0.1-SNAPSHOT.jar release/backend/app.jar
+          mkdir -p release/backend/target release/deploy
+          cp target/zhuxiang-service-0.0.1-SNAPSHOT.jar \
+            release/backend/target/zhuxiang-service-0.0.1-SNAPSHOT.jar
           cp Dockerfile .dockerignore release/backend/
           cp deploy/docker-compose.prod.yml deploy/docker-compose.test.yml deploy/nginx.conf release/deploy/
           cp deploy/backup-mysql.sh deploy/reload-gateway.sh release/deploy/
@@ -83,8 +84,9 @@ jobs:
           ssh "${TEST_SERVER_USER}@${TEST_SERVER_HOST}" \
             "sudo docker rm -f easenest-migration-check >/dev/null 2>&1 || true; \
              sudo rm -rf -- /tmp/easenest-migration-check; \
-             sudo install -d /opt/apps/easenest/backend /opt/apps/easenest/deploy && \
-             sudo cp '${remote_dir}/backend/app.jar' /opt/apps/easenest/backend/app.jar && \
+             sudo install -d /opt/apps/easenest/backend/target /opt/apps/easenest/deploy && \
+             sudo cp '${remote_dir}/backend/target/zhuxiang-service-0.0.1-SNAPSHOT.jar' \
+               /opt/apps/easenest/backend/target/zhuxiang-service-0.0.1-SNAPSHOT.jar && \
              sudo cp '${remote_dir}/backend/Dockerfile' /opt/apps/easenest/backend/Dockerfile && \
              sudo cp '${remote_dir}/backend/.dockerignore' /opt/apps/easenest/backend/.dockerignore && \
              sudo cp '${remote_dir}/deploy/'* /opt/apps/easenest/deploy/ && \
