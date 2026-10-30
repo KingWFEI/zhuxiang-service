@@ -5,7 +5,9 @@ import com.zhuxiang.service.auth.RequireAuth;
 import com.zhuxiang.service.auth.CurrentUser;
 import com.zhuxiang.service.common.ApiResponse;
 import com.zhuxiang.service.common.BusinessException;
+import com.zhuxiang.service.entity.Community;
 import com.zhuxiang.service.entity.Region;
+import com.zhuxiang.service.service.CommunityService;
 import com.zhuxiang.service.service.RegionService;
 import com.zhuxiang.service.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,20 +36,26 @@ import java.util.HashMap;
 public class AdminRegionController {
 
     private final RegionService regionService;
+    private final CommunityService communityService;
     private final UserService userService;
 
-    public AdminRegionController(RegionService regionService, UserService userService) {
+    public AdminRegionController(
+            RegionService regionService,
+            CommunityService communityService,
+            UserService userService
+    ) {
         this.regionService = regionService;
+        this.communityService = communityService;
         this.userService = userService;
     }
 
     @GetMapping
-    @Operation(summary = "区域列表", description = "返回按排序的已启用区域")
-    public ApiResponse<List<Map<String, Object>>> list() {
-        var regions = regionService.list(
-                Wrappers.<Region>lambdaQuery()
-                        .eq(Region::getEnabled, 1)
-                        .orderByAsc(Region::getSortOrder));
+    @Operation(summary = "区域列表", description = "默认返回启用区域；管理配置可包含停用区域")
+    public ApiResponse<List<Map<String, Object>>> list(
+            @RequestParam(defaultValue = "false") boolean includeDisabled) {
+        var query = Wrappers.<Region>lambdaQuery().orderByAsc(Region::getSortOrder);
+        if (!includeDisabled) query.eq(Region::getEnabled, 1);
+        var regions = regionService.list(query);
         return ApiResponse.success(regions.stream().map(r -> Map.<String, Object>of(
                 "id", r.getId() != null ? r.getId() : "",
                 "name", r.getName() != null ? r.getName() : "",
@@ -62,6 +70,8 @@ public class AdminRegionController {
     public record SaveRequest(String name, String code, String level, String parentId,
                               Integer sortOrder, Boolean enabled) {}
 
+    public record EnabledRequest(Boolean enabled) {}
+
     public record ImportRequest(String name, String code, String level, String parentCode,
                                 Integer sortOrder, Boolean enabled) {}
 
@@ -72,6 +82,8 @@ public class AdminRegionController {
             @RequestBody SaveRequest body) {
         requireOperator(request);
         validate(body, null);
+        validateEnabledState(null, "province".equals(body.level()) ? null : body.parentId(),
+                !Boolean.FALSE.equals(body.enabled()));
         Region region = new Region();
         region.setId(UUID.randomUUID().toString());
         apply(region, body);
@@ -92,27 +104,49 @@ public class AdminRegionController {
         Region region = regionService.getById(id);
         if (region == null) throw BusinessException.notFound("区域不存在");
         validate(body, id);
+        validateEnabledState(id, "province".equals(body.level()) ? null : body.parentId(),
+                !Boolean.FALSE.equals(body.enabled()));
         apply(region, body);
         region.setUpdatedAt(LocalDateTime.now());
         regionService.updateById(region);
         return ApiResponse.success(toMap(region));
     }
 
+    @PutMapping("/{id}/enabled")
+    @Operation(summary = "启用或停用城市或区域")
+    public ApiResponse<Map<String, Object>> setEnabled(
+            jakarta.servlet.http.HttpServletRequest request,
+            @PathVariable String id,
+            @RequestBody EnabledRequest body) {
+        requireOperator(request);
+        if (body == null || body.enabled() == null) {
+            throw BusinessException.badRequest("请指定区域是否启用");
+        }
+        Region region = regionService.getById(id);
+        if (region == null) throw BusinessException.notFound("区域不存在");
+        validateEnabledState(id, region.getParentId(), body.enabled());
+        region.setEnabled(body.enabled() ? 1 : 0);
+        region.setUpdatedAt(LocalDateTime.now());
+        regionService.updateById(region);
+        return ApiResponse.success(toMap(region));
+    }
+
     @DeleteMapping("/{id}")
-    @Operation(summary = "停用城市或区域")
+    @Operation(summary = "永久删除城市或区域")
+    @Transactional
     public ApiResponse<Boolean> delete(
             jakarta.servlet.http.HttpServletRequest request,
             @PathVariable String id) {
         requireOperator(request);
         Region region = regionService.getById(id);
         if (region == null) throw BusinessException.notFound("区域不存在");
-        if (regionService.count(Wrappers.<Region>lambdaQuery().eq(Region::getParentId, id).eq(Region::getEnabled, 1)) > 0) {
-            throw BusinessException.conflict("该区域仍有启用的下级区域，请先停用下级区域");
+        if (regionService.count(Wrappers.<Region>lambdaQuery().eq(Region::getParentId, id)) > 0) {
+            throw BusinessException.conflict("该区域仍有下级区域，请先删除下级区域");
         }
-        region.setEnabled(0);
-        region.setUpdatedAt(LocalDateTime.now());
-        regionService.updateById(region);
-        return ApiResponse.success(true);
+        if (communityService.count(Wrappers.<Community>lambdaQuery().eq(Community::getRegionId, id)) > 0) {
+            throw BusinessException.conflict("该区域已关联小区，请先调整小区所属区域");
+        }
+        return ApiResponse.success(regionService.removeById(id));
     }
 
     @PostMapping("/import")
@@ -126,21 +160,41 @@ public class AdminRegionController {
             throw BusinessException.badRequest("导入数据不能为空");
         }
         Map<String, String> codeToId = new HashMap<>();
+        Map<String, String> codeToLevel = new HashMap<>();
         regionService.list().forEach(item -> {
-            if (item.getCode() != null && !item.getCode().isBlank()) codeToId.put(item.getCode(), item.getId());
+            if (item.getCode() != null && !item.getCode().isBlank()) {
+                codeToId.put(item.getCode(), item.getId());
+                codeToLevel.put(item.getCode(), item.getLevel());
+            }
         });
-        // 先处理城市，再处理区县/商圈，保证 parentCode 可以解析。
+        // 先处理省，再处理城市、区县和商圈，保证 parentCode 可以解析。
         List<ImportRequest> ordered = new ArrayList<>(requests);
-        ordered.sort((a, b) -> Integer.compare(levelOrder(a.level()), levelOrder(b.level())));
+        ordered.sort((a, b) -> Integer.compare(
+                levelOrder(a == null ? null : a.level()),
+                levelOrder(b == null ? null : b.level())));
         int created = 0, updated = 0;
         for (ImportRequest item : ordered) {
             if (item == null || item.name() == null || item.name().isBlank()
-                    || item.level() == null || !Set.of("city", "district", "business_area").contains(item.level())) {
+                    || item.level() == null || !Set.of("province", "city", "district", "business_area").contains(item.level())) {
                 throw BusinessException.badRequest("导入数据包含无效区域：" + item);
             }
-            String parentId = "city".equals(item.level()) ? null : codeToId.get(item.parentCode());
-            if (!"city".equals(item.level()) && (parentId == null || parentId.isBlank())) {
+            String parentCode = normalizeCode(item.parentCode());
+            if ("province".equals(item.level()) && parentCode != null) {
+                throw BusinessException.badRequest("省级区域不能设置 parentCode：" + item.name());
+            }
+            String expectedParentLevel = switch (item.level()) {
+                case "city" -> "province";
+                case "district" -> "city";
+                case "business_area" -> "district";
+                default -> null;
+            };
+            boolean parentRequired = !"province".equals(item.level()) && !"city".equals(item.level());
+            String parentId = parentCode == null ? null : codeToId.get(parentCode);
+            if (parentRequired && parentId == null) {
                 throw BusinessException.badRequest("无法根据 parentCode 找到上级区域：" + item.name());
+            }
+            if (parentCode != null && (parentId == null || !expectedParentLevel.equals(codeToLevel.get(parentCode)))) {
+                throw BusinessException.badRequest("parentCode 对应的上级层级不正确：" + item.name());
             }
             Region region = findByCodeOrName(item.code(), item.name(), item.level());
             if (region == null) {
@@ -159,13 +213,23 @@ public class AdminRegionController {
             region.setEnabled(Boolean.FALSE.equals(item.enabled()) ? 0 : 1);
             region.setUpdatedAt(LocalDateTime.now());
             regionService.saveOrUpdate(region);
-            if (region.getCode() != null) codeToId.put(region.getCode(), region.getId());
+            if (region.getCode() != null) {
+                codeToId.put(region.getCode(), region.getId());
+                codeToLevel.put(region.getCode(), region.getLevel());
+            }
         }
         return ApiResponse.success(Map.of("created", created, "updated", updated, "total", requests.size()));
     }
 
     private int levelOrder(String level) {
-        return "city".equals(level) ? 0 : "district".equals(level) ? 1 : 2;
+        if (level == null) return 4;
+        return switch (level) {
+            case "province" -> 0;
+            case "city" -> 1;
+            case "district" -> 2;
+            case "business_area" -> 3;
+            default -> 4;
+        };
     }
 
     private Region findByCodeOrName(String code, String name, String level) {
@@ -189,11 +253,12 @@ public class AdminRegionController {
     private void validate(SaveRequest body, String excludeId) {
         if (body == null || body.name() == null || body.name().isBlank())
             throw BusinessException.badRequest("区域名称不能为空");
-        if (!Set.of("city", "district", "business_area").contains(body.level()))
+        if (!Set.of("province", "city", "district", "business_area").contains(body.level()))
             throw BusinessException.badRequest("区域层级不合法");
-        if ("city".equals(body.level()) && body.parentId() != null && !body.parentId().isBlank())
-            throw BusinessException.badRequest("城市不能设置上级区域");
-        if (!"city".equals(body.level()) && (body.parentId() == null || body.parentId().isBlank()))
+        if ("province".equals(body.level()) && body.parentId() != null && !body.parentId().isBlank())
+            throw BusinessException.badRequest("省级区域不能设置上级区域");
+        if (Set.of("district", "business_area").contains(body.level())
+                && (body.parentId() == null || body.parentId().isBlank()))
             throw BusinessException.badRequest("区县或商圈必须设置上级区域");
         if (regionService.count(Wrappers.<Region>lambdaQuery()
                 .eq(Region::getName, body.name().trim())
@@ -211,13 +276,38 @@ public class AdminRegionController {
             Region parent = regionService.getById(body.parentId());
             if (parent == null)
                 throw BusinessException.badRequest("上级区域不存在");
-            String expectedParentLevel = "district".equals(body.level()) ? "city" : "district";
+            String expectedParentLevel = switch (body.level()) {
+                case "city" -> "province";
+                case "district" -> "city";
+                case "business_area" -> "district";
+                default -> throw BusinessException.badRequest("省级区域不能设置上级区域");
+            };
             if (!expectedParentLevel.equals(parent.getLevel())) {
-                String message = "district".equals(body.level())
-                        ? "区县的上级区域必须是城市"
-                        : "商圈的上级区域必须是区县";
+                String message = switch (body.level()) {
+                    case "city" -> "城市的上级区域必须是省级区域";
+                    case "district" -> "区县的上级区域必须是城市";
+                    default -> "商圈的上级区域必须是区县";
+                };
                 throw BusinessException.badRequest(message);
             }
+            if (!Boolean.FALSE.equals(body.enabled()) && !Integer.valueOf(1).equals(parent.getEnabled())) {
+                throw BusinessException.conflict("上级区域已停用，不能启用下级区域");
+            }
+        }
+    }
+
+    private void validateEnabledState(String regionId, String parentId, boolean enabled) {
+        if (enabled && parentId != null && !parentId.isBlank()) {
+            Region parent = regionService.getById(parentId);
+            if (parent == null || !Integer.valueOf(1).equals(parent.getEnabled())) {
+                throw BusinessException.conflict("上级区域已停用，不能启用下级区域");
+            }
+        }
+        if (!enabled && regionId != null
+                && regionService.count(Wrappers.<Region>lambdaQuery()
+                        .eq(Region::getParentId, regionId)
+                        .eq(Region::getEnabled, 1)) > 0) {
+            throw BusinessException.conflict("该区域仍有启用的下级区域，请先停用下级区域");
         }
     }
 
@@ -225,7 +315,7 @@ public class AdminRegionController {
         region.setName(body.name().trim());
         region.setCode(normalizeCode(body.code()));
         region.setLevel(body.level());
-        region.setParentId("city".equals(body.level()) ? null : body.parentId());
+        region.setParentId("province".equals(body.level()) ? null : body.parentId());
         region.setSortOrder(body.sortOrder() == null ? 0 : body.sortOrder());
         region.setEnabled(Boolean.FALSE.equals(body.enabled()) ? 0 : 1);
     }

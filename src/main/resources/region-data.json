@@ -1,0 +1,4054 @@
+[
+  {
+    "name": "四川省",
+    "code": "510000",
+    "level": "province",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "成都市",
+    "code": "510100",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "锦江区",
+    "code": "510104",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "青羊区",
+    "code": "510105",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "金牛区",
+    "code": "510106",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "武侯区",
+    "code": "510107",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "成华区",
+    "code": "510108",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "龙泉驿区",
+    "code": "510112",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "青白江区",
+    "code": "510113",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "新都区",
+    "code": "510114",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "温江区",
+    "code": "510115",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "双流区",
+    "code": "510116",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "郫都区",
+    "code": "510117",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "新津区",
+    "code": "510118",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "金堂县",
+    "code": "510121",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "大邑县",
+    "code": "510129",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 14,
+    "enabled": true
+  },
+  {
+    "name": "蒲江县",
+    "code": "510131",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 15,
+    "enabled": true
+  },
+  {
+    "name": "都江堰市",
+    "code": "510181",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 16,
+    "enabled": true
+  },
+  {
+    "name": "彭州市",
+    "code": "510182",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 17,
+    "enabled": true
+  },
+  {
+    "name": "邛崃市",
+    "code": "510183",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 18,
+    "enabled": true
+  },
+  {
+    "name": "崇州市",
+    "code": "510184",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 19,
+    "enabled": true
+  },
+  {
+    "name": "简阳市",
+    "code": "510185",
+    "level": "district",
+    "parentCode": "510100",
+    "sortOrder": 20,
+    "enabled": true
+  },
+  {
+    "name": "自贡市",
+    "code": "510300",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "自流井区",
+    "code": "510302",
+    "level": "district",
+    "parentCode": "510300",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "贡井区",
+    "code": "510303",
+    "level": "district",
+    "parentCode": "510300",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "大安区",
+    "code": "510304",
+    "level": "district",
+    "parentCode": "510300",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "沿滩区",
+    "code": "510311",
+    "level": "district",
+    "parentCode": "510300",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "荣县",
+    "code": "510321",
+    "level": "district",
+    "parentCode": "510300",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "富顺县",
+    "code": "510322",
+    "level": "district",
+    "parentCode": "510300",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "攀枝花市",
+    "code": "510400",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "东区",
+    "code": "510402",
+    "level": "district",
+    "parentCode": "510400",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "西区",
+    "code": "510403",
+    "level": "district",
+    "parentCode": "510400",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "仁和区",
+    "code": "510411",
+    "level": "district",
+    "parentCode": "510400",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "米易县",
+    "code": "510421",
+    "level": "district",
+    "parentCode": "510400",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "盐边县",
+    "code": "510422",
+    "level": "district",
+    "parentCode": "510400",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "泸州市",
+    "code": "510500",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "江阳区",
+    "code": "510502",
+    "level": "district",
+    "parentCode": "510500",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "纳溪区",
+    "code": "510503",
+    "level": "district",
+    "parentCode": "510500",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "龙马潭区",
+    "code": "510504",
+    "level": "district",
+    "parentCode": "510500",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "泸县",
+    "code": "510521",
+    "level": "district",
+    "parentCode": "510500",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "合江县",
+    "code": "510522",
+    "level": "district",
+    "parentCode": "510500",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "叙永县",
+    "code": "510524",
+    "level": "district",
+    "parentCode": "510500",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "古蔺县",
+    "code": "510525",
+    "level": "district",
+    "parentCode": "510500",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "德阳市",
+    "code": "510600",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "旌阳区",
+    "code": "510603",
+    "level": "district",
+    "parentCode": "510600",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "罗江区",
+    "code": "510604",
+    "level": "district",
+    "parentCode": "510600",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "中江县",
+    "code": "510623",
+    "level": "district",
+    "parentCode": "510600",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "广汉市",
+    "code": "510681",
+    "level": "district",
+    "parentCode": "510600",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "什邡市",
+    "code": "510682",
+    "level": "district",
+    "parentCode": "510600",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "绵竹市",
+    "code": "510683",
+    "level": "district",
+    "parentCode": "510600",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "绵阳市",
+    "code": "510700",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "涪城区",
+    "code": "510703",
+    "level": "district",
+    "parentCode": "510700",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "游仙区",
+    "code": "510704",
+    "level": "district",
+    "parentCode": "510700",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "安州区",
+    "code": "510705",
+    "level": "district",
+    "parentCode": "510700",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "三台县",
+    "code": "510722",
+    "level": "district",
+    "parentCode": "510700",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "盐亭县",
+    "code": "510723",
+    "level": "district",
+    "parentCode": "510700",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "梓潼县",
+    "code": "510725",
+    "level": "district",
+    "parentCode": "510700",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "北川羌族自治县",
+    "code": "510726",
+    "level": "district",
+    "parentCode": "510700",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "平武县",
+    "code": "510727",
+    "level": "district",
+    "parentCode": "510700",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "江油市",
+    "code": "510781",
+    "level": "district",
+    "parentCode": "510700",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "广元市",
+    "code": "510800",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "利州区",
+    "code": "510802",
+    "level": "district",
+    "parentCode": "510800",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "昭化区",
+    "code": "510811",
+    "level": "district",
+    "parentCode": "510800",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "朝天区",
+    "code": "510812",
+    "level": "district",
+    "parentCode": "510800",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "旺苍县",
+    "code": "510821",
+    "level": "district",
+    "parentCode": "510800",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "青川县",
+    "code": "510822",
+    "level": "district",
+    "parentCode": "510800",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "剑阁县",
+    "code": "510823",
+    "level": "district",
+    "parentCode": "510800",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "苍溪县",
+    "code": "510824",
+    "level": "district",
+    "parentCode": "510800",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "遂宁市",
+    "code": "510900",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "船山区",
+    "code": "510903",
+    "level": "district",
+    "parentCode": "510900",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "安居区",
+    "code": "510904",
+    "level": "district",
+    "parentCode": "510900",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "蓬溪县",
+    "code": "510921",
+    "level": "district",
+    "parentCode": "510900",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "大英县",
+    "code": "510923",
+    "level": "district",
+    "parentCode": "510900",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "射洪市",
+    "code": "510981",
+    "level": "district",
+    "parentCode": "510900",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "内江市",
+    "code": "511000",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "市中区",
+    "code": "511002",
+    "level": "district",
+    "parentCode": "511000",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "东兴区",
+    "code": "511011",
+    "level": "district",
+    "parentCode": "511000",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "威远县",
+    "code": "511024",
+    "level": "district",
+    "parentCode": "511000",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "资中县",
+    "code": "511025",
+    "level": "district",
+    "parentCode": "511000",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "隆昌市",
+    "code": "511083",
+    "level": "district",
+    "parentCode": "511000",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "乐山市",
+    "code": "511100",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "市中区",
+    "code": "511102",
+    "level": "district",
+    "parentCode": "511100",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "沙湾区",
+    "code": "511111",
+    "level": "district",
+    "parentCode": "511100",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "五通桥区",
+    "code": "511112",
+    "level": "district",
+    "parentCode": "511100",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "金口河区",
+    "code": "511113",
+    "level": "district",
+    "parentCode": "511100",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "犍为县",
+    "code": "511123",
+    "level": "district",
+    "parentCode": "511100",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "井研县",
+    "code": "511124",
+    "level": "district",
+    "parentCode": "511100",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "夹江县",
+    "code": "511126",
+    "level": "district",
+    "parentCode": "511100",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "沐川县",
+    "code": "511129",
+    "level": "district",
+    "parentCode": "511100",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "峨边彝族自治县",
+    "code": "511132",
+    "level": "district",
+    "parentCode": "511100",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "马边彝族自治县",
+    "code": "511133",
+    "level": "district",
+    "parentCode": "511100",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "峨眉山市",
+    "code": "511181",
+    "level": "district",
+    "parentCode": "511100",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "南充市",
+    "code": "511300",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "顺庆区",
+    "code": "511302",
+    "level": "district",
+    "parentCode": "511300",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "高坪区",
+    "code": "511303",
+    "level": "district",
+    "parentCode": "511300",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "嘉陵区",
+    "code": "511304",
+    "level": "district",
+    "parentCode": "511300",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "南部县",
+    "code": "511321",
+    "level": "district",
+    "parentCode": "511300",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "营山县",
+    "code": "511322",
+    "level": "district",
+    "parentCode": "511300",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "蓬安县",
+    "code": "511323",
+    "level": "district",
+    "parentCode": "511300",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "仪陇县",
+    "code": "511324",
+    "level": "district",
+    "parentCode": "511300",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "西充县",
+    "code": "511325",
+    "level": "district",
+    "parentCode": "511300",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "阆中市",
+    "code": "511381",
+    "level": "district",
+    "parentCode": "511300",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "眉山市",
+    "code": "511400",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "东坡区",
+    "code": "511402",
+    "level": "district",
+    "parentCode": "511400",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "彭山区",
+    "code": "511403",
+    "level": "district",
+    "parentCode": "511400",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "仁寿县",
+    "code": "511421",
+    "level": "district",
+    "parentCode": "511400",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "洪雅县",
+    "code": "511423",
+    "level": "district",
+    "parentCode": "511400",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "丹棱县",
+    "code": "511424",
+    "level": "district",
+    "parentCode": "511400",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "青神县",
+    "code": "511425",
+    "level": "district",
+    "parentCode": "511400",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "宜宾市",
+    "code": "511500",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "翠屏区",
+    "code": "511502",
+    "level": "district",
+    "parentCode": "511500",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "南溪区",
+    "code": "511503",
+    "level": "district",
+    "parentCode": "511500",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "叙州区",
+    "code": "511504",
+    "level": "district",
+    "parentCode": "511500",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "江安县",
+    "code": "511523",
+    "level": "district",
+    "parentCode": "511500",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "长宁县",
+    "code": "511524",
+    "level": "district",
+    "parentCode": "511500",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "高县",
+    "code": "511525",
+    "level": "district",
+    "parentCode": "511500",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "珙县",
+    "code": "511526",
+    "level": "district",
+    "parentCode": "511500",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "筠连县",
+    "code": "511527",
+    "level": "district",
+    "parentCode": "511500",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "兴文县",
+    "code": "511528",
+    "level": "district",
+    "parentCode": "511500",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "屏山县",
+    "code": "511529",
+    "level": "district",
+    "parentCode": "511500",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "广安市",
+    "code": "511600",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 14,
+    "enabled": true
+  },
+  {
+    "name": "广安区",
+    "code": "511602",
+    "level": "district",
+    "parentCode": "511600",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "前锋区",
+    "code": "511603",
+    "level": "district",
+    "parentCode": "511600",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "岳池县",
+    "code": "511621",
+    "level": "district",
+    "parentCode": "511600",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "武胜县",
+    "code": "511622",
+    "level": "district",
+    "parentCode": "511600",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "邻水县",
+    "code": "511623",
+    "level": "district",
+    "parentCode": "511600",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "华蓥市",
+    "code": "511681",
+    "level": "district",
+    "parentCode": "511600",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "达州市",
+    "code": "511700",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 15,
+    "enabled": true
+  },
+  {
+    "name": "通川区",
+    "code": "511702",
+    "level": "district",
+    "parentCode": "511700",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "达川区",
+    "code": "511703",
+    "level": "district",
+    "parentCode": "511700",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "宣汉县",
+    "code": "511722",
+    "level": "district",
+    "parentCode": "511700",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "开江县",
+    "code": "511723",
+    "level": "district",
+    "parentCode": "511700",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "大竹县",
+    "code": "511724",
+    "level": "district",
+    "parentCode": "511700",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "渠县",
+    "code": "511725",
+    "level": "district",
+    "parentCode": "511700",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "万源市",
+    "code": "511781",
+    "level": "district",
+    "parentCode": "511700",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "雅安市",
+    "code": "511800",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 16,
+    "enabled": true
+  },
+  {
+    "name": "雨城区",
+    "code": "511802",
+    "level": "district",
+    "parentCode": "511800",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "名山区",
+    "code": "511803",
+    "level": "district",
+    "parentCode": "511800",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "荥经县",
+    "code": "511822",
+    "level": "district",
+    "parentCode": "511800",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "汉源县",
+    "code": "511823",
+    "level": "district",
+    "parentCode": "511800",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "石棉县",
+    "code": "511824",
+    "level": "district",
+    "parentCode": "511800",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "天全县",
+    "code": "511825",
+    "level": "district",
+    "parentCode": "511800",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "芦山县",
+    "code": "511826",
+    "level": "district",
+    "parentCode": "511800",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "宝兴县",
+    "code": "511827",
+    "level": "district",
+    "parentCode": "511800",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "巴中市",
+    "code": "511900",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 17,
+    "enabled": true
+  },
+  {
+    "name": "巴州区",
+    "code": "511902",
+    "level": "district",
+    "parentCode": "511900",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "恩阳区",
+    "code": "511903",
+    "level": "district",
+    "parentCode": "511900",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "通江县",
+    "code": "511921",
+    "level": "district",
+    "parentCode": "511900",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "南江县",
+    "code": "511922",
+    "level": "district",
+    "parentCode": "511900",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "平昌县",
+    "code": "511923",
+    "level": "district",
+    "parentCode": "511900",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "资阳市",
+    "code": "512000",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 18,
+    "enabled": true
+  },
+  {
+    "name": "雁江区",
+    "code": "512002",
+    "level": "district",
+    "parentCode": "512000",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "安岳县",
+    "code": "512021",
+    "level": "district",
+    "parentCode": "512000",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "乐至县",
+    "code": "512022",
+    "level": "district",
+    "parentCode": "512000",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "阿坝藏族羌族自治州",
+    "code": "513200",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 19,
+    "enabled": true
+  },
+  {
+    "name": "马尔康市",
+    "code": "513201",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "汶川县",
+    "code": "513221",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "理县",
+    "code": "513222",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "茂县",
+    "code": "513223",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "松潘县",
+    "code": "513224",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "九寨沟县",
+    "code": "513225",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "金川县",
+    "code": "513226",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "小金县",
+    "code": "513227",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "黑水县",
+    "code": "513228",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "壤塘县",
+    "code": "513230",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "阿坝县",
+    "code": "513231",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "若尔盖县",
+    "code": "513232",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "红原县",
+    "code": "513233",
+    "level": "district",
+    "parentCode": "513200",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "甘孜藏族自治州",
+    "code": "513300",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 20,
+    "enabled": true
+  },
+  {
+    "name": "康定市",
+    "code": "513301",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "泸定县",
+    "code": "513322",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "丹巴县",
+    "code": "513323",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "九龙县",
+    "code": "513324",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "雅江县",
+    "code": "513325",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "道孚县",
+    "code": "513326",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "炉霍县",
+    "code": "513327",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "甘孜县",
+    "code": "513328",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "新龙县",
+    "code": "513329",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "德格县",
+    "code": "513330",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "白玉县",
+    "code": "513331",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "石渠县",
+    "code": "513332",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "色达县",
+    "code": "513333",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "理塘县",
+    "code": "513334",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 14,
+    "enabled": true
+  },
+  {
+    "name": "巴塘县",
+    "code": "513335",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 15,
+    "enabled": true
+  },
+  {
+    "name": "乡城县",
+    "code": "513336",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 16,
+    "enabled": true
+  },
+  {
+    "name": "稻城县",
+    "code": "513337",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 17,
+    "enabled": true
+  },
+  {
+    "name": "得荣县",
+    "code": "513338",
+    "level": "district",
+    "parentCode": "513300",
+    "sortOrder": 18,
+    "enabled": true
+  },
+  {
+    "name": "凉山彝族自治州",
+    "code": "513400",
+    "level": "city",
+    "parentCode": "510000",
+    "sortOrder": 21,
+    "enabled": true
+  },
+  {
+    "name": "西昌市",
+    "code": "513401",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "会理市",
+    "code": "513402",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "木里藏族自治县",
+    "code": "513422",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "盐源县",
+    "code": "513423",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "德昌县",
+    "code": "513424",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "会东县",
+    "code": "513426",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "宁南县",
+    "code": "513427",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "普格县",
+    "code": "513428",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "布拖县",
+    "code": "513429",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "金阳县",
+    "code": "513430",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "昭觉县",
+    "code": "513431",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "喜德县",
+    "code": "513432",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "冕宁县",
+    "code": "513433",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "越西县",
+    "code": "513434",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 14,
+    "enabled": true
+  },
+  {
+    "name": "甘洛县",
+    "code": "513435",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 15,
+    "enabled": true
+  },
+  {
+    "name": "美姑县",
+    "code": "513436",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 16,
+    "enabled": true
+  },
+  {
+    "name": "雷波县",
+    "code": "513437",
+    "level": "district",
+    "parentCode": "513400",
+    "sortOrder": 17,
+    "enabled": true
+  },
+  {
+    "name": "重庆市",
+    "code": "500000",
+    "level": "city",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "万州区",
+    "code": "500101",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "涪陵区",
+    "code": "500102",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "渝中区",
+    "code": "500103",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "大渡口区",
+    "code": "500104",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "沙坪坝区",
+    "code": "500106",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "九龙坡区",
+    "code": "500107",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "南岸区",
+    "code": "500108",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "北碚区",
+    "code": "500109",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "綦江区",
+    "code": "500110",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "大足区",
+    "code": "500111",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "巴南区",
+    "code": "500113",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "黔江区",
+    "code": "500114",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "长寿区",
+    "code": "500115",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "江津区",
+    "code": "500116",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 14,
+    "enabled": true
+  },
+  {
+    "name": "合川区",
+    "code": "500117",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 15,
+    "enabled": true
+  },
+  {
+    "name": "永川区",
+    "code": "500118",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 16,
+    "enabled": true
+  },
+  {
+    "name": "南川区",
+    "code": "500119",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 17,
+    "enabled": true
+  },
+  {
+    "name": "璧山区",
+    "code": "500120",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 18,
+    "enabled": true
+  },
+  {
+    "name": "铜梁区",
+    "code": "500151",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 19,
+    "enabled": true
+  },
+  {
+    "name": "潼南区",
+    "code": "500152",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 20,
+    "enabled": true
+  },
+  {
+    "name": "荣昌区",
+    "code": "500153",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 21,
+    "enabled": true
+  },
+  {
+    "name": "开州区",
+    "code": "500154",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 22,
+    "enabled": true
+  },
+  {
+    "name": "梁平区",
+    "code": "500155",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 23,
+    "enabled": true
+  },
+  {
+    "name": "武隆区",
+    "code": "500156",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 24,
+    "enabled": true
+  },
+  {
+    "name": "两江新区",
+    "code": "500157",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 25,
+    "enabled": true
+  },
+  {
+    "name": "城口县",
+    "code": "500229",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 26,
+    "enabled": true
+  },
+  {
+    "name": "丰都县",
+    "code": "500230",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 27,
+    "enabled": true
+  },
+  {
+    "name": "垫江县",
+    "code": "500231",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 28,
+    "enabled": true
+  },
+  {
+    "name": "忠县",
+    "code": "500233",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 29,
+    "enabled": true
+  },
+  {
+    "name": "云阳县",
+    "code": "500235",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 30,
+    "enabled": true
+  },
+  {
+    "name": "奉节县",
+    "code": "500236",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 31,
+    "enabled": true
+  },
+  {
+    "name": "巫山县",
+    "code": "500237",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 32,
+    "enabled": true
+  },
+  {
+    "name": "巫溪县",
+    "code": "500238",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 33,
+    "enabled": true
+  },
+  {
+    "name": "石柱土家族自治县",
+    "code": "500240",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 34,
+    "enabled": true
+  },
+  {
+    "name": "秀山土家族苗族自治县",
+    "code": "500241",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 35,
+    "enabled": true
+  },
+  {
+    "name": "酉阳土家族苗族自治县",
+    "code": "500242",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 36,
+    "enabled": true
+  },
+  {
+    "name": "彭水苗族土家族自治县",
+    "code": "500243",
+    "level": "district",
+    "parentCode": "500000",
+    "sortOrder": 37,
+    "enabled": true
+  },
+  {
+    "name": "陕西省",
+    "code": "610000",
+    "level": "province",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "西安市",
+    "code": "610100",
+    "level": "city",
+    "parentCode": "610000",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "新城区",
+    "code": "610102",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "碑林区",
+    "code": "610103",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "莲湖区",
+    "code": "610104",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "灞桥区",
+    "code": "610111",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "未央区",
+    "code": "610112",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "雁塔区",
+    "code": "610113",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "阎良区",
+    "code": "610114",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "临潼区",
+    "code": "610115",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "长安区",
+    "code": "610116",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "高陵区",
+    "code": "610117",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "鄠邑区",
+    "code": "610118",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "蓝田县",
+    "code": "610122",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "周至县",
+    "code": "610124",
+    "level": "district",
+    "parentCode": "610100",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "铜川市",
+    "code": "610200",
+    "level": "city",
+    "parentCode": "610000",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "王益区",
+    "code": "610202",
+    "level": "district",
+    "parentCode": "610200",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "印台区",
+    "code": "610203",
+    "level": "district",
+    "parentCode": "610200",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "耀州区",
+    "code": "610204",
+    "level": "district",
+    "parentCode": "610200",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "宜君县",
+    "code": "610222",
+    "level": "district",
+    "parentCode": "610200",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "宝鸡市",
+    "code": "610300",
+    "level": "city",
+    "parentCode": "610000",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "渭滨区",
+    "code": "610302",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "金台区",
+    "code": "610303",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "陈仓区",
+    "code": "610304",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "凤翔区",
+    "code": "610305",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "岐山县",
+    "code": "610323",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "扶风县",
+    "code": "610324",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "眉县",
+    "code": "610326",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "陇县",
+    "code": "610327",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "千阳县",
+    "code": "610328",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "麟游县",
+    "code": "610329",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "凤县",
+    "code": "610330",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "太白县",
+    "code": "610331",
+    "level": "district",
+    "parentCode": "610300",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "咸阳市",
+    "code": "610400",
+    "level": "city",
+    "parentCode": "610000",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "秦都区",
+    "code": "610402",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "杨陵区",
+    "code": "610403",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "渭城区",
+    "code": "610404",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "三原县",
+    "code": "610422",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "泾阳县",
+    "code": "610423",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "乾县",
+    "code": "610424",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "礼泉县",
+    "code": "610425",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "永寿县",
+    "code": "610426",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "长武县",
+    "code": "610428",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "旬邑县",
+    "code": "610429",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "淳化县",
+    "code": "610430",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "武功县",
+    "code": "610431",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "兴平市",
+    "code": "610481",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "彬州市",
+    "code": "610482",
+    "level": "district",
+    "parentCode": "610400",
+    "sortOrder": 14,
+    "enabled": true
+  },
+  {
+    "name": "渭南市",
+    "code": "610500",
+    "level": "city",
+    "parentCode": "610000",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "临渭区",
+    "code": "610502",
+    "level": "district",
+    "parentCode": "610500",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "华州区",
+    "code": "610503",
+    "level": "district",
+    "parentCode": "610500",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "潼关县",
+    "code": "610522",
+    "level": "district",
+    "parentCode": "610500",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "大荔县",
+    "code": "610523",
+    "level": "district",
+    "parentCode": "610500",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "合阳县",
+    "code": "610524",
+    "level": "district",
+    "parentCode": "610500",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "澄城县",
+    "code": "610525",
+    "level": "district",
+    "parentCode": "610500",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "蒲城县",
+    "code": "610526",
+    "level": "district",
+    "parentCode": "610500",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "白水县",
+    "code": "610527",
+    "level": "district",
+    "parentCode": "610500",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "富平县",
+    "code": "610528",
+    "level": "district",
+    "parentCode": "610500",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "韩城市",
+    "code": "610581",
+    "level": "district",
+    "parentCode": "610500",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "华阴市",
+    "code": "610582",
+    "level": "district",
+    "parentCode": "610500",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "延安市",
+    "code": "610600",
+    "level": "city",
+    "parentCode": "610000",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "宝塔区",
+    "code": "610602",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "安塞区",
+    "code": "610603",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "延长县",
+    "code": "610621",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "延川县",
+    "code": "610622",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "志丹县",
+    "code": "610625",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "吴起县",
+    "code": "610626",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "甘泉县",
+    "code": "610627",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "富县",
+    "code": "610628",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "洛川县",
+    "code": "610629",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "宜川县",
+    "code": "610630",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "黄龙县",
+    "code": "610631",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "黄陵县",
+    "code": "610632",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "子长市",
+    "code": "610681",
+    "level": "district",
+    "parentCode": "610600",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "汉中市",
+    "code": "610700",
+    "level": "city",
+    "parentCode": "610000",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "汉台区",
+    "code": "610702",
+    "level": "district",
+    "parentCode": "610700",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "南郑区",
+    "code": "610703",
+    "level": "district",
+    "parentCode": "610700",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "城固县",
+    "code": "610722",
+    "level": "district",
+    "parentCode": "610700",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "洋县",
+    "code": "610723",
+    "level": "district",
+    "parentCode": "610700",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "西乡县",
+    "code": "610724",
+    "level": "district",
+    "parentCode": "610700",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "勉县",
+    "code": "610725",
+    "level": "district",
+    "parentCode": "610700",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "宁强县",
+    "code": "610726",
+    "level": "district",
+    "parentCode": "610700",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "略阳县",
+    "code": "610727",
+    "level": "district",
+    "parentCode": "610700",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "镇巴县",
+    "code": "610728",
+    "level": "district",
+    "parentCode": "610700",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "留坝县",
+    "code": "610729",
+    "level": "district",
+    "parentCode": "610700",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "佛坪县",
+    "code": "610730",
+    "level": "district",
+    "parentCode": "610700",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "榆林市",
+    "code": "610800",
+    "level": "city",
+    "parentCode": "610000",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "榆阳区",
+    "code": "610802",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "横山区",
+    "code": "610803",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "府谷县",
+    "code": "610822",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "靖边县",
+    "code": "610824",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "定边县",
+    "code": "610825",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "绥德县",
+    "code": "610826",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "米脂县",
+    "code": "610827",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "佳县",
+    "code": "610828",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "吴堡县",
+    "code": "610829",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "清涧县",
+    "code": "610830",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "子洲县",
+    "code": "610831",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "神木市",
+    "code": "610881",
+    "level": "district",
+    "parentCode": "610800",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "安康市",
+    "code": "610900",
+    "level": "city",
+    "parentCode": "610000",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "汉滨区",
+    "code": "610902",
+    "level": "district",
+    "parentCode": "610900",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "汉阴县",
+    "code": "610921",
+    "level": "district",
+    "parentCode": "610900",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "石泉县",
+    "code": "610922",
+    "level": "district",
+    "parentCode": "610900",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "宁陕县",
+    "code": "610923",
+    "level": "district",
+    "parentCode": "610900",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "紫阳县",
+    "code": "610924",
+    "level": "district",
+    "parentCode": "610900",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "岚皋县",
+    "code": "610925",
+    "level": "district",
+    "parentCode": "610900",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "平利县",
+    "code": "610926",
+    "level": "district",
+    "parentCode": "610900",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "镇坪县",
+    "code": "610927",
+    "level": "district",
+    "parentCode": "610900",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "白河县",
+    "code": "610929",
+    "level": "district",
+    "parentCode": "610900",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "旬阳市",
+    "code": "610981",
+    "level": "district",
+    "parentCode": "610900",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "商洛市",
+    "code": "611000",
+    "level": "city",
+    "parentCode": "610000",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "商州区",
+    "code": "611002",
+    "level": "district",
+    "parentCode": "611000",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "洛南县",
+    "code": "611021",
+    "level": "district",
+    "parentCode": "611000",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "丹凤县",
+    "code": "611022",
+    "level": "district",
+    "parentCode": "611000",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "商南县",
+    "code": "611023",
+    "level": "district",
+    "parentCode": "611000",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "山阳县",
+    "code": "611024",
+    "level": "district",
+    "parentCode": "611000",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "镇安县",
+    "code": "611025",
+    "level": "district",
+    "parentCode": "611000",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "柞水县",
+    "code": "611026",
+    "level": "district",
+    "parentCode": "611000",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "云南省",
+    "code": "530000",
+    "level": "province",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "昆明市",
+    "code": "530100",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "五华区",
+    "code": "530102",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "盘龙区",
+    "code": "530103",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "官渡区",
+    "code": "530111",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "西山区",
+    "code": "530112",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "东川区",
+    "code": "530113",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "呈贡区",
+    "code": "530114",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "晋宁区",
+    "code": "530115",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "富民县",
+    "code": "530124",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "宜良县",
+    "code": "530125",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "石林彝族自治县",
+    "code": "530126",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "嵩明县",
+    "code": "530127",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "禄劝彝族苗族自治县",
+    "code": "530128",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "寻甸回族彝族自治县",
+    "code": "530129",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "安宁市",
+    "code": "530181",
+    "level": "district",
+    "parentCode": "530100",
+    "sortOrder": 14,
+    "enabled": true
+  },
+  {
+    "name": "曲靖市",
+    "code": "530300",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "麒麟区",
+    "code": "530302",
+    "level": "district",
+    "parentCode": "530300",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "沾益区",
+    "code": "530303",
+    "level": "district",
+    "parentCode": "530300",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "马龙区",
+    "code": "530304",
+    "level": "district",
+    "parentCode": "530300",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "陆良县",
+    "code": "530322",
+    "level": "district",
+    "parentCode": "530300",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "师宗县",
+    "code": "530323",
+    "level": "district",
+    "parentCode": "530300",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "罗平县",
+    "code": "530324",
+    "level": "district",
+    "parentCode": "530300",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "富源县",
+    "code": "530325",
+    "level": "district",
+    "parentCode": "530300",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "会泽县",
+    "code": "530326",
+    "level": "district",
+    "parentCode": "530300",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "宣威市",
+    "code": "530381",
+    "level": "district",
+    "parentCode": "530300",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "玉溪市",
+    "code": "530400",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "红塔区",
+    "code": "530402",
+    "level": "district",
+    "parentCode": "530400",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "江川区",
+    "code": "530403",
+    "level": "district",
+    "parentCode": "530400",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "通海县",
+    "code": "530423",
+    "level": "district",
+    "parentCode": "530400",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "华宁县",
+    "code": "530424",
+    "level": "district",
+    "parentCode": "530400",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "易门县",
+    "code": "530425",
+    "level": "district",
+    "parentCode": "530400",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "峨山彝族自治县",
+    "code": "530426",
+    "level": "district",
+    "parentCode": "530400",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "新平彝族傣族自治县",
+    "code": "530427",
+    "level": "district",
+    "parentCode": "530400",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "元江哈尼族彝族傣族自治县",
+    "code": "530428",
+    "level": "district",
+    "parentCode": "530400",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "澄江市",
+    "code": "530481",
+    "level": "district",
+    "parentCode": "530400",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "保山市",
+    "code": "530500",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "隆阳区",
+    "code": "530502",
+    "level": "district",
+    "parentCode": "530500",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "施甸县",
+    "code": "530521",
+    "level": "district",
+    "parentCode": "530500",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "龙陵县",
+    "code": "530523",
+    "level": "district",
+    "parentCode": "530500",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "昌宁县",
+    "code": "530524",
+    "level": "district",
+    "parentCode": "530500",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "腾冲市",
+    "code": "530581",
+    "level": "district",
+    "parentCode": "530500",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "昭通市",
+    "code": "530600",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "昭阳区",
+    "code": "530602",
+    "level": "district",
+    "parentCode": "530600",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "鲁甸县",
+    "code": "530621",
+    "level": "district",
+    "parentCode": "530600",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "巧家县",
+    "code": "530622",
+    "level": "district",
+    "parentCode": "530600",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "盐津县",
+    "code": "530623",
+    "level": "district",
+    "parentCode": "530600",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "大关县",
+    "code": "530624",
+    "level": "district",
+    "parentCode": "530600",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "永善县",
+    "code": "530625",
+    "level": "district",
+    "parentCode": "530600",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "绥江县",
+    "code": "530626",
+    "level": "district",
+    "parentCode": "530600",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "镇雄县",
+    "code": "530627",
+    "level": "district",
+    "parentCode": "530600",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "彝良县",
+    "code": "530628",
+    "level": "district",
+    "parentCode": "530600",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "威信县",
+    "code": "530629",
+    "level": "district",
+    "parentCode": "530600",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "水富市",
+    "code": "530681",
+    "level": "district",
+    "parentCode": "530600",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "丽江市",
+    "code": "530700",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "古城区",
+    "code": "530702",
+    "level": "district",
+    "parentCode": "530700",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "玉龙纳西族自治县",
+    "code": "530721",
+    "level": "district",
+    "parentCode": "530700",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "永胜县",
+    "code": "530722",
+    "level": "district",
+    "parentCode": "530700",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "华坪县",
+    "code": "530723",
+    "level": "district",
+    "parentCode": "530700",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "宁蒗彝族自治县",
+    "code": "530724",
+    "level": "district",
+    "parentCode": "530700",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "普洱市",
+    "code": "530800",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "思茅区",
+    "code": "530802",
+    "level": "district",
+    "parentCode": "530800",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "宁洱哈尼族彝族自治县",
+    "code": "530821",
+    "level": "district",
+    "parentCode": "530800",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "墨江哈尼族自治县",
+    "code": "530822",
+    "level": "district",
+    "parentCode": "530800",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "景东彝族自治县",
+    "code": "530823",
+    "level": "district",
+    "parentCode": "530800",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "景谷傣族彝族自治县",
+    "code": "530824",
+    "level": "district",
+    "parentCode": "530800",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "镇沅彝族哈尼族拉祜族自治县",
+    "code": "530825",
+    "level": "district",
+    "parentCode": "530800",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "江城哈尼族彝族自治县",
+    "code": "530826",
+    "level": "district",
+    "parentCode": "530800",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "孟连傣族拉祜族佤族自治县",
+    "code": "530827",
+    "level": "district",
+    "parentCode": "530800",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "澜沧拉祜族自治县",
+    "code": "530828",
+    "level": "district",
+    "parentCode": "530800",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "西盟佤族自治县",
+    "code": "530829",
+    "level": "district",
+    "parentCode": "530800",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "临沧市",
+    "code": "530900",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "临翔区",
+    "code": "530902",
+    "level": "district",
+    "parentCode": "530900",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "凤庆县",
+    "code": "530921",
+    "level": "district",
+    "parentCode": "530900",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "云县",
+    "code": "530922",
+    "level": "district",
+    "parentCode": "530900",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "永德县",
+    "code": "530923",
+    "level": "district",
+    "parentCode": "530900",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "镇康县",
+    "code": "530924",
+    "level": "district",
+    "parentCode": "530900",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "双江拉祜族佤族布朗族傣族自治县",
+    "code": "530925",
+    "level": "district",
+    "parentCode": "530900",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "耿马傣族佤族自治县",
+    "code": "530926",
+    "level": "district",
+    "parentCode": "530900",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "沧源佤族自治县",
+    "code": "530927",
+    "level": "district",
+    "parentCode": "530900",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "楚雄彝族自治州",
+    "code": "532300",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "楚雄市",
+    "code": "532301",
+    "level": "district",
+    "parentCode": "532300",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "禄丰市",
+    "code": "532302",
+    "level": "district",
+    "parentCode": "532300",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "双柏县",
+    "code": "532322",
+    "level": "district",
+    "parentCode": "532300",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "牟定县",
+    "code": "532323",
+    "level": "district",
+    "parentCode": "532300",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "南华县",
+    "code": "532324",
+    "level": "district",
+    "parentCode": "532300",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "姚安县",
+    "code": "532325",
+    "level": "district",
+    "parentCode": "532300",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "大姚县",
+    "code": "532326",
+    "level": "district",
+    "parentCode": "532300",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "永仁县",
+    "code": "532327",
+    "level": "district",
+    "parentCode": "532300",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "元谋县",
+    "code": "532328",
+    "level": "district",
+    "parentCode": "532300",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "武定县",
+    "code": "532329",
+    "level": "district",
+    "parentCode": "532300",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "红河哈尼族彝族自治州",
+    "code": "532500",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "个旧市",
+    "code": "532501",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "开远市",
+    "code": "532502",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "蒙自市",
+    "code": "532503",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "弥勒市",
+    "code": "532504",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "屏边苗族自治县",
+    "code": "532523",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "建水县",
+    "code": "532524",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "石屏县",
+    "code": "532525",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "泸西县",
+    "code": "532527",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "元阳县",
+    "code": "532528",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "红河县",
+    "code": "532529",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "金平苗族瑶族傣族自治县",
+    "code": "532530",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "绿春县",
+    "code": "532531",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "河口瑶族自治县",
+    "code": "532532",
+    "level": "district",
+    "parentCode": "532500",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "文山壮族苗族自治州",
+    "code": "532600",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "文山市",
+    "code": "532601",
+    "level": "district",
+    "parentCode": "532600",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "砚山县",
+    "code": "532622",
+    "level": "district",
+    "parentCode": "532600",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "西畴县",
+    "code": "532623",
+    "level": "district",
+    "parentCode": "532600",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "麻栗坡县",
+    "code": "532624",
+    "level": "district",
+    "parentCode": "532600",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "马关县",
+    "code": "532625",
+    "level": "district",
+    "parentCode": "532600",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "丘北县",
+    "code": "532626",
+    "level": "district",
+    "parentCode": "532600",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "广南县",
+    "code": "532627",
+    "level": "district",
+    "parentCode": "532600",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "富宁县",
+    "code": "532628",
+    "level": "district",
+    "parentCode": "532600",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "西双版纳傣族自治州",
+    "code": "532800",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "景洪市",
+    "code": "532801",
+    "level": "district",
+    "parentCode": "532800",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "勐海县",
+    "code": "532822",
+    "level": "district",
+    "parentCode": "532800",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "勐腊县",
+    "code": "532823",
+    "level": "district",
+    "parentCode": "532800",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "大理白族自治州",
+    "code": "532900",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 13,
+    "enabled": true
+  },
+  {
+    "name": "大理市",
+    "code": "532901",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "漾濞彝族自治县",
+    "code": "532922",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "祥云县",
+    "code": "532923",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "宾川县",
+    "code": "532924",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "弥渡县",
+    "code": "532925",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "南涧彝族自治县",
+    "code": "532926",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 6,
+    "enabled": true
+  },
+  {
+    "name": "巍山彝族回族自治县",
+    "code": "532927",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 7,
+    "enabled": true
+  },
+  {
+    "name": "永平县",
+    "code": "532928",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 8,
+    "enabled": true
+  },
+  {
+    "name": "云龙县",
+    "code": "532929",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 9,
+    "enabled": true
+  },
+  {
+    "name": "洱源县",
+    "code": "532930",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 10,
+    "enabled": true
+  },
+  {
+    "name": "剑川县",
+    "code": "532931",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 11,
+    "enabled": true
+  },
+  {
+    "name": "鹤庆县",
+    "code": "532932",
+    "level": "district",
+    "parentCode": "532900",
+    "sortOrder": 12,
+    "enabled": true
+  },
+  {
+    "name": "德宏傣族景颇族自治州",
+    "code": "533100",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 14,
+    "enabled": true
+  },
+  {
+    "name": "瑞丽市",
+    "code": "533102",
+    "level": "district",
+    "parentCode": "533100",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "芒市",
+    "code": "533103",
+    "level": "district",
+    "parentCode": "533100",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "梁河县",
+    "code": "533122",
+    "level": "district",
+    "parentCode": "533100",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "盈江县",
+    "code": "533123",
+    "level": "district",
+    "parentCode": "533100",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "陇川县",
+    "code": "533124",
+    "level": "district",
+    "parentCode": "533100",
+    "sortOrder": 5,
+    "enabled": true
+  },
+  {
+    "name": "怒江傈僳族自治州",
+    "code": "533300",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 15,
+    "enabled": true
+  },
+  {
+    "name": "泸水市",
+    "code": "533301",
+    "level": "district",
+    "parentCode": "533300",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "福贡县",
+    "code": "533323",
+    "level": "district",
+    "parentCode": "533300",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "贡山独龙族怒族自治县",
+    "code": "533324",
+    "level": "district",
+    "parentCode": "533300",
+    "sortOrder": 3,
+    "enabled": true
+  },
+  {
+    "name": "兰坪白族普米族自治县",
+    "code": "533325",
+    "level": "district",
+    "parentCode": "533300",
+    "sortOrder": 4,
+    "enabled": true
+  },
+  {
+    "name": "迪庆藏族自治州",
+    "code": "533400",
+    "level": "city",
+    "parentCode": "530000",
+    "sortOrder": 16,
+    "enabled": true
+  },
+  {
+    "name": "香格里拉市",
+    "code": "533401",
+    "level": "district",
+    "parentCode": "533400",
+    "sortOrder": 1,
+    "enabled": true
+  },
+  {
+    "name": "德钦县",
+    "code": "533422",
+    "level": "district",
+    "parentCode": "533400",
+    "sortOrder": 2,
+    "enabled": true
+  },
+  {
+    "name": "维西傈僳族自治县",
+    "code": "533423",
+    "level": "district",
+    "parentCode": "533400",
+    "sortOrder": 3,
+    "enabled": true
+  }
+]

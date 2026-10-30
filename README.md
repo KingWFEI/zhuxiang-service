@@ -33,21 +33,32 @@ Authorization: Bearer <accessToken>
 创建数据库：
 
 ```sql
-CREATE DATABASE zhuxiang_app
+CREATE DATABASE ease_nest
     DEFAULT CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
+    COLLATE utf8mb4_0900_ai_ci;
 ```
 
-首次启动时 Flyway 会自动执行：
+首次启动时 Flyway 会自动执行当前基线迁移：
 
-- `V1__create_first_batch_tables.sql`：创建第一批接口所需数据表
-- `V2__seed_development_catalog.sql`：写入房源、房东和筛选项示例数据
+- `V1__create_application_schema.sql`：创建完整业务表、索引和外键。65 张业务表和 935 个字段统一使用 `utf8mb4_0900_ai_ci`，表及字段均有中文注释。
+- `V2__seed_reference_catalogs.sql`：初始化创建房源所需的标准户型字典，不写入房源、用户、订单、门锁等样例业务数据。
+
+如果从旧迁移历史切换到当前基线，必须先备份并重建目标数据库，使其为空后再启动服务；旧 `flyway_schema_history` 与当前基线不兼容。重建会删除目标数据库中的全部数据：
+
+```sql
+DROP DATABASE ease_nest;
+CREATE DATABASE ease_nest
+    DEFAULT CHARACTER SET utf8mb4
+    COLLATE utf8mb4_0900_ai_ci;
+```
+
+项目要求 MySQL 8.0 或更高版本。行政区划、小区、房源、标签、设施、广告等业务数据在首次启动后为空，需要由管理端配置或通过业务流程录入。超级管理员和平台房东继续由应用启动初始化器按配置创建。
 
 ## 配置
 
 | 配置项 | 环境变量 | 默认值 |
 | --- | --- | --- |
-| JDBC 地址 | `DB_URL` | `jdbc:mysql://localhost:3306/zhuxiang_app?...` |
+| JDBC 地址 | `DB_URL` | `jdbc:mysql://localhost:3306/ease_nest?characterEncoding=UTF-8&connectionCollation=utf8mb4_0900_ai_ci&serverTimezone=Asia/Shanghai` |
 | 数据库用户名 | `DB_USERNAME` | `root` |
 | 数据库密码 | `DB_PASSWORD` | 空 |
 | 服务端口 | `SERVER_PORT` | `8000` |
@@ -55,7 +66,9 @@ CREATE DATABASE zhuxiang_app
 | Token 密钥 | `TOKEN_SECRET` | 本地开发默认值 |
 | 固定验证码 | `FIXED_SMS_CODE` | `123456` |
 | 图片存储类型 | `STORAGE_TYPE` | `local` |
-| 上传目录 | `UPLOAD_DIRECTORY` | `./uploads` |
+| 本地公开文件目录 | `LOCAL_STORAGE_DIRECTORY` | `./uploads` |
+| 本地敏感文件目录 | `LOCAL_PRIVATE_STORAGE_DIRECTORY` | `./uploads-private` |
+| 本地公开文件 URL 路径 | `LOCAL_STORAGE_PUBLIC_PATH` | `/uploads`（不含 API 前缀） |
 | COS SecretId | `TENCENT_COS_SECRET_ID` | 空 |
 | COS SecretKey | `TENCENT_COS_SECRET_KEY` | 空 |
 | COS 临时 Token | `TENCENT_COS_SESSION_TOKEN` | 空 |
@@ -66,6 +79,12 @@ CREATE DATABASE zhuxiang_app
 
 当前阶段尚未对接短信供应商，本地验证码默认固定为 `123456`。部署到非开发
 环境时必须设置安全的 `TOKEN_SECRET`，并在接入短信服务后移除固定验证码。
+
+### 初始化账号
+
+超级管理员和勿忧管家平台房东由应用启动时的初始化器创建，不属于 Flyway SQL 迁移。启动前复制 `.env.example` 为 `.env`，并填写 `SUPER_ADMIN_PHONE`、`SUPER_ADMIN_PASSWORD`、`SUPER_ADMIN_NICKNAME`、`PLATFORM_LANDLORD_ID`、`PLATFORM_LANDLORD_PHONE` 和 `PLATFORM_LANDLORD_NAME`。对应的 `*_ENABLED` 变量可设为 `false` 以关闭该账号的初始化。
+
+初始化器只创建缺失的账号，不会因环境变量变化而修改已存在账号的密码或资料。
 
 ### 使用 `.env` 配置 COS
 
@@ -80,6 +99,8 @@ TENCENT_COS_BUCKET=example-1250000000
 TENCENT_COS_PUBLIC_BASE_URL=https://example-1250000000.cos.ap-guangzhou.myqcloud.com
 TENCENT_COS_KEY_PREFIX=zhuxiang
 ```
+
+使用本地存储时，将 `STORAGE_TYPE` 设为 `local`，并用 `LOCAL_STORAGE_DIRECTORY`、`LOCAL_PRIVATE_STORAGE_DIRECTORY` 和 `LOCAL_STORAGE_PUBLIC_PATH` 配置公开文件目录、敏感文件目录及 URL 路径。敏感文件目录必须位于公开文件目录之外。
 
 `.env` 已加入 Git 忽略列表。生产环境建议直接设置系统环境变量；系统环境变量
 优先级高于 `.env`，无需修改或重新打包后端。COS 密钥应使用仅具备目标路径上传
@@ -108,7 +129,7 @@ http://localhost:8000/api
 
 ## 测试与构建
 
-测试使用 H2 的 MySQL 兼容模式，不依赖本机 MySQL：
+集成测试使用 MySQL 测试库 `zhuxiang_test` 和 Flyway，测试库也需要按上述字符集与排序规则创建。运行测试前确认 `src/test/resources/application-test.yml` 中的连接信息对应可清空的测试库：
 
 ```powershell
 .\mvnw.cmd clean verify

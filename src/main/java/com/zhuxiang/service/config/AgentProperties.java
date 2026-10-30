@@ -22,6 +22,9 @@ public class AgentProperties {
 
     private String allowedSourceAddresses = "127.0.0.1,::1";
 
+    /** Agent 可调用业务接口的角色权限 JSON；支持 classpath: 和 file: 资源。 */
+    private String toolPermissionsFile = "classpath:agent-tool-permissions.json";
+
     public String getBaseUrl() {
         return baseUrl;
     }
@@ -60,5 +63,13 @@ public class AgentProperties {
 
     public void setAllowedSourceAddresses(String allowedSourceAddresses) {
         this.allowedSourceAddresses = allowedSourceAddresses;
+    }
+
+    public String getToolPermissionsFile() {
+        return toolPermissionsFile;
+    }
+
+    public void setToolPermissionsFile(String toolPermissionsFile) {
+        this.toolPermissionsFile = toolPermissionsFile;
     }
 }

@@ -47,6 +47,15 @@ public class TencentCosObjectStorageService
         }
     }
 
+    @Override
+    public void delete(String objectKey) {
+        try {
+            cosClient.deleteObject(properties.getBucket(), withPrefix(objectKey));
+        } catch (CosClientException exception) {
+            throw new IllegalStateException("腾讯云 COS 图片清理失败", exception);
+        }
+    }
+
     /**
      * 私有材料写入独立私有桶。若未单独配置私有桶，则使用主桶并要求在 COS
      * 策略中禁止匿名访问 private-key-prefix。

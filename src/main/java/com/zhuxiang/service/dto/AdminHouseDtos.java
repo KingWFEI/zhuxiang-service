@@ -22,11 +22,10 @@ public final class AdminHouseDtos {
     public record CreateHouseRequest(
             @NotBlank(message = "房源标题不能为空")
             @Schema(description = "房源标题", example = "高新区精装一居室") String title,
-            @NotBlank(message = "封面图不能为空")
-            @Schema(description = "房源封面图 URL") String coverImage,
-            @NotEmpty(message = "房源图片不能为空")
             @Size(max = 20, message = "房源图片不能超过20张")
-            @Schema(description = "房源图片 URL 列表，URL 必须来自管理端房源图片上传接口")
+            @Schema(description = "旧式 URL 创建参数；新建房源 multipart 请求中由上传文件生成")
+            String coverImage,
+            @Schema(description = "旧式图片 URL 列表；新建房源 multipart 请求中由上传文件生成")
             List<@NotBlank(message = "房源图片URL不能为空") String> imageUrls,
             @NotBlank(message = "位置不能为空")
             @Schema(description = "区域或商圈展示位置", example = "高新区金融城") String location,
@@ -80,6 +79,15 @@ public final class AdminHouseDtos {
             String township,
             String neighborhood
     ) {
+        public CreateHouseRequest withImages(String coverImage, List<String> imageUrls) {
+            return new CreateHouseRequest(
+                    title, coverImage, imageUrls, location, communityId, address, building, unit, room,
+                    price, deposit, paymentMethod, roomType, area, floor, orientation, decoration,
+                    availableDate, metro, description, rentMode, rentType, isSmartLockSupported,
+                    isSelfViewingSupported, facilityIds, tagIds, longitude, latitude, province, city,
+                    district, township, neighborhood
+            );
+        }
     }
 
     public record LockDeviceView(

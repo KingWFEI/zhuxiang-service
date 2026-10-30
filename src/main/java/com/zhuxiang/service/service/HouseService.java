@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import com.zhuxiang.service.dto.AdminHouseDtos;
 import com.zhuxiang.service.dto.HouseDtos;
 import com.zhuxiang.service.dto.HousePropertyCertificateDtos;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
 * @author king-wang
@@ -99,6 +100,20 @@ public interface HouseService extends IService<House> {
     AdminHouseDtos.AdminHouseView createHouse(
             AdminHouseDtos.CreateHouseRequest request,
             String operatorId
+    );
+
+    AdminHouseDtos.AdminHouseView createHouseWithImages(
+            AdminHouseDtos.CreateHouseRequest request,
+            List<MultipartFile> images,
+            int coverIndex,
+            String operatorId
+    );
+
+    AdminHouseDtos.AdminHouseView createLandlordHouseWithImages(
+            AdminHouseDtos.CreateHouseRequest request,
+            List<MultipartFile> images,
+            int coverIndex,
+            String landlordId
     );
 
     /**

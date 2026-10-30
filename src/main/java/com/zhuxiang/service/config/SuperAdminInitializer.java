@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -20,24 +21,30 @@ public class SuperAdminInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(SuperAdminInitializer.class);
 
-    @Value("${app.super-admin.phone:13800000000}")
+    @Value("${app.super-admin.phone:}")
     private String phone;
 
-    @Value("${app.super-admin.password:admin123}")
+    @Value("${app.super-admin.password:}")
     private String password;
 
-    @Value("${app.super-admin.nickname:超级管理员}")
+    @Value("${app.super-admin.nickname:}")
     private String nickname;
 
     @Bean
     @ConditionalOnProperty(name = "app.super-admin.enabled", havingValue = "true", matchIfMissing = true)
     public ApplicationRunner initSuperAdmin(UserMapper userMapper) {
         return args -> {
+            if (!StringUtils.hasText(phone)) {
+                throw new IllegalStateException("请配置 app.super-admin.phone（可通过 SUPER_ADMIN_PHONE 环境变量覆盖）");
+            }
             LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(User::getPhone, phone);
             if (userMapper.selectCount(wrapper) > 0) {
                 log.info("Super admin with phone {} already exists, skipping.", phone);
                 return;
+            }
+            if (!StringUtils.hasText(password) || !StringUtils.hasText(nickname)) {
+                throw new IllegalStateException("首次创建超级管理员时必须配置 app.super-admin.password 和 app.super-admin.nickname（可通过 SUPER_ADMIN_* 环境变量覆盖）");
             }
 
             BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();

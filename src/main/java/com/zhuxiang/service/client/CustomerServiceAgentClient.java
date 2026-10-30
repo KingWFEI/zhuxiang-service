@@ -14,6 +14,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -104,6 +105,8 @@ public class CustomerServiceAgentClient {
             String requestId,
             String sessionId,
             String userId,
+            String userRole,
+            Set<String> allowedTools,
             String userMessageId,
             String assistantMessageId,
             String message,
@@ -114,6 +117,8 @@ public class CustomerServiceAgentClient {
         Map<String, Object> request = Map.of(
                 "session_id", sessionId,
                 "user_id", userId,
+                "user_role", userRole,
+                "allowed_tools", allowedTools,
                 "user_message_id", userMessageId,
                 "assistant_message_id", assistantMessageId,
                 "message", message,

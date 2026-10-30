@@ -1,1 +1,0 @@
-ALTER TABLE community MODIFY region_id VARCHAR(36) NULL;

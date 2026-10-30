@@ -68,15 +68,18 @@ public class LandlordHouseController {
         );
     }
 
-    @PostMapping
-    @Operation(summary = "发布房源", description = "创建新房源，landlordId 从 Token 自动获取。创建后状态为草稿，需调用上架接口发布。")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "发布房源", description = "一次提交房源信息和图片；图片上传及房源入库在同一事务中完成，landlordId 从 Token 获取。创建后状态为草稿。")
     public ApiResponse<AdminHouseDtos.AdminHouseView> createHouse(
             HttpServletRequest request,
-            @Valid @RequestBody AdminHouseDtos.CreateHouseRequest body
+            @RequestPart("house") @Valid AdminHouseDtos.CreateHouseRequest body,
+            @RequestPart("images") List<MultipartFile> images,
+            @RequestParam("coverIndex") int coverIndex
     ) {
         return ApiResponse.success(
                 "房源创建成功",
-                houseService.createLandlordHouse(body, CurrentUser.id(request))
+                houseService.createLandlordHouseWithImages(
+                        body, images, coverIndex, CurrentUser.id(request))
         );
     }
 

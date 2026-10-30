@@ -40,7 +40,7 @@ public class Region implements Serializable {
     private String code;
 
     /**
-     * 区域层级：city城市，district行政区，business_area商圈
+     * 区域层级：province省份，city城市，district行政区，business_area商圈
      */
     private String level;
 

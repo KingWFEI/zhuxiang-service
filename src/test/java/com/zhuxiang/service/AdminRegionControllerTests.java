@@ -4,6 +4,7 @@ import com.zhuxiang.service.auth.CurrentUser;
 import com.zhuxiang.service.controller.AdminRegionController;
 import com.zhuxiang.service.entity.Region;
 import com.zhuxiang.service.entity.User;
+import com.zhuxiang.service.service.CommunityService;
 import com.zhuxiang.service.service.RegionService;
 import com.zhuxiang.service.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,8 +21,9 @@ import static org.mockito.Mockito.when;
 class AdminRegionControllerTests {
 
     private final RegionService regionService = mock(RegionService.class);
+    private final CommunityService communityService = mock(CommunityService.class);
     private final UserService userService = mock(UserService.class);
-    private final AdminRegionController controller = new AdminRegionController(regionService, userService);
+    private final AdminRegionController controller = new AdminRegionController(regionService, communityService, userService);
 
     @Test
     void createsMultipleRegionsWithoutRequiringAdministrativeCode() {

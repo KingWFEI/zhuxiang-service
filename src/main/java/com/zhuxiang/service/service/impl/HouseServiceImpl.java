@@ -56,6 +56,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -827,6 +828,55 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         return Integer.valueOf(1).equals(value);
     }
 
+    @Override
+    @Transactional
+    public AdminHouseDtos.AdminHouseView createHouseWithImages(
+            AdminHouseDtos.CreateHouseRequest request,
+            List<MultipartFile> images,
+            int coverIndex,
+            String operatorId
+    ) {
+        requireAdminRole(operatorId);
+        List<String> imageUrls = uploadHouseImages(images, coverIndex, operatorId);
+        return createHouse(
+                request.withImages(imageUrls.get(coverIndex), imageUrls), operatorId);
+    }
+
+    @Override
+    @Transactional
+    public AdminHouseDtos.AdminHouseView createLandlordHouseWithImages(
+            AdminHouseDtos.CreateHouseRequest request,
+            List<MultipartFile> images,
+            int coverIndex,
+            String landlordId
+    ) {
+        requireLandlordRole(landlordId);
+        List<String> imageUrls = uploadHouseImages(images, coverIndex, landlordId);
+        return createLandlordHouse(
+                request.withImages(imageUrls.get(coverIndex), imageUrls), landlordId);
+    }
+
+    private List<String> uploadHouseImages(
+            List<MultipartFile> images,
+            int coverIndex,
+            String uploaderId
+    ) {
+        if (images == null || images.isEmpty()) {
+            throw BusinessException.badRequest("房源图片不能为空");
+        }
+        if (images.size() > 20) {
+            throw BusinessException.badRequest("房源图片不能超过20张");
+        }
+        if (coverIndex < 0 || coverIndex >= images.size()) {
+            throw BusinessException.badRequest("封面图片索引无效");
+        }
+        List<String> imageUrls = new ArrayList<>(images.size());
+        for (MultipartFile image : images) {
+            imageUrls.add(fileRecordService.uploadHouseImage(uploaderId, image).url());
+        }
+        return List.copyOf(imageUrls);
+    }
+
     /**
      * 创建新房源，返回管理端视图。
      */
@@ -881,7 +931,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setFavoriteCount(0);
         house.setCreatedAt(now);
         house.setUpdatedAt(now);
-        save(house);
+        if (!save(house)) {
+            throw new IllegalStateException("房源信息保存失败");
+        }
         saveHouseImages(house.getId(), coverImage, imageUrls, now);
         saveHouseFacilityRelations(house.getId(), facilityIds);
         saveHouseTagRelations(house.getId(), tagIds);
@@ -1705,7 +1757,9 @@ public class HouseServiceImpl extends ServiceImpl<HouseMapper, House>
         house.setCreatedAt(now);
         house.setUpdatedAt(now);
 
-        save(house);
+        if (!save(house)) {
+            throw new IllegalStateException("房源信息保存失败");
+        }
         saveHouseImages(house.getId(), coverImage, imageUrls, now);
         saveHouseFacilityRelations(house.getId(), facilityIds);
         saveHouseTagRelations(house.getId(), tagIds);

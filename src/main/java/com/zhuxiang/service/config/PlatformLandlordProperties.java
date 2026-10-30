@@ -10,13 +10,15 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "app.platform-landlord")
 public class PlatformLandlordProperties {
 
-    public static final String DEFAULT_ID = "00000000-0000-0000-0000-000000000001";
+    private String id = "";
 
-    private String id = DEFAULT_ID;
-    private String phone = "00000000000";
-    private String name = "勿忧管家";
+    private String phone = "";
+
+    private String name = "";
+
     private String avatarUrl = "";
-    private String responseDescription = "平台自营房源";
+
+    private String responseDescription = "";
 
     public String getId() {
         return id;

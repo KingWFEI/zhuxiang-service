@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhuxiang.service.client.CustomerServiceAgentClient;
 import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.common.PageData;
+import com.zhuxiang.service.config.ObjectStorageProperties;
 import com.zhuxiang.service.dto.CustomerServiceDtos;
 import com.zhuxiang.service.entity.CustomerServiceEnums;
 import com.zhuxiang.service.entity.CustomerServiceKbDocument;
@@ -58,17 +59,28 @@ public class KbDocumentServiceImpl
     private final ObjectStorageService objectStorageService;
     private final CustomerServiceAgentClient agentClient;
 
-    @Value("${app.upload.directory}")
-    private String uploadDirectory;
+    private final Path uploadDirectory;
+    private final Path privateUploadDirectory;
+    private final String localPublicUrlPrefix;
 
     public KbDocumentServiceImpl(
             UserService userService,
             ObjectStorageService objectStorageService,
-            CustomerServiceAgentClient agentClient
+            CustomerServiceAgentClient agentClient,
+            ObjectStorageProperties storageProperties,
+            @Value("${server.servlet.context-path:/api}") String contextPath
     ) {
         this.userService = userService;
         this.objectStorageService = objectStorageService;
         this.agentClient = agentClient;
+        ObjectStorageProperties.Local local = storageProperties.getLocal();
+        this.uploadDirectory = Path.of(local.getDirectory()).toAbsolutePath().normalize();
+        this.privateUploadDirectory = Path.of(local.getPrivateDirectory()).toAbsolutePath().normalize();
+        if (privateUploadDirectory.startsWith(uploadDirectory)) {
+            throw new IllegalArgumentException("本地敏感文件目录必须位于公开文件目录之外");
+        }
+        this.localPublicUrlPrefix = normalizeContextPath(contextPath)
+                + normalizePublicPath(local.getPublicPath()) + "/";
     }
 
     @Override
@@ -241,30 +253,71 @@ public class KbDocumentServiceImpl
 
     /** 将存储 URL 转为本地绝对路径 */
     private String resolveLocalPath(String filePath) {
-        // URL 格式: /api/uploads/kb-documents/2026/07/07/uuid.docx
-        // 对应本地: <uploadDirectory>/kb-documents/2026/07/07/uuid.docx
-        String prefix = "/api/uploads/";
-        if (filePath != null && filePath.startsWith(prefix)) {
-            return Path.of(uploadDirectory).resolve(filePath.substring(prefix.length()))
-                    .toAbsolutePath().normalize().toString();
+        // URL 格式由 API 前缀和 app.storage.local.public-path 共同决定。
+        if (filePath != null) {
+            String relativePath = null;
+            if (filePath.startsWith(localPublicUrlPrefix)) {
+                relativePath = filePath.substring(localPublicUrlPrefix.length());
+            } else if (filePath.startsWith("/api/uploads/")) {
+                // 兼容此前默认配置写入数据库的本地文件 URL。
+                relativePath = filePath.substring("/api/uploads/".length());
+            }
+            if (relativePath != null) {
+                Path localFile = uploadDirectory.resolve(relativePath).normalize();
+                if (!localFile.startsWith(uploadDirectory)) {
+                    throw new IllegalArgumentException("知识库文件路径无效");
+                }
+                return localFile.toString();
+            }
         }
         // 如果是 http/https URL（COS），下载到临时目录
         if (filePath != null && (filePath.startsWith("http://") || filePath.startsWith("https://"))) {
             try {
-                java.io.File tmpDir = new java.io.File(uploadDirectory, "kb-tmp");
-                tmpDir.mkdirs();
+                Path tmpDir = privateUploadDirectory.resolve("kb-tmp");
+                java.nio.file.Files.createDirectories(tmpDir);
                 String filename = filePath.substring(filePath.lastIndexOf('/') + 1);
-                java.io.File tmpFile = new java.io.File(tmpDir, filename);
+                Path tmpFile = tmpDir.resolve(filename).normalize();
                 try (java.io.InputStream is = java.net.URI.create(filePath).toURL().openStream();
-                     java.io.FileOutputStream fos = new java.io.FileOutputStream(tmpFile)) {
-                    is.transferTo(fos);
+                     java.io.OutputStream output = java.nio.file.Files.newOutputStream(tmpFile)) {
+                    is.transferTo(output);
                 }
-                return tmpFile.getAbsolutePath();
+                return tmpFile.toAbsolutePath().normalize().toString();
             } catch (Exception e) {
                 log.error("下载 COS 文件失败: {}", filePath, e);
             }
         }
         return filePath;
+    }
+
+    private static String normalizeContextPath(String path) {
+        if (path == null || path.isBlank() || "/".equals(path.trim())) {
+            return "";
+        }
+        String normalized = path.trim().replace('\\', '/');
+        if (!normalized.startsWith("/")) {
+            normalized = "/" + normalized;
+        }
+        while (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    private static String normalizePublicPath(String path) {
+        if (path == null || path.isBlank()) {
+            throw new IllegalArgumentException("必须配置本地公开文件 URL 路径");
+        }
+        String normalized = path.trim().replace('\\', '/');
+        if (!normalized.startsWith("/")) {
+            normalized = "/" + normalized;
+        }
+        while (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        if ("/".equals(normalized) || normalized.contains("..")) {
+            throw new IllegalArgumentException("本地公开文件 URL 路径无效");
+        }
+        return normalized;
     }
 
     /** 校验操作人是否为管理员或管家 */

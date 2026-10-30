@@ -130,7 +130,7 @@
 				<artifactId>flyway-maven-plugin</artifactId>
 				<version>11.7.2</version>
 				<configuration>
-					<url>jdbc:mysql://localhost:3306/zhuxiang_app</url>
+					<url>jdbc:mysql://localhost:3306/ease_nest?characterEncoding=UTF-8&amp;connectionCollation=utf8mb4_0900_ai_ci&amp;serverTimezone=Asia/Shanghai</url>
 					<user>root</user>
 					<password>wf010931</password>
 				</configuration>

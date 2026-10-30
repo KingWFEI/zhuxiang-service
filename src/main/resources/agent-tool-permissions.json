@@ -1,0 +1,31 @@
+{
+  "scopes": {
+    "ADMIN": "ANY",
+    "TENANT": "SELF",
+    "LANDLORD": "SELF",
+    "HOUSEKEEPER": "SELF"
+  },
+  "roles": {
+    "ADMIN": [
+      "leases", "bills", "locks", "appointments", "repairs",
+      "house-brief", "overview", "house-search", "house-detail", "viewing-slots",
+      "rent-orders", "rent-order-detail", "lease-detail", "contract-summary",
+      "bill-detail", "payments", "payment-detail", "termination-check",
+      "termination-status", "deposit-detail", "repair-detail", "appointment-detail",
+      "real-name-auth", "landlord-auth"
+    ],
+    "TENANT": [
+      "leases", "bills", "locks", "appointments", "repairs",
+      "house-brief", "overview", "house-search", "house-detail", "viewing-slots",
+      "rent-orders", "rent-order-detail", "lease-detail", "contract-summary",
+      "bill-detail", "payments", "payment-detail", "termination-check",
+      "termination-status", "deposit-detail", "repair-detail", "appointment-detail",
+      "real-name-auth", "landlord-auth"
+    ],
+    "LANDLORD": [
+      "house-brief", "overview", "house-search", "house-detail", "viewing-slots",
+      "real-name-auth", "landlord-auth"
+    ],
+    "HOUSEKEEPER": []
+  }
+}

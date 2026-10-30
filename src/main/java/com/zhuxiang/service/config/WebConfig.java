@@ -1,7 +1,6 @@
 package com.zhuxiang.service.config;
 
 import com.zhuxiang.service.auth.AuthInterceptor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -14,14 +13,17 @@ import java.nio.file.Path;
 public class WebConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
-    private final String uploadDirectory;
+    private final Path uploadDirectory;
+    private final String publicPath;
 
     public WebConfig(
             AuthInterceptor authInterceptor,
-            @Value("${app.upload.directory}") String uploadDirectory
+            ObjectStorageProperties storageProperties
     ) {
         this.authInterceptor = authInterceptor;
-        this.uploadDirectory = uploadDirectory;
+        ObjectStorageProperties.Local local = storageProperties.getLocal();
+        this.uploadDirectory = Path.of(local.getDirectory()).toAbsolutePath().normalize();
+        this.publicPath = normalizePublicPath(local.getPublicPath());
     }
 
     /**
@@ -31,7 +33,7 @@ public class WebConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
                 .allowedOrigins("*")
-                .allowedMethods("GET", "POST", "PUT", "DELETE")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE")
                 .allowedHeaders("Content-Type", "Authorization")
                 .maxAge(3600);
     }
@@ -43,10 +45,30 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String location = Path.of(uploadDirectory).toAbsolutePath().normalize().toUri().toString();
-        registry.addResourceHandler("/uploads/**").addResourceLocations(location);
-        // 兼容沉浸式旧文件路径 /files/immersive/** → ./uploads/
+        String location = uploadDirectory.toUri().toString();
+        if (!location.endsWith("/")) {
+            location += "/";
+        }
+        registry.addResourceHandler(publicPath + "/**").addResourceLocations(location);
+        // 兼容沉浸式旧文件路径 /files/immersive/**，仍映射到本地公开文件目录。
         registry.addResourceHandler("/files/immersive/**")
-                .addResourceLocations("file:" + uploadDirectory + "/");
+                .addResourceLocations(location);
+    }
+
+    private static String normalizePublicPath(String path) {
+        if (path == null || path.isBlank()) {
+            throw new IllegalArgumentException("必须配置本地公开文件 URL 路径");
+        }
+        String normalized = path.trim().replace('\\', '/');
+        if (!normalized.startsWith("/")) {
+            normalized = "/" + normalized;
+        }
+        while (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        if ("/".equals(normalized) || normalized.contains("..")) {
+            throw new IllegalArgumentException("本地公开文件 URL 路径无效");
+        }
+        return normalized;
     }
 }

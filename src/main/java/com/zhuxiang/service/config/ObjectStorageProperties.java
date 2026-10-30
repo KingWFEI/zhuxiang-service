@@ -13,6 +13,9 @@ public class ObjectStorageProperties {
     /** 存储类型：local 或 cos。 */
     private String type = "local";
 
+    /** 本地文件存储配置。 */
+    private final Local local = new Local();
+
     /** 腾讯云 COS 配置。 */
     private final Cos cos = new Cos();
 
@@ -24,8 +27,45 @@ public class ObjectStorageProperties {
         this.type = type;
     }
 
+    public Local getLocal() {
+        return local;
+    }
+
     public Cos getCos() {
         return cos;
+    }
+
+    /**
+     * 本地公开文件、敏感文件及公开访问路径配置。
+     */
+    public static class Local {
+        private String directory;
+        private String privateDirectory;
+        private String publicPath;
+
+        public String getDirectory() {
+            return directory;
+        }
+
+        public void setDirectory(String directory) {
+            this.directory = directory;
+        }
+
+        public String getPrivateDirectory() {
+            return privateDirectory;
+        }
+
+        public void setPrivateDirectory(String privateDirectory) {
+            this.privateDirectory = privateDirectory;
+        }
+
+        public String getPublicPath() {
+            return publicPath;
+        }
+
+        public void setPublicPath(String publicPath) {
+            this.publicPath = publicPath;
+        }
     }
 
     /**

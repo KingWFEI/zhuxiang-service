@@ -41,7 +41,11 @@ public class InternalCustomerServiceController {
     }
 
     private void validateAndLog(HttpServletRequest request, String resource) {
-        String requestId = requestValidator.validate(request);
+        validateAndLog(request, resource, null);
+    }
+
+    private void validateAndLog(HttpServletRequest request, String resource, String pathUserId) {
+        String requestId = requestValidator.validate(request, resource, pathUserId);
         log.info("Agent 内部数据查询: requestId={} resource={}", requestId, resource);
     }
 
@@ -54,7 +58,7 @@ public class InternalCustomerServiceController {
             @Parameter(description = "用户ID") @PathVariable String userId,
             HttpServletRequest request
     ) {
-        validateAndLog(request, "leases");
+        validateAndLog(request, "leases", userId);
         return ApiResponse.success(internalService.getUserLeases(userId));
     }
 
@@ -67,7 +71,7 @@ public class InternalCustomerServiceController {
             @Parameter(description = "用户ID") @PathVariable String userId,
             HttpServletRequest request
     ) {
-        validateAndLog(request, "bills");
+        validateAndLog(request, "bills", userId);
         return ApiResponse.success(internalService.getUserBills(userId));
     }
 
@@ -80,7 +84,7 @@ public class InternalCustomerServiceController {
             @Parameter(description = "用户ID") @PathVariable String userId,
             HttpServletRequest request
     ) {
-        validateAndLog(request, "locks");
+        validateAndLog(request, "locks", userId);
         return ApiResponse.success(internalService.getUserLocks(userId));
     }
 
@@ -93,7 +97,7 @@ public class InternalCustomerServiceController {
             @Parameter(description = "用户ID") @PathVariable String userId,
             HttpServletRequest request
     ) {
-        validateAndLog(request, "appointments");
+        validateAndLog(request, "appointments", userId);
         return ApiResponse.success(internalService.getUserAppointments(userId));
     }
 
@@ -106,7 +110,7 @@ public class InternalCustomerServiceController {
             @Parameter(description = "用户ID") @PathVariable String userId,
             HttpServletRequest request
     ) {
-        validateAndLog(request, "repairs");
+        validateAndLog(request, "repairs", userId);
         return ApiResponse.success(internalService.getUserRepairs(userId));
     }
 
@@ -127,7 +131,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户客服业务概览")
     public ApiResponse<InternalCustomerServiceDtos.ServiceOverview> getOverview(
             @PathVariable String userId, HttpServletRequest request) {
-        validateAndLog(request, "overview");
+        validateAndLog(request, "overview", userId);
         return ApiResponse.success(internalService.getUserOverview(userId));
     }
 
@@ -168,7 +172,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户租房订单")
     public ApiResponse<List<InternalCustomerServiceDtos.RentOrderBrief>> getRentOrders(
             @PathVariable String userId, HttpServletRequest request) {
-        validateAndLog(request, "rent-orders");
+        validateAndLog(request, "rent-orders", userId);
         return ApiResponse.success(internalService.getUserRentOrders(userId));
     }
 
@@ -176,7 +180,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询租房订单详情")
     public ApiResponse<InternalCustomerServiceDtos.RentOrderBrief> getRentOrderDetail(
             @PathVariable String userId, @PathVariable String orderId, HttpServletRequest request) {
-        validateAndLog(request, "rent-order-detail");
+        validateAndLog(request, "rent-order-detail", userId);
         return ApiResponse.success(internalService.getRentOrderDetail(userId, orderId));
     }
 
@@ -184,7 +188,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户租约详情")
     public ApiResponse<InternalCustomerServiceDtos.LeaseDetail> getLeaseDetail(
             @PathVariable String userId, @PathVariable String leaseId, HttpServletRequest request) {
-        validateAndLog(request, "lease-detail");
+        validateAndLog(request, "lease-detail", userId);
         return ApiResponse.success(internalService.getLeaseDetail(userId, leaseId));
     }
 
@@ -192,7 +196,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户合同摘要")
     public ApiResponse<InternalCustomerServiceDtos.ContractSummary> getContractSummary(
             @PathVariable String userId, @PathVariable String leaseId, HttpServletRequest request) {
-        validateAndLog(request, "contract-summary");
+        validateAndLog(request, "contract-summary", userId);
         return ApiResponse.success(internalService.getContractSummary(userId, leaseId));
     }
 
@@ -200,7 +204,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户账单详情")
     public ApiResponse<InternalCustomerServiceDtos.BillDetail> getBillDetail(
             @PathVariable String userId, @PathVariable String billId, HttpServletRequest request) {
-        validateAndLog(request, "bill-detail");
+        validateAndLog(request, "bill-detail", userId);
         return ApiResponse.success(internalService.getBillDetail(userId, billId));
     }
 
@@ -208,7 +212,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户支付记录")
     public ApiResponse<List<InternalCustomerServiceDtos.PaymentBrief>> getPayments(
             @PathVariable String userId, HttpServletRequest request) {
-        validateAndLog(request, "payments");
+        validateAndLog(request, "payments", userId);
         return ApiResponse.success(internalService.getUserPayments(userId));
     }
 
@@ -216,7 +220,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户支付详情")
     public ApiResponse<InternalCustomerServiceDtos.PaymentBrief> getPaymentDetail(
             @PathVariable String userId, @PathVariable String paymentId, HttpServletRequest request) {
-        validateAndLog(request, "payment-detail");
+        validateAndLog(request, "payment-detail", userId);
         return ApiResponse.success(internalService.getPaymentDetail(userId, paymentId));
     }
 
@@ -224,7 +228,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户退租资格")
     public ApiResponse<?> checkTermination(
             @PathVariable String userId, @PathVariable String leaseId, HttpServletRequest request) {
-        validateAndLog(request, "termination-check");
+        validateAndLog(request, "termination-check", userId);
         return ApiResponse.success(internalService.checkTermination(userId, leaseId));
     }
 
@@ -232,7 +236,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户退租进度")
     public ApiResponse<InternalCustomerServiceDtos.TerminationStatus> getTerminationStatus(
             @PathVariable String userId, @PathVariable String leaseId, HttpServletRequest request) {
-        validateAndLog(request, "termination-status");
+        validateAndLog(request, "termination-status", userId);
         return ApiResponse.success(internalService.getTerminationStatus(userId, leaseId));
     }
 
@@ -240,7 +244,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户押金及结算信息")
     public ApiResponse<InternalCustomerServiceDtos.DepositSummary> getDepositDetail(
             @PathVariable String userId, @PathVariable String leaseId, HttpServletRequest request) {
-        validateAndLog(request, "deposit-detail");
+        validateAndLog(request, "deposit-detail", userId);
         return ApiResponse.success(internalService.getDepositDetail(userId, leaseId));
     }
 
@@ -248,7 +252,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户报修详情")
     public ApiResponse<InternalCustomerServiceDtos.RepairDetail> getRepairDetail(
             @PathVariable String userId, @PathVariable String repairId, HttpServletRequest request) {
-        validateAndLog(request, "repair-detail");
+        validateAndLog(request, "repair-detail", userId);
         return ApiResponse.success(internalService.getRepairDetail(userId, repairId));
     }
 
@@ -256,7 +260,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户预约详情")
     public ApiResponse<InternalCustomerServiceDtos.AppointmentDetail> getAppointmentDetail(
             @PathVariable String userId, @PathVariable String appointmentId, HttpServletRequest request) {
-        validateAndLog(request, "appointment-detail");
+        validateAndLog(request, "appointment-detail", userId);
         return ApiResponse.success(internalService.getAppointmentDetail(userId, appointmentId));
     }
 
@@ -264,7 +268,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户实名认证状态")
     public ApiResponse<InternalCustomerServiceDtos.AuthStatus> getRealNameAuthStatus(
             @PathVariable String userId, HttpServletRequest request) {
-        validateAndLog(request, "real-name-auth");
+        validateAndLog(request, "real-name-auth", userId);
         return ApiResponse.success(internalService.getRealNameAuthStatus(userId));
     }
 
@@ -272,7 +276,7 @@ public class InternalCustomerServiceController {
     @Operation(summary = "查询用户房东认证状态")
     public ApiResponse<InternalCustomerServiceDtos.LandlordAuthStatus> getLandlordAuthStatus(
             @PathVariable String userId, HttpServletRequest request) {
-        validateAndLog(request, "landlord-auth");
+        validateAndLog(request, "landlord-auth", userId);
         return ApiResponse.success(internalService.getLandlordAuthStatus(userId));
     }
 }

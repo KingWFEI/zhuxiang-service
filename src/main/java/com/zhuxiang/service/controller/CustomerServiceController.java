@@ -106,7 +106,8 @@ public class CustomerServiceController {
             HttpServletRequest request
     ) {
         return chatService.streamMessage(
-                CurrentUser.id(request), sessionId, body.message(), requestId);
+                CurrentUser.id(request), CurrentUser.role(request),
+                sessionId, body.message(), requestId);
     }
 
     @PostMapping("/messages/{messageId}/feedback")

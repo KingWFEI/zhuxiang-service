@@ -1,194 +1,261 @@
+# 基础配置：无论启用哪个 Spring Profile，都会加载本文件；application-dev.yml 和 application-prod.yml 可覆盖其中的同名项。
 spring:
   config:
+    # 从项目根目录读取本地 .env；文件不存在时忽略。生产环境也可直接使用系统环境变量。
     import: "optional:file:.env[.properties]"
   application:
+    # Spring 应用名称，用于日志和服务识别。
     name: zhuxiang-service
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DB_URL:jdbc:mysql://localhost:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/ease_nest?characterEncoding=UTF-8&connectionCollation=utf8mb4_0900_ai_ci&serverTimezone=Asia/Shanghai}
     username:   ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:132135}
-#    url: ${DB_URL:jdbc:mysql://10.143.183.205:3306/zhuxiang_app?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
-#    username: ${DB_USERNAME:zhuxiang_app_user}
-#    password: ${DB_PASSWORD:Zhuxiang@2026!}
+    password: ${DB_PASSWORD:wf010931}
   flyway:
+    # 是否在启动时自动执行数据库迁移。
     enabled: ${FLYWAY_ENABLED:true}
+    # Flyway SQL 迁移文件所在的 classpath 目录。
     locations: classpath:db/migration
-    # Enable temporarily only when an existing environment must apply a
-    # lower-version migration introduced by a branch merge.
+    # 是否允许执行版本号落后于当前数据库版本的迁移，默认关闭。
     out-of-order: ${FLYWAY_OUT_OF_ORDER:false}
   servlet:
     multipart:
+      # 单个上传文件的最大大小。
       max-file-size: 20MB
-      max-request-size: 20MB
+      # 单次 HTTP 请求的最大大小，需大于单文件上限以容纳多文件上传。
+      max-request-size: 110MB
 
+# HTTP 服务监听端口与统一 API 路径前缀。
 server:
   port: ${SERVER_PORT:8000}
   servlet:
     context-path: ${API_PREFIX:/api}
 
+# OpenAPI 文档及 Swagger UI 配置。
 springdoc:
+  # API 文档中请求和响应的默认媒体类型。
   default-consumes-media-type: application/json
   default-produces-media-type: application/json
   api-docs:
+    # 是否启用 OpenAPI JSON 文档及其访问路径。
     enabled: true
     path: /v3/api-docs
   swagger-ui:
+    # 是否启用 Swagger UI 及其访问路径。
     enabled: true
     path: /swagger-ui.html
+    # 在页面中显示请求耗时，并按 HTTP 方法和标签排序。
     display-request-duration: true
     operations-sorter: method
     tags-sorter: alpha
+  # 生成接口文档时扫描的 Controller 包。
   packages-to-scan: com.zhuxiang.service.controller
+  # 按源码中的顺序输出文档字段。
   writer-with-order-by-keys: true
 
+# MyBatis-Plus 的 Mapper、类型别名和实体映射配置。
 mybatis-plus:
+  # XML Mapper 文件的 classpath 搜索路径。
   mapper-locations: classpath*:/mapper/**/*.xml
+  # 实体类和枚举类所在的包。
   type-aliases-package: com.zhuxiang.service.entity
   type-enums-package: com.zhuxiang.service.immersive.enums
   configuration:
+    # 将数据库下划线列名映射为 Java 驼峰属性名。
     map-underscore-to-camel-case: true
   global-config:
     db-config:
+      # 默认使用 MyBatis-Plus 的分布式 ID 生成策略。
       id-type: assign_id
 
 app:
+  region:
+    # 空行政区域表在启动时从 JSON 初始化；可通过 REGION_INITIAL_DATA 指向自定义配置文件。
+    initial-data: ${REGION_INITIAL_DATA:classpath:region-data.json}
+  super-admin:
+    # 是否在服务启动时初始化超级管理员。
+    enabled: ${SUPER_ADMIN_ENABLED:true}
+    # 管理员手机号、初始密码和显示昵称；可通过根目录 .env 中的 SUPER_ADMIN_* 变量覆盖。
+    phone: ${SUPER_ADMIN_PHONE:}
+    password: ${SUPER_ADMIN_PASSWORD:}
+    nickname: ${SUPER_ADMIN_NICKNAME:}
+  platform-landlord:
+    # 是否在服务启动时初始化勿忧管家平台房东。
+    enabled: ${PLATFORM_LANDLORD_ENABLED:true}
+    # 平台房东的系统用户 ID、手机号、名称、头像和响应说明；可通过 PLATFORM_LANDLORD_* 变量覆盖。
+    id: ${PLATFORM_LANDLORD_ID:}
+    phone: ${PLATFORM_LANDLORD_PHONE:}
+    name: ${PLATFORM_LANDLORD_NAME:}
+    avatar-url: ${PLATFORM_LANDLORD_AVATAR_URL:}
+    response-description: ${PLATFORM_LANDLORD_RESPONSE_DESCRIPTION:}
   appointment:
     # 仅用于联调智能门锁预约下发，生产环境必须保持 false。
     test-slot-enabled: ${APPOINTMENT_TEST_SLOT_ENABLED:false}
   message:
     realtime:
+      # 是否启用消息实时推送。
       enabled: ${MESSAGE_SSE_ENABLED:true}
+      # 事件代理类型：memory 用于单实例，redis 可用于多实例共享事件。
       broker: ${MESSAGE_EVENT_BROKER:memory}
+      # SSE 心跳间隔、连接超时、单用户连接上限和功能灰度比例。
       heartbeat-ms: ${MESSAGE_SSE_HEARTBEAT_MS:20000}
       connection-timeout-ms: ${MESSAGE_SSE_CONNECTION_TIMEOUT_MS:1800000}
       max-connections-per-user: ${MESSAGE_SSE_MAX_CONNECTIONS_PER_USER:3}
       rollout-percent: ${MESSAGE_SSE_ROLLOUT_PERCENT:100}
+      # Redis 消息事件广播使用的频道名称。
       redis-channel: ${MESSAGE_SSE_REDIS_CHANNEL:wuyou:message-events}
   auth:
+    # 访问令牌有效秒数和刷新令牌有效天数。
     access-token-seconds: ${ACCESS_TOKEN_SECONDS:86400}
     refresh-token-days: ${REFRESH_TOKEN_DAYS:30}
+    # Token 签名密钥；部署环境必须替换本地默认值。
     token-secret: ${TOKEN_SECRET:change-this-secret-in-production}
     sms:
+      # 短信验证码有效期、重发间隔及单次校验最大尝试次数。
       expires-seconds: ${SMS_CODE_EXPIRES_SECONDS:300}
       retry-after-seconds: ${SMS_RETRY_AFTER_SECONDS:60}
       max-verify-attempts: ${SMS_MAX_VERIFY_ATTEMPTS:5}
+      # 按手机号或 IP 限制每小时、每天、每分钟的验证码请求次数。
       phone-hourly-limit: ${SMS_PHONE_HOURLY_LIMIT:5}
       phone-daily-limit: ${SMS_PHONE_DAILY_LIMIT:10}
       ip-minute-limit: ${SMS_IP_MINUTE_LIMIT:10}
       ip-daily-limit: ${SMS_IP_DAILY_LIMIT:50}
+      # 限流计数存储方式，以及仅供本地调试的固定验证码和是否返回验证码。
       rate-limit-store: ${SMS_RATE_LIMIT_STORE:memory}
       fixed-code: ${FIXED_SMS_CODE:}
       expose-code: ${SMS_EXPOSE_CODE:false}
-  upload:
-    directory: ${UPLOAD_DIRECTORY:./uploads}
   storage:
-    type: ${STORAGE_TYPE:cos}
+    # 文件存储方式：local 为本地磁盘，cos 为腾讯云对象存储。
+    type: ${STORAGE_TYPE:local}
+    local:
+      # 本地公开文件的服务器磁盘目录；相对路径以服务启动目录为基准，也可填写绝对路径。
+      directory: ${LOCAL_STORAGE_DIRECTORY:./uploads}
+      # 本地敏感文件存储目录；应放在公开目录之外，避免被静态资源映射访问。
+      private-directory: ${LOCAL_PRIVATE_STORAGE_DIRECTORY:./uploads-private}
+      # 本地公开文件的 URL 路径，不含 API_PREFIX，例如 /uploads。
+      public-path: ${LOCAL_STORAGE_PUBLIC_PATH:/uploads}
     cos:
+      # 腾讯云 COS 访问凭证；使用临时凭证时填写 session-token。
       secret-id: ${TENCENT_COS_SECRET_ID:}
       secret-key: ${TENCENT_COS_SECRET_KEY:}
       session-token: ${TENCENT_COS_SESSION_TOKEN:}
+      # COS 地域、公共存储桶和私有存储桶；私有桶优先使用专用变量，否则复用公共桶。
       region: ${TENCENT_COS_REGION:ap-guangzhou}
       bucket: ${TENCENT_COS_BUCKET:zx-houses-1324690637}
       private-bucket: ${TENCENT_COS_PRIVATE_BUCKET:${TENCENT_COS_BUCKET:}}
+      # 公共访问域名，以及公共和私有对象的存储路径前缀。
       public-base-url: ${TENCENT_COS_PUBLIC_BASE_URL:}
       key-prefix: ${TENCENT_COS_KEY_PREFIX:zhuxiang}
       private-key-prefix: ${TENCENT_COS_PRIVATE_KEY_PREFIX:easenest-private}
   lock-passcode:
+    # 门锁密码加密密钥及版本号；查询限流和过期密码扫描间隔。
     encryption-key: ${LOCK_PASSCODE_ENCRYPTION_KEY:}
     key-version: ${LOCK_PASSCODE_KEY_VERSION:1}
     query-limit-per-minute: ${LOCK_PASSCODE_QUERY_LIMIT_PER_MINUTE:10}
     expiration-scan-ms: ${LOCK_PASSCODE_EXPIRATION_SCAN_MS:300000}
   lease:
+    # 定时检查即将到期租约的间隔。
     expiration-scan-ms: ${LEASE_EXPIRATION_SCAN_MS:300000}
   lease-termination:
+    # 定时推进退租解约流程的间隔。
     scan-ms: ${LEASE_TERMINATION_SCAN_MS:15000}
   payment-refund:
+    # 定时处理退款任务的间隔。
     scan-ms: ${PAYMENT_REFUND_SCAN_MS:15000}
   agent:
+    # 外部智能体服务的地址、调用密钥、模型及请求来源校验配置。
     base-url: ${AGENT_BASE_URL:http://localhost:8101}
     api-key: ${AGENT_API_KEY:}
     model: ${DEEPSEEK_MODEL:deepseek-v4-flash}
     expected-source: ${AGENT_EXPECTED_SOURCE:zhuxiang-agent}
     allowed-source-addresses: ${AGENT_ALLOWED_SOURCE_ADDRESSES:127.0.0.1,::1}
+    # Agent 工具按角色授权配置；可设为 file:///D:/config/agent-tool-permissions.json 覆盖。
+    tool-permissions-file: ${AGENT_TOOL_PERMISSIONS_FILE:classpath:agent-tool-permissions.json}
   customer-service:
+    # 客服流式响应中断后的恢复等待时间。
     streaming-recovery-ms: ${CUSTOMER_SERVICE_STREAMING_RECOVERY_MS:60000}
   auto-unlock:
+    # 是否启用自动开锁，以及 BLE 信号、地理围栏和扫描窗口相关阈值。
     enabled: ${AUTO_UNLOCK_ENABLED:true}
-#    信号强度阈值
+    # 设备 BLE 信号强度下限，单位 dBm。
     min-rssi: ${AUTO_UNLOCK_MIN_RSSI:-55}
-#    稳定时间 不再使用
+    # 兼容旧版本的稳定时间配置；当前自动开锁逻辑不再使用该参数。
     stable-millis: ${AUTO_UNLOCK_STABLE_MILLIS:2000}
-#    冷却时间 秒
+    # 自动开锁冷却时间，以及进入/离开围栏半径，单位分别为秒和米。
     cooldown-seconds: ${AUTO_UNLOCK_COOLDOWN_SECONDS:120}
     geofence-radius-meters: ${AUTO_UNLOCK_GEOFENCE_RADIUS_METERS:150}
     exit-radius-meters: ${AUTO_UNLOCK_EXIT_RADIUS_METERS:200}
+    # 离开围栏后持续判定时间、信号扫描窗口和最少 RSSI 样本数。
     exit-dwell-seconds: ${AUTO_UNLOCK_EXIT_DWELL_SECONDS:90}
     scan-window-seconds: ${AUTO_UNLOCK_SCAN_WINDOW_SECONDS:900}
     min-rssi-samples: ${AUTO_UNLOCK_MIN_RSSI_SAMPLES:5}
-  super-admin:
-    enabled: ${SUPER_ADMIN_ENABLED:true}
-    phone: ${SUPER_ADMIN_PHONE:13800000000}
-    password: ${SUPER_ADMIN_PASSWORD:admin123}
-    nickname: ${SUPER_ADMIN_NICKNAME:超级管理员}
-  platform-landlord:
-    enabled: ${PLATFORM_LANDLORD_ENABLED:true}
-    id: ${PLATFORM_LANDLORD_ID:00000000-0000-0000-0000-000000000001}
-    phone: ${PLATFORM_LANDLORD_PHONE:00000000000}
-    name: ${PLATFORM_LANDLORD_NAME:勿忧管家}
-    avatar-url: ${PLATFORM_LANDLORD_AVATAR_URL:}
-    response-description: ${PLATFORM_LANDLORD_RESPONSE_DESCRIPTION:平台自营房源}
 
+# 支付宝支付参数；生产网关和生产凭证在 application-prod.yml 中单独配置。
 alipay:
+  # 支付宝网关地址；默认值为沙箱地址。
   gateway-url: ${ALIPAY_GATEWAY_URL:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
+  # 支付宝应用 ID、商户应用私钥和支付宝公钥。
   app-id: ${ALIPAY_APP_ID:9021000165654404}
   merchant-private-key: ${ALIPAY_MERCHANT_PRIVATE_KEY:}
   alipay-public-key: ${ALIPAY_ALIPAY_PUBLIC_KEY:}
+  # 异步通知地址和支付完成后的同步跳转地址。
   notify-url: ${ALIPAY_NOTIFY_URL:http://localhost:8000/api/payments/alipay/notify}
   return-url: ${ALIPAY_RETURN_URL:http://localhost/zhuxiang-payment-done}
-# 高德开放平台申请的 Web服务 API Key
+
+# 高德地图 Web 服务 API 配置。
 amap:
+  # 高德 Web 服务接口地址和控制台申请的 API Key。
   base-url: ${AMAP_BASE_URL:https://restapi.amap.com}
   web-service-key: ${AMAP_WEB_SERVICE_KEY:34467f081797ade37c2eb007a8d0dbdc}
 
+# TTLock 智能门锁开放平台连接及账号凭证。
 ttlock:
   client-id: ${TTLOCK_CLIENT_ID:cb5534587e624eb59a9244cc14b8e281}
   client-secret: ${TTLOCK_CLIENT_SECRET:b73051c1d61c6c3aa7a5bb4917a495e8}
+  # TTLock 登录账号、密码和可选访问令牌。
   username: ${TTLOCK_USERNAME:15282398801}
   password: ${TTLOCK_PASSWORD:wf010931}
   access-token: ${TTLOCK_ACCESS_TOKEN:}
+  # TTLock API 地址，正式环境可按服务商要求调整。
   base-url: ${TTLOCK_BASE_URL:https://api.sciener.com}
 
-# ========== e签宝人脸认证 ==========
+# e签宝电子签署和人脸认证配置。
 esign:
+  # 总开关、API 地址及 e签宝应用凭证。
   enabled: true
   base-url: ${ESIGN_HOST:https://smlopenapi.esign.cn}
   app-id: ${ESIGN_APP_ID:7439124670}
   app-secret: ${ESIGN_APP_SECRET:b1ef6eb0d232a048d42c6db5d36895d4}
+  # 自动完成签署开关和多方签署顺序模式。
   auto-finish: true
   sign-order-mode: SIMULTANEOUS
+  # e签宝事件通知地址和签署完成后的跳转地址。
   notify-url: ${ESIGN_NOTIFY_URL:}
   redirect-url: ${ESIGN_REDIRECT_URL:}
+  # 平台签约企业、经办人和印章信息。
   platform-org-id: ${ESIGN_PLATFORM_ORG_ID:}
   platform-org-name: ${ESIGN_PLATFORM_ORG_NAME:重庆踏山河科技有限公司}
   platform-transactor-psn-id: ${ESIGN_PLATFORM_TRANSACTOR_PSN_ID:}
   platform-seal-id: ${ESIGN_PLATFORM_SEAL_ID:}
+  # 调用 e签宝接口的连接和读取超时时间，单位秒。
   connect-timeout-seconds: ${ESIGN_CONNECT_TIMEOUT_SECONDS:15}
   read-timeout-seconds: ${ESIGN_READ_TIMEOUT_SECONDS:60}
   face:
+    # 人脸认证接口地址、应用凭证、认证模式和回调地址；凭证可与电子签署应用共用。
     host: ${ESIGN_FACE_HOST:${ESIGN_HOST:https://smlopenapi.esign.cn}}
-    # 人脸认证默认复用同一个 e签宝应用凭证；如需独立应用，再设置 ESIGN_FACE_* 覆盖。
     app-id: ${ESIGN_FACE_APP_ID}
     app-secret: ${ESIGN_FACE_APP_SECRET}
     mode: ${ESIGN_FACE_MODE:ESIGN}
     callback-url: ${ESIGN_FACE_CALLBACK_URL:}
 
-# ========== 安全加密 ==========
+# 实名认证数据加密配置。
 security:
   real-name:
+    # 身份证信息加密密钥，按服务实现要求提供 Base64 编码的 32 字节密钥。
     id-card-key: ${REAL_NAME_ID_CARD_KEY:}
 
-# ========== 沉浸式看房 ==========
+# 可选功能开关。
 features:
   immersive-tour:
+    # 是否启用沉浸式看房功能。
     enabled: ${FEATURE_IMMERSIVE_TOUR_ENABLED:true}

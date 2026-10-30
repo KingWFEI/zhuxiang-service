@@ -23,12 +23,17 @@ public class InternalAgentRequestValidator {
 
     private static final Logger log = LoggerFactory.getLogger(InternalAgentRequestValidator.class);
     private final AgentProperties properties;
+    private final AgentToolPermissionService toolPermissionService;
 
-    public InternalAgentRequestValidator(AgentProperties properties) {
+    public InternalAgentRequestValidator(
+            AgentProperties properties,
+            AgentToolPermissionService toolPermissionService
+    ) {
         this.properties = properties;
+        this.toolPermissionService = toolPermissionService;
     }
 
-    public String validate(HttpServletRequest request) {
+    public String validate(HttpServletRequest request, String toolName, String pathUserId) {
         String requestId = normalizeRequestId(request.getHeader("X-Request-Id"));
         String actualKey = request.getHeader("X-Internal-Api-Key");
         String source = request.getHeader("X-Internal-Source");
@@ -43,6 +48,23 @@ public class InternalAgentRequestValidator {
                             + "keyValid={} sourceValid={} addressValid={}",
                     requestId, source, remoteAddress, keyValid, sourceValid, addressValid);
             throw BusinessException.forbidden("内部接口鉴权失败");
+        }
+        String actorId = request.getHeader("X-Agent-User-Id");
+        String actorRole = request.getHeader("X-Agent-User-Role");
+        String requestedTool = request.getHeader("X-Agent-Tool");
+        if (actorId == null || actorId.isBlank()
+                || actorRole == null || actorRole.isBlank()
+                || !secureEquals(requestedTool, toolName)) {
+            log.warn("拒绝缺少可信用户上下文的 Agent 工具调用: requestId={} tool={}",
+                    requestId, toolName);
+            throw BusinessException.forbidden("Agent 用户上下文无效");
+        }
+        toolPermissionService.requireAllowed(actorRole, toolName);
+        if (pathUserId != null && !secureEquals(actorId, pathUserId)
+                && !toolPermissionService.mayAccessAnyUser(actorRole)) {
+            log.warn("拒绝 Agent 跨用户读取: requestId={} tool={} actorId={} pathUserId={}",
+                    requestId, toolName, actorId, pathUserId);
+            throw BusinessException.forbidden("智能体只能读取当前登录用户的业务数据");
         }
         return requestId;
     }

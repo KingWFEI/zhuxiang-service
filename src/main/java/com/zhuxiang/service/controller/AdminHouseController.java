@@ -18,7 +18,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -52,15 +55,18 @@ public class AdminHouseController {
     /**
      * 新增房源。
      */
-    @PostMapping
-    @Operation(summary = "新增房源", description = "在同一事务中创建房源，并关联已上传图片、设施和标签。")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "新增房源", description = "一次提交房源信息和图片；图片上传及房源入库在同一事务中完成。")
     public ApiResponse<AdminHouseDtos.AdminHouseView> createHouse(
             HttpServletRequest servletRequest,
-            @Valid @RequestBody AdminHouseDtos.CreateHouseRequest request
+            @RequestPart("house") @Valid AdminHouseDtos.CreateHouseRequest request,
+            @RequestPart("images") List<MultipartFile> images,
+            @RequestParam("coverIndex") int coverIndex
     ) {
         return ApiResponse.success(
                 "房源创建成功",
-                houseService.createHouse(request, CurrentUser.id(servletRequest))
+                houseService.createHouseWithImages(
+                        request, images, coverIndex, CurrentUser.id(servletRequest))
         );
     }
 

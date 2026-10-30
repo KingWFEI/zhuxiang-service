@@ -2,6 +2,7 @@ package com.zhuxiang.service.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhuxiang.service.client.CustomerServiceAgentClient;
+import com.zhuxiang.service.auth.AgentToolPermissionService;
 import com.zhuxiang.service.dto.CustomerServiceDtos;
 import com.zhuxiang.service.entity.CustomerServiceEnums;
 import com.zhuxiang.service.entity.CustomerServiceLlmLog;
@@ -37,6 +38,7 @@ public class CustomerServiceChatService {
     private final CustomerServiceSessionService sessionService;
     private final CustomerServiceMessageService messageService;
     private final CustomerServiceAgentClient agentClient;
+    private final AgentToolPermissionService toolPermissionService;
     private final CustomerServiceLlmLogMapper llmLogMapper;
     private final CustomerServiceRetrievalLogMapper retrievalLogMapper;
     private final Executor executor;
@@ -45,6 +47,7 @@ public class CustomerServiceChatService {
             CustomerServiceSessionService sessionService,
             CustomerServiceMessageService messageService,
             CustomerServiceAgentClient agentClient,
+            AgentToolPermissionService toolPermissionService,
             CustomerServiceLlmLogMapper llmLogMapper,
             CustomerServiceRetrievalLogMapper retrievalLogMapper,
             @Qualifier("customerServiceExecutor") Executor executor
@@ -52,13 +55,15 @@ public class CustomerServiceChatService {
         this.sessionService = sessionService;
         this.messageService = messageService;
         this.agentClient = agentClient;
+        this.toolPermissionService = toolPermissionService;
         this.llmLogMapper = llmLogMapper;
         this.retrievalLogMapper = retrievalLogMapper;
         this.executor = executor;
     }
 
     public SseEmitter streamMessage(
-            String userId, String sessionId, String content, String incomingRequestId) {
+            String userId, String userRole, String sessionId,
+            String content, String incomingRequestId) {
         String requestId = normalizeRequestId(incomingRequestId);
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         AtomicReference<String> assistantMessageId = new AtomicReference<>();
@@ -81,7 +86,7 @@ public class CustomerServiceChatService {
         try {
             executor.execute(() -> process(
                     emitter, connectionClosed, assistantMessageId, fullAnswer,
-                    requestId, userId, sessionId, content));
+                    requestId, userId, userRole, sessionId, content));
         } catch (RejectedExecutionException rejected) {
             connectionClosed.set(true);
             log.warn("客服并发已满: requestId={} sessionId={}", requestId, sessionId);
@@ -105,6 +110,7 @@ public class CustomerServiceChatService {
             StringBuffer fullAnswer,
             String requestId,
             String userId,
+            String userRole,
             String sessionId,
             String content
     ) {
@@ -137,6 +143,8 @@ public class CustomerServiceChatService {
                     requestId,
                     sessionId,
                     userId,
+                    userRole,
+                    toolPermissionService.allowedTools(userRole),
                     userMessage.id(),
                     assistantMessage.getId(),
                     content,

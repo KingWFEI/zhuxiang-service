@@ -1,9 +1,10 @@
 package com.zhuxiang.service.service.impl;
 
+import com.zhuxiang.service.config.ObjectStorageProperties;
 import com.zhuxiang.service.service.ObjectStorageService;
 import com.zhuxiang.service.service.PrivateObjectStorageService;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -13,22 +14,30 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 /**
- * 开发和测试使用的本地文件存储，当 COS 不可用时作为兜底实现。
+ * 本地磁盘文件存储实现，公开目录、私有目录和访问 URL 均由 app.storage.local 配置。
  */
 @Service
-@ConditionalOnMissingBean(ObjectStorageService.class)
+@ConditionalOnProperty(prefix = "app.storage", name = "type", havingValue = "local", matchIfMissing = true)
 public class LocalObjectStorageService
         implements ObjectStorageService, PrivateObjectStorageService {
 
     private final Path uploadDirectory;
+    private final Path privateUploadDirectory;
     private final String contextPath;
+    private final String publicPath;
 
     public LocalObjectStorageService(
-            @Value("${app.upload.directory}") String uploadDirectory,
+            ObjectStorageProperties storageProperties,
             @Value("${server.servlet.context-path:/api}") String contextPath
     ) {
-        this.uploadDirectory = Path.of(uploadDirectory).toAbsolutePath().normalize();
-        this.contextPath = contextPath;
+        ObjectStorageProperties.Local local = storageProperties.getLocal();
+        this.uploadDirectory = Path.of(local.getDirectory()).toAbsolutePath().normalize();
+        this.privateUploadDirectory = Path.of(local.getPrivateDirectory()).toAbsolutePath().normalize();
+        if (privateUploadDirectory.startsWith(this.uploadDirectory)) {
+            throw new IllegalArgumentException("本地敏感文件目录必须位于公开文件目录之外");
+        }
+        this.contextPath = normalizeContextPath(contextPath);
+        this.publicPath = normalizePublicPath(local.getPublicPath());
     }
 
     /** 保存到本地上传目录并返回原有静态资源 URL。 */
@@ -41,17 +50,30 @@ public class LocalObjectStorageService
         try {
             Files.createDirectories(target.getParent());
             Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
-            return contextPath + "/uploads/" + objectKey.replace('\\', '/');
+            return contextPath + publicPath + "/" + objectKey.replace('\\', '/');
         } catch (IOException exception) {
             throw new IllegalStateException("本地文件保存失败", exception);
         }
     }
 
     @Override
+    public void delete(String objectKey) {
+        Path target = uploadDirectory.resolve(objectKey).normalize();
+        if (!target.startsWith(uploadDirectory)) {
+            throw new IllegalArgumentException("对象路径无效");
+        }
+        try {
+            Files.deleteIfExists(target);
+        } catch (IOException exception) {
+            throw new IllegalStateException("本地文件清理失败", exception);
+        }
+    }
+
+    @Override
     public String storePrivate(
             String objectKey, InputStream input, long size, String contentType) {
-        Path target = privateDirectory().resolve(objectKey).normalize();
-        if (!target.startsWith(privateDirectory())) {
+        Path target = privateUploadDirectory.resolve(objectKey).normalize();
+        if (!target.startsWith(privateUploadDirectory)) {
             throw new IllegalArgumentException("私有对象路径无效");
         }
         try {
@@ -65,8 +87,8 @@ public class LocalObjectStorageService
 
     @Override
     public StoredPrivateObject openPrivate(String objectKey) {
-        Path target = privateDirectory().resolve(objectKey).normalize();
-        if (!target.startsWith(privateDirectory()) || !Files.isRegularFile(target)) {
+        Path target = privateUploadDirectory.resolve(objectKey).normalize();
+        if (!target.startsWith(privateUploadDirectory) || !Files.isRegularFile(target)) {
             throw new IllegalArgumentException("私有文件不存在");
         }
         try {
@@ -81,11 +103,34 @@ public class LocalObjectStorageService
         }
     }
 
-    private Path privateDirectory() {
-        Path directoryName = uploadDirectory.getFileName();
-        String privateName = directoryName == null
-                ? "private-uploads"
-                : directoryName + "-private";
-        return uploadDirectory.resolveSibling(privateName).normalize();
+    private static String normalizeContextPath(String path) {
+        if (path == null || path.isBlank() || "/".equals(path.trim())) {
+            return "";
+        }
+        String normalized = path.trim().replace('\\', '/');
+        if (!normalized.startsWith("/")) {
+            normalized = "/" + normalized;
+        }
+        while (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    private static String normalizePublicPath(String path) {
+        if (path == null || path.isBlank()) {
+            throw new IllegalArgumentException("必须配置本地公开文件 URL 路径");
+        }
+        String normalized = path.trim().replace('\\', '/');
+        if (!normalized.startsWith("/")) {
+            normalized = "/" + normalized;
+        }
+        while (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        if ("/".equals(normalized) || normalized.contains("..")) {
+            throw new IllegalArgumentException("本地公开文件 URL 路径无效");
+        }
+        return normalized;
     }
 }

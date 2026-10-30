@@ -34,8 +34,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
         String userId = tokenProvider.parseAccessToken(authorization.substring(7).trim());
-        userService.requireActiveUser(userId);
+        var user = userService.requireActiveUser(userId);
         request.setAttribute(CurrentUser.USER_ID_ATTRIBUTE, userId);
+        request.setAttribute(CurrentUser.USER_ROLE_ATTRIBUTE, user.getRole());
         return true;
     }
 }

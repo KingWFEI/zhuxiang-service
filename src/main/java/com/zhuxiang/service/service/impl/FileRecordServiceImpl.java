@@ -9,7 +9,11 @@ import com.zhuxiang.service.mapper.FileRecordMapper;
 import com.zhuxiang.service.service.FileRecordService;
 import com.zhuxiang.service.service.ObjectStorageService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,6 +26,8 @@ import java.util.UUID;
 @Service
 public class FileRecordServiceImpl extends ServiceImpl<FileRecordMapper, FileRecord>
         implements FileRecordService {
+
+    private static final Logger log = LoggerFactory.getLogger(FileRecordServiceImpl.class);
 
     private static final Map<String, String> CONTENT_TYPE_EXTENSIONS = Map.of(
             "image/jpeg", ".jpg",
@@ -82,6 +88,7 @@ public class FileRecordServiceImpl extends ServiceImpl<FileRecordMapper, FileRec
         }
         String objectKey = objectDirectory + "/" + LocalDate.now().format(PATH_DATE)
                 + "/" + UUID.randomUUID() + extension;
+        boolean cleanupAfterRollback = registerRollbackCleanup(objectKey);
         try (InputStream input = file.getInputStream()) {
             String url = objectStorageService.store(
                     objectKey, input, file.getSize(), file.getContentType()
@@ -93,11 +100,48 @@ public class FileRecordServiceImpl extends ServiceImpl<FileRecordMapper, FileRec
             record.setUrl(url);
             record.setBizType(bizType);
             record.setCreatedAt(LocalDateTime.now());
-            save(record);
+            if (!save(record)) {
+                throw new IllegalStateException("文件记录保存失败");
+            }
 
             return new FileUploadResponse(url, record.getId());
         } catch (IOException exception) {
+            if (!cleanupAfterRollback) {
+                deleteSafely(objectKey);
+            }
             throw new IllegalStateException("文件保存失败", exception);
+        } catch (RuntimeException exception) {
+            if (!cleanupAfterRollback) {
+                deleteSafely(objectKey);
+            }
+            throw exception;
+        }
+    }
+
+    /**
+     * 图片对象不受数据库事务管理；事务回滚时注册补偿删除，保证创建房源失败不遗留图片。
+     */
+    private boolean registerRollbackCleanup(String objectKey) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()
+                || !TransactionSynchronizationManager.isActualTransactionActive()) {
+            return false;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    deleteSafely(objectKey);
+                }
+            }
+        });
+        return true;
+    }
+
+    private void deleteSafely(String objectKey) {
+        try {
+            objectStorageService.delete(objectKey);
+        } catch (RuntimeException exception) {
+            log.error("房源图片回滚清理失败 objectKey={}", objectKey, exception);
         }
     }
 
