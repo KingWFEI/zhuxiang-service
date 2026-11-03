@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the EaseNest MySQL backup every day
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=600
+Unit=easenest-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,12 @@
+.git
+.idea
+.mvn
+docs
+src
+uploads
+.env
+.env.*
+*.md
+*.json
+target/*
+!target/zhuxiang-service-0.0.1-SNAPSHOT.jar
