@@ -41,3 +41,5 @@ src/main/resources/application.yml
 .env.*
 .env.example
 !.env.example
+!.env.docker.example
+.env.docker

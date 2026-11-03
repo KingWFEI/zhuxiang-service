@@ -7,7 +7,7 @@
 - Java 21
 - Spring Boot 3.5.15
 - MyBatis-Plus 3.5.15
-- MySQL 8.x
+- MySQL 8.0 or newer (the included Docker setup uses MySQL 9.5.0)
 - Flyway
 - Maven Wrapper
 
@@ -29,6 +29,43 @@ Authorization: Bearer <accessToken>
 ```
 
 ## 数据库
+
+### 使用 Docker 启动 MySQL
+
+在服务端项目根目录复制 `.env.docker.example` 为 `.env.docker`，填写独立的强密码，然后启动：
+
+```powershell
+Copy-Item .env.docker.example .env.docker
+# 编辑 .env.docker 中的 MYSQL_ROOT_PASSWORD 和 DB_PASSWORD
+docker compose --env-file .env.docker up -d
+docker compose ps
+```
+
+容器数据保存在 Docker 命名卷 `zhuxiang_ease_nest_mysql_data` 中。停止容器后数据仍保留；不要执行 `docker compose down -v`，该命令会删除数据库卷。
+
+连接信息：
+
+- 本机或同一台服务器上的 Spring Boot：`127.0.0.1:3307`
+- 数据库：`ease_nest`
+- 用户：`.env.docker` 中的 `DB_USERNAME`（默认示例为 `zhuxiang_app`）
+- 密码：`.env.docker` 中的 `DB_PASSWORD`
+- JDBC：`jdbc:mysql://127.0.0.1:3307/ease_nest?characterEncoding=UTF-8&connectionCollation=utf8mb4_0900_ai_ci&serverTimezone=Asia/Shanghai`
+- 同一 Docker 网络中的其他容器：`db:3306`
+
+端口默认只绑定本机回环地址，不会直接暴露给公网。不要把 MySQL 端口开放到互联网；远程运维请使用 SSH 隧道或私有网络。
+
+从本机 MySQL 迁移已有数据库时，先执行备份，再把 SQL 导入容器；不要将空白容器直接当成已有数据的副本。当前已迁移的 Flyway 历史可以随数据库备份一同迁移。容器启动后如需从主机连接 Spring Boot，设置 `DB_URL`、`DB_USERNAME` 和 `DB_PASSWORD` 为上面的连接参数。
+
+PowerShell 本地启动服务时，可从 `.env.docker` 读取数据库密码，不必把密码写进命令：
+
+```powershell
+$env:DB_URL = "jdbc:mysql://127.0.0.1:3307/ease_nest?characterEncoding=UTF-8&connectionCollation=utf8mb4_0900_ai_ci&serverTimezone=Asia/Shanghai"
+$env:DB_USERNAME = "zhuxiang_app"
+$env:DB_PASSWORD = (Get-Content .env.docker | Where-Object { $_ -like "DB_PASSWORD=*" }) -replace "^DB_PASSWORD=", ""
+.\mvnw.cmd spring-boot:run
+```
+
+### 首次建库
 
 创建数据库：
 
@@ -58,9 +95,9 @@ CREATE DATABASE ease_nest
 
 | 配置项 | 环境变量 | 默认值 |
 | --- | --- | --- |
-| JDBC 地址 | `DB_URL` | `jdbc:mysql://localhost:3306/ease_nest?characterEncoding=UTF-8&connectionCollation=utf8mb4_0900_ai_ci&serverTimezone=Asia/Shanghai` |
-| 数据库用户名 | `DB_USERNAME` | `root` |
-| 数据库密码 | `DB_PASSWORD` | 空 |
+| JDBC 地址 | `DB_URL` | `jdbc:mysql://127.0.0.1:3307/ease_nest?characterEncoding=UTF-8&connectionCollation=utf8mb4_0900_ai_ci&serverTimezone=Asia/Shanghai` |
+| 数据库用户名 | `DB_USERNAME` | `zhuxiang_app` |
+| 数据库密码 | `DB_PASSWORD` | 从 `.env.docker` 配置 |
 | 服务端口 | `SERVER_PORT` | `8000` |
 | API 前缀 | `API_PREFIX` | `/api` |
 | Token 密钥 | `TOKEN_SECRET` | 本地开发默认值 |
