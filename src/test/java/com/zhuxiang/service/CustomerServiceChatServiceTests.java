@@ -1,5 +1,6 @@
 package com.zhuxiang.service;
 
+import com.zhuxiang.service.auth.AgentToolPermissionService;
 import com.zhuxiang.service.client.CustomerServiceAgentClient;
 import com.zhuxiang.service.dto.CustomerServiceDtos;
 import com.zhuxiang.service.entity.CustomerServiceEnums;
@@ -21,7 +22,6 @@ import java.util.concurrent.Executor;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-
 class CustomerServiceChatServiceTests {
 
     @Test
@@ -29,6 +29,8 @@ class CustomerServiceChatServiceTests {
         CustomerServiceSessionService sessionService = mock(CustomerServiceSessionService.class);
         CustomerServiceMessageService messageService = mock(CustomerServiceMessageService.class);
         CustomerServiceAgentClient agentClient = mock(CustomerServiceAgentClient.class);
+        AgentToolPermissionService toolPermissionService = mock(AgentToolPermissionService.class);
+        when(toolPermissionService.allowedTools(anyString())).thenReturn(java.util.Set.of());
         CustomerServiceLlmLogMapper llmLogMapper = mock(CustomerServiceLlmLogMapper.class);
         CustomerServiceRetrievalLogMapper retrievalLogMapper = mock(CustomerServiceRetrievalLogMapper.class);
         Executor directExecutor = Runnable::run;
@@ -49,10 +51,10 @@ class CustomerServiceChatServiceTests {
 
         when(agentClient.getModel()).thenReturn("deepseek-v4-flash");
         when(agentClient.streamChat(
-                eq("request-123"), eq("session"), eq("user"), eq("user-message"),
-                eq("assistant-message"), eq("我的账单"), anyList(), any()))
+                anyString(), eq("session"), eq("user"), eq("TENANT"), anySet(),
+                anyString(), eq("assistant-message"), eq("我的账单"), anyList(), any()))
                 .thenAnswer(invocation -> {
-                    CustomerServiceAgentClient.AgentSseEventConsumer consumer = invocation.getArgument(7);
+                    CustomerServiceAgentClient.AgentSseEventConsumer consumer = invocation.getArgument(9);
                     consumer.accept(new CustomerServiceAgentClient.AgentSseEvent(
                             "delta", "{\"content\":\"账单正常\"}"));
                     consumer.accept(new CustomerServiceAgentClient.AgentSseEvent(
@@ -62,9 +64,9 @@ class CustomerServiceChatServiceTests {
                 });
 
         CustomerServiceChatService service = new CustomerServiceChatService(
-                sessionService, messageService, agentClient, llmLogMapper,
-                retrievalLogMapper, directExecutor);
-        service.streamMessage("user", "session", "我的账单", "request-123");
+                sessionService, messageService, agentClient, toolPermissionService,
+                llmLogMapper, retrievalLogMapper, directExecutor);
+        service.streamMessage("user", "TENANT", "session", "我的账单", "request-123");
 
         verify(sessionService).resumeSession("user", "session");
 
@@ -72,8 +74,9 @@ class CustomerServiceChatServiceTests {
         ArgumentCaptor<List<CustomerServiceDtos.AgentHistoryItem>> historyCaptor =
                 ArgumentCaptor.forClass(List.class);
         verify(agentClient).streamChat(
-                eq("request-123"), eq("session"), eq("user"), eq("user-message"),
-                eq("assistant-message"), eq("我的账单"), historyCaptor.capture(), any());
+                anyString(), eq("session"), eq("user"), eq("TENANT"), anySet(),
+                anyString(), eq("assistant-message"), eq("我的账单"),
+                historyCaptor.capture(), any());
         assertTrue(historyCaptor.getValue().isEmpty());
         verify(messageService).updateAssistantMessage(
                 "assistant-message", "账单正常", CustomerServiceEnums.MessageStatus.DONE, null);

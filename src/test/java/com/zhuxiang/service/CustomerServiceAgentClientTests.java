@@ -52,7 +52,9 @@ class CustomerServiceAgentClientTests {
         List<CustomerServiceAgentClient.AgentSseEvent> events = new ArrayList<>();
 
         var metadata = client.streamChat(
-                "request-123", "session", "user", "user-message", "assistant-message",
+                "request-123", "session", "user", "TENANT",
+                java.util.Set.of(),
+                "user-message", "assistant-message",
                 "你好", List.of(), events::add);
 
         assertEquals(2, events.size());
