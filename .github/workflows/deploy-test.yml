@@ -41,17 +41,10 @@ jobs:
           cache: maven
 
       - name: Verify backend
-        env:
-          # The SDK client is constructed during Spring integration tests but
-          # no request is sent to COS. Use non-secret placeholders in CI.
-          TENCENT_COS_SECRET_ID: ci-placeholder-id
-          TENCENT_COS_SECRET_KEY: ci-placeholder-key
         run: |
           chmod +x mvnw
-          # The repository-wide OpenAPI documentation audit currently contains
-          # pre-existing failures in historical controllers. Keep all other
-          # unit and integration tests as the deployment gate.
-          ./mvnw -B clean verify '-Dtest=!OpenApiDocumentationTests'
+          # 只运行不依赖数据库的单元测试；集成测试待独立测试容器补齐后再纳入门禁。
+          ./mvnw -B clean verify
 
       - name: Prepare release
         run: |
