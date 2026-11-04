@@ -166,7 +166,7 @@ http://localhost:8000/api
 
 ## 测试与构建
 
-集成测试使用 MySQL 测试库 `zhuxiang_test` 和 Flyway，测试库也需要按上述字符集与排序规则创建。运行测试前确认 `src/test/resources/application-test.yml` 中的连接信息对应可清空的测试库：
+集成测试使用 MySQL 测试库 `zhuxiang_test` 和 Flyway，测试库也需要按上述字符集与排序规则创建。运行测试前确认 `DB_URL`、`DB_USERNAME`、`DB_PASSWORD` 指向可清空的测试库（可写入 `.env`）：
 
 ```powershell
 .\mvnw.cmd clean verify
