@@ -307,15 +307,15 @@ class AdminHouseImageCreationTests {
     }
 
     @Test
-    void updatesAttributesAndAppendsImagesWithoutDeletingExistingRecords() {
+    void updatesAttributesAndReplacesExistingImages() {
         User admin = new User();
         admin.setId("admin-1");
         admin.setRole("ADMIN");
         House house = new House();
         house.setId("house-1");
         house.setCoverImage("https://cdn.example.com/old-cover.jpg");
-        HouseImage oldImage = image("https://cdn.example.com/old-cover.jpg");
-        oldImage.setSortOrder(0);
+        house.setPrice(200000);
+        house.setPaymentMethod("押一付一");
         HouseImage newCover = image("https://cdn.example.com/new-cover.jpg");
         newCover.setSortOrder(1);
         HouseImage newRoom = image("https://cdn.example.com/new-room.jpg");
@@ -326,9 +326,7 @@ class AdminHouseImageCreationTests {
         when(houseMapper.updateById(any(House.class))).thenReturn(1);
         when(facilityService.list(any(Wrapper.class))).thenReturn(List.of(facility("wifi")));
         when(tagService.list(any(Wrapper.class))).thenReturn(List.of(tag("near_metro")));
-        when(imageService.list(any(Wrapper.class)))
-                .thenReturn(List.of(oldImage))
-                .thenReturn(List.of(oldImage, newCover, newRoom));
+        when(imageService.list(any(Wrapper.class))).thenReturn(List.of(newCover, newRoom));
 
         AdminHouseDtos.AdminHouseView response = service.updateHouse(
                 "house-1",
@@ -341,7 +339,7 @@ class AdminHouseImageCreationTests {
                 "admin-1"
         );
 
-        verify(imageService, never()).remove(any(Wrapper.class));
+        verify(imageService).remove(any(Wrapper.class));
         ArgumentCaptor<Collection<HouseImage>> imagesCaptor = collectionCaptor();
         verify(imageService).saveBatch(imagesCaptor.capture());
         assertThat(imagesCaptor.getValue())
@@ -349,7 +347,6 @@ class AdminHouseImageCreationTests {
                 .containsExactly("https://cdn.example.com/new-cover.jpg", "https://cdn.example.com/new-room.jpg");
         assertThat(response.coverImage()).isEqualTo("https://cdn.example.com/new-cover.jpg");
         assertThat(response.imageUrls()).containsExactly(
-                "https://cdn.example.com/old-cover.jpg",
                 "https://cdn.example.com/new-cover.jpg",
                 "https://cdn.example.com/new-room.jpg"
         );
@@ -374,6 +371,8 @@ class AdminHouseImageCreationTests {
         admin.setRole("ADMIN");
         House house = new House();
         house.setId("house-1");
+        house.setPrice(200000);
+        house.setPaymentMethod("押一付一");
         when(userService.requireActiveUser("admin-1")).thenReturn(admin);
         when(houseMapper.selectById("house-1")).thenReturn(house);
 
