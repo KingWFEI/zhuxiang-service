@@ -2,32 +2,38 @@ package com.zhuxiang.service.config;
 
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.net.URI;
 
 /**
- * 生产环境支付安全门禁。禁止带着沙箱、Mock 或缺失的商户配置启动。
+ * 非本地环境的支付安全门禁，禁止带着 Mock 或缺失的商户配置启动。
+ * 正式网关与 APP 支付只在 prod 强制，测试环境允许使用沙箱验证同一套调用链路。
  */
 @Component
-@Profile({"prod", "production"})
+@Profile("!dev")
 public class AlipayProductionGuard implements InitializingBean {
 
     static final String OFFICIAL_GATEWAY = "https://openapi.alipay.com/gateway.do";
 
     private final AlipayProperties properties;
+    private final Environment environment;
 
-    public AlipayProductionGuard(AlipayProperties properties) {
+    public AlipayProductionGuard(AlipayProperties properties, Environment environment) {
         this.properties = properties;
+        this.environment = environment;
     }
 
     @Override
     public void afterPropertiesSet() {
-        if (!OFFICIAL_GATEWAY.equals(trim(properties.getGatewayUrl()))) {
+        boolean production = environment.acceptsProfiles(Profiles.of("prod", "production"));
+        if (production && !OFFICIAL_GATEWAY.equals(trim(properties.getGatewayUrl()))) {
             throw invalid("必须使用支付宝正式网关");
         }
-        if (!"app".equalsIgnoreCase(trim(properties.getPayType()))) {
+        if (production && !"app".equalsIgnoreCase(trim(properties.getPayType()))) {
             throw invalid("必须使用 APP 支付");
         }
         if (properties.isMockEnabled()) {

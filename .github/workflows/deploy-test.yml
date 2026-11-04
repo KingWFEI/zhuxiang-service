@@ -74,9 +74,10 @@ jobs:
         run: |
           remote_dir="/home/${TEST_SERVER_USER}/easenest-release-${GITHUB_SHA}"
           scp -r release "${TEST_SERVER_USER}@${TEST_SERVER_HOST}:${remote_dir}"
+          # 服务器内存只有 1.6G，buildkit 构建期间容易超时/OOM。
+          # 先停掉应用容器释放内存，构建完成后再启动，healthz 校验会确认最终状态。
           ssh "${TEST_SERVER_USER}@${TEST_SERVER_HOST}" \
-            "sudo docker rm -f easenest-migration-check >/dev/null 2>&1 || true; \
-             sudo rm -rf -- /tmp/easenest-migration-check; \
+            "sudo rm -rf -- /tmp/easenest-migration-check; \
              sudo install -d /opt/apps/easenest/backend/target /opt/apps/easenest/deploy && \
              sudo cp '${remote_dir}/backend/target/zhuxiang-service-0.0.1-SNAPSHOT.jar' \
                /opt/apps/easenest/backend/target/zhuxiang-service-0.0.1-SNAPSHOT.jar && \
@@ -84,6 +85,7 @@ jobs:
              sudo cp '${remote_dir}/backend/.dockerignore' /opt/apps/easenest/backend/.dockerignore && \
              sudo cp '${remote_dir}/deploy/'* /opt/apps/easenest/deploy/ && \
              cd /opt/apps/easenest/deploy && \
+             sudo docker stop easenest-backend-1 easenest-gateway easenest-redis-1 >/dev/null 2>&1 || true; \
              sudo docker compose --env-file ../secrets/compose.env \
                -f docker-compose.prod.yml -f docker-compose.test.yml up -d --build && \
              rm -rf -- '${remote_dir}'"

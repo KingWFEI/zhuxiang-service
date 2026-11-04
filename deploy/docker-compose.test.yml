@@ -1,6 +1,11 @@
 services:
   backend:
     environment:
+      # 测试环境使用 test profile，加载 application-test.yml。
+      # 三个安全门禁（支付宝/短信/实时消息）用 @Profile("!dev") 生效，
+      # 测试环境同样会校验，确保生产配置问题提前暴露。
+      SPRING_PROFILES_ACTIVE: test
+      # App-only 测试登录账号：仅对配置的手机号和 login 场景接受固定验证码。
       APP_TEST_USER_ENABLED: "true"
       APP_TEST_USER_ID: 00000000-0000-0000-0000-000000000002
       APP_TEST_USER_PHONE: "13900000000"
