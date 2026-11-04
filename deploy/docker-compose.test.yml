@@ -1,13 +1,8 @@
 services:
   backend:
     environment:
-      # 测试环境使用 test profile，加载 application-test.yml。
-      # 三个安全门禁（支付宝/短信/实时消息）用 @Profile("!dev") 生效，
-      # 测试环境同样会校验，确保生产配置问题提前暴露。
+      # 测试环境使用 test profile；安全门禁（@Profile("!dev")）同样生效，确保生产配置问题提前暴露。
       SPRING_PROFILES_ACTIVE: test
-      # App-only 测试登录账号：仅对配置的手机号和 login 场景接受固定验证码。
-      APP_TEST_USER_ENABLED: "true"
-      APP_TEST_USER_ID: 00000000-0000-0000-0000-000000000002
-      APP_TEST_USER_PHONE: "13900000000"
-      APP_TEST_USER_NICKNAME: App测试用户
-      APP_TEST_USER_VERIFICATION_CODE: "246810"
+      # 测试环境使用沙箱网关和网页支付，其余取值继承 docker-compose.yml。
+      ALIPAY_GATEWAY_URL: https://openapi-sandbox.dl.alipaydev.com/gateway.do
+      ALIPAY_PAY_TYPE: h5

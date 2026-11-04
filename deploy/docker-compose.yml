@@ -69,13 +69,20 @@ services:
       REDIS_PORT: "6379"
       FLYWAY_ENABLED: "true"
       FLYWAY_OUT_OF_ORDER: "false"
-      UPLOAD_DIRECTORY: /app/uploads
+      LOCAL_STORAGE_DIRECTORY: /app/uploads
+      LOCAL_PRIVATE_STORAGE_DIRECTORY: /app/uploads-private
+      SMS_RATE_LIMIT_STORE: redis
+      SMS_EXPOSE_CODE: "false"
+      MESSAGE_EVENT_BROKER: redis
       ALIPAY_GATEWAY_URL: https://openapi.alipay.com/gateway.do
+      ALIPAY_PAY_TYPE: app
       ALIPAY_NOTIFY_URL: https://kingwangf.fun/api/payments/alipay/notify
       ALIPAY_RETURN_URL: https://kingwangf.fun/zhuxiang-payment-done
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?SUPER_ADMIN_PASSWORD is required}
     volumes:
       - uploads:/app/uploads
+      # 私有文件放在宿主机目录，不随容器或镜像重建而丢失。
+      - ../data/uploads-private:/app/uploads-private
     depends_on:
       mysql:
         condition: service_healthy
