@@ -34,6 +34,8 @@ public class SmsCodeProperties {
     private String rateLimitStore = "memory";
     private String fixedCode = "";
     private boolean exposeCode = false;
+    private String provider = "none";
+    private Aliyun aliyun = new Aliyun();
 
     public int getExpiresSeconds() {
         return expiresSeconds;
@@ -113,5 +115,72 @@ public class SmsCodeProperties {
 
     public void setExposeCode(boolean exposeCode) {
         this.exposeCode = exposeCode;
+    }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
+    }
+
+    public Aliyun getAliyun() {
+        return aliyun;
+    }
+
+    public void setAliyun(Aliyun aliyun) {
+        this.aliyun = aliyun;
+    }
+
+    /**
+     * 阿里云短信服务配置。模板需只包含一个变量 ${code}。
+     */
+    public static class Aliyun {
+        private String accessKeyId = "";
+        private String accessKeySecret = "";
+        private String endpoint = "dysmsapi.aliyuncs.com";
+        private String signName = "";
+        private String templateCode = "";
+
+        public String getAccessKeyId() {
+            return accessKeyId;
+        }
+
+        public void setAccessKeyId(String accessKeyId) {
+            this.accessKeyId = accessKeyId;
+        }
+
+        public String getAccessKeySecret() {
+            return accessKeySecret;
+        }
+
+        public void setAccessKeySecret(String accessKeySecret) {
+            this.accessKeySecret = accessKeySecret;
+        }
+
+        public String getEndpoint() {
+            return endpoint;
+        }
+
+        public void setEndpoint(String endpoint) {
+            this.endpoint = endpoint;
+        }
+
+        public String getSignName() {
+            return signName;
+        }
+
+        public void setSignName(String signName) {
+            this.signName = signName;
+        }
+
+        public String getTemplateCode() {
+            return templateCode;
+        }
+
+        public void setTemplateCode(String templateCode) {
+            this.templateCode = templateCode;
+        }
     }
 }

@@ -73,6 +73,7 @@ services:
       LOCAL_PRIVATE_STORAGE_DIRECTORY: /app/uploads-private
       SMS_RATE_LIMIT_STORE: redis
       SMS_EXPOSE_CODE: "false"
+      SMS_PROVIDER: aliyun
       MESSAGE_EVENT_BROKER: redis
       ALIPAY_GATEWAY_URL: https://openapi.alipay.com/gateway.do
       ALIPAY_PAY_TYPE: app

@@ -15,6 +15,11 @@ import org.springframework.web.multipart.MultipartFile;
 public interface UserService extends IService<User> {
 
     /**
+     * 判断手机号是否已注册。
+     */
+    boolean isPhoneRegistered(String phone);
+
+    /**
      * 使用短信验证码登录。
      */
     AuthDtos.AuthResult loginByCode(AuthDtos.CodeLoginRequest request);

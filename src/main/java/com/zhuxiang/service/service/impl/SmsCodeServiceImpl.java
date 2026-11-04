@@ -9,6 +9,7 @@ import com.zhuxiang.service.dto.AuthDtos;
 import com.zhuxiang.service.entity.SmsCode;
 import com.zhuxiang.service.service.SmsCodeService;
 import com.zhuxiang.service.service.SmsRateLimiter;
+import com.zhuxiang.service.service.SmsSender;
 import com.zhuxiang.service.mapper.SmsCodeMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,10 +40,12 @@ public class SmsCodeServiceImpl extends ServiceImpl<SmsCodeMapper, SmsCode>
 
     private final SmsCodeProperties properties;
     private final SmsRateLimiter rateLimiter;
+    private final SmsSender smsSender;
 
-    public SmsCodeServiceImpl(SmsCodeProperties properties, SmsRateLimiter rateLimiter) {
+    public SmsCodeServiceImpl(SmsCodeProperties properties, SmsRateLimiter rateLimiter, SmsSender smsSender) {
         this.properties = properties;
         this.rateLimiter = rateLimiter;
+        this.smsSender = smsSender;
     }
 
     /**
@@ -83,6 +86,7 @@ public class SmsCodeServiceImpl extends ServiceImpl<SmsCodeMapper, SmsCode>
         smsCode.setCreatedAt(now);
         save(smsCode);
 
+        smsSender.sendVerificationCode(request.phone(), smsCode.getCode());
         if (properties.isExposeCode()) {
             log.info("【仅限开发测试】手机号 {}，场景 {} 的验证码是：{}",
                     maskPhone(request.phone()), request.scene(), smsCode.getCode());

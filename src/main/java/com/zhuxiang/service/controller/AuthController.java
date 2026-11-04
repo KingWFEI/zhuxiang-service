@@ -3,6 +3,7 @@ package com.zhuxiang.service.controller;
 import com.zhuxiang.service.auth.CurrentUser;
 import com.zhuxiang.service.auth.RequireAuth;
 import com.zhuxiang.service.common.ApiResponse;
+import com.zhuxiang.service.common.BusinessException;
 import com.zhuxiang.service.dto.AuthDtos;
 import com.zhuxiang.service.service.UserService;
 import com.zhuxiang.service.service.RefreshTokenService;
@@ -49,6 +50,12 @@ public class AuthController {
             @Valid @RequestBody AuthDtos.SmsCodeRequest request,
             HttpServletRequest servletRequest
     ) {
+        if ("login".equals(request.scene()) && !userService.isPhoneRegistered(request.phone())) {
+            throw BusinessException.badRequest(
+                    "PHONE_NOT_REGISTERED",
+                    "该手机号未注册，请先注册"
+            );
+        }
         return ApiResponse.success(
                 "验证码发送成功",
                 smsCodeService.sendSmsCode(request, servletRequest.getRemoteAddr())

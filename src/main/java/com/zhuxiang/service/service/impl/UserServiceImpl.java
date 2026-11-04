@@ -91,6 +91,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         return createSession(user);
     }
 
+    @Override
+    public boolean isPhoneRegistered(String phone) {
+        return findByPhone(phone) != null;
+    }
+
     /**
      * 校验账号密码并完成用户登录。
      */

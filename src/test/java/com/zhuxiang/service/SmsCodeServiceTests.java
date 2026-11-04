@@ -7,6 +7,7 @@ import com.zhuxiang.service.dto.AuthDtos;
 import com.zhuxiang.service.entity.SmsCode;
 import com.zhuxiang.service.mapper.SmsCodeMapper;
 import com.zhuxiang.service.service.SmsRateLimiter;
+import com.zhuxiang.service.service.SmsSender;
 import com.zhuxiang.service.service.impl.SmsCodeServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -27,12 +29,13 @@ class SmsCodeServiceTests {
 
     private final SmsCodeMapper mapper = mock(SmsCodeMapper.class);
     private final SmsRateLimiter rateLimiter = mock(SmsRateLimiter.class);
+    private final SmsSender smsSender = mock(SmsSender.class);
     private final SmsCodeProperties properties = new SmsCodeProperties();
     private SmsCodeServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new SmsCodeServiceImpl(properties, rateLimiter);
+        service = new SmsCodeServiceImpl(properties, rateLimiter, smsSender);
         ReflectionTestUtils.setField(service, "baseMapper", mapper);
         when(rateLimiter.acquire(any(), any(), any()))
                 .thenReturn(SmsRateLimiter.RateLimitDecision.permit());
@@ -53,6 +56,26 @@ class SmsCodeServiceTests {
         assertThat(captor.getValue().getFailedAttempts()).isZero();
         assertThat(result.expiresIn()).isEqualTo(300);
         assertThat(result.retryAfter()).isEqualTo(60);
+    }
+
+    @Test
+    void sendDeliversGeneratedCodeThroughSmsSender() {
+        service.sendSmsCode(new AuthDtos.SmsCodeRequest("13800138000", "login"), "127.0.0.1");
+
+        ArgumentCaptor<SmsCode> captor = ArgumentCaptor.forClass(SmsCode.class);
+        verify(mapper).insert(captor.capture());
+        verify(smsSender).sendVerificationCode("13800138000", captor.getValue().getCode());
+    }
+
+    @Test
+    void sendFailurePropagatesAndDoesNotReturnSuccess() {
+        doThrow(BusinessException.serviceUnavailable("短信发送失败，请稍后重试"))
+                .when(smsSender).sendVerificationCode(any(), any());
+
+        assertThatThrownBy(() -> service.sendSmsCode(
+                new AuthDtos.SmsCodeRequest("13800138000", "login"), "127.0.0.1"
+        )).isInstanceOfSatisfying(BusinessException.class,
+                exception -> assertThat(exception.getCode()).isEqualTo(503));
     }
 
     @Test

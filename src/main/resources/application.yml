@@ -1,5 +1,8 @@
 # 唯一的配置文件，所有环境差异通过环境变量注入：本地开发使用 .env，服务器使用 docker-compose 与 secrets 目录。
 spring:
+  # 直接本地启动时默认使用 dev；部署配置显式设置 prod 或 test 时会覆盖此默认值。
+  profiles:
+    default: dev
   config:
     # 从项目根目录读取本地 .env；文件不存在时忽略。生产环境也可直接使用系统环境变量。
     import: "optional:file:.env[.properties]"
@@ -134,6 +137,15 @@ app:
       rate-limit-store: ${SMS_RATE_LIMIT_STORE:redis}
       fixed-code: ${FIXED_SMS_CODE:}
       expose-code: ${SMS_EXPOSE_CODE:false}
+      # 短信发送通道：none 为不发送（仅本地调试），aliyun 为阿里云短信；非本地环境必须为 aliyun。
+      provider: ${SMS_PROVIDER:none}
+      aliyun:
+        access-key-id: ${ALIYUN_ACCESS_KEY_ID:}
+        access-key-secret: ${ALIYUN_ACCESS_KEY_SECRET:}
+        endpoint: ${ALIYUN_SMS_ENDPOINT:dysmsapi.aliyuncs.com}
+        # 已审核通过的短信签名名称，以及模板 ID（模板内容只包含一个变量 ${code}）。
+        sign-name: ${ALIYUN_SMS_SIGN_NAME:}
+        template-code: ${ALIYUN_SMS_TEMPLATE_CODE:}
   storage:
     # 文件存储方式：local 为本地磁盘，cos 为腾讯云对象存储。
     type: ${STORAGE_TYPE:local}
