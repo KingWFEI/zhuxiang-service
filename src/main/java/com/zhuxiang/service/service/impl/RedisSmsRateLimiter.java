@@ -56,12 +56,13 @@ public class RedisSmsRateLimiter implements SmsRateLimiter {
                 key("ip-minute", ip),
                 key("ip-day", ip)
         );
+        // StringRedisTemplate 只接受 String 参数；Lua 脚本内用 tonumber 还原为数字。
         Object[] args = {
-                1, properties.getRetryAfterSeconds(),
-                properties.getPhoneHourlyLimit(), 3600,
-                properties.getPhoneDailyLimit(), 86400,
-                properties.getIpMinuteLimit(), 60,
-                properties.getIpDailyLimit(), 86400
+                "1", String.valueOf(properties.getRetryAfterSeconds()),
+                String.valueOf(properties.getPhoneHourlyLimit()), "3600",
+                String.valueOf(properties.getPhoneDailyLimit()), "86400",
+                String.valueOf(properties.getIpMinuteLimit()), "60",
+                String.valueOf(properties.getIpDailyLimit()), "86400"
         };
         try {
             Long retryAfter = redisTemplate.execute(ACQUIRE_SCRIPT, keys, args);
