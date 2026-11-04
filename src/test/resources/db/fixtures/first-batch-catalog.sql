@@ -3,6 +3,9 @@
 INSERT IGNORE INTO `user` (
     id, phone, password_hash, nickname, avatar_url, role, status, created_at, updated_at
 ) VALUES
+    -- 平台自营房东用户：测试环境关闭了 PlatformLandlordInitializer，但 house.landlord_id
+    -- 有指向 user 的外键，缺少这条记录会让房源数据整行被 INSERT IGNORE 跳过。
+    ('00000000-0000-0000-0000-000000000001', '13900000001', NULL, '勿忧管家', '', 'LANDLORD', 'disabled', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('landlord-1', '13900139000', NULL, '测试房东一', '', 'LANDLORD', 'inactive', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('landlord-2', '13700137000', NULL, '测试房东二', '', 'LANDLORD', 'inactive', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
@@ -10,6 +13,7 @@ INSERT IGNORE INTO landlord (
     id, user_id, name, avatar_url, phone, is_verified, rating, rented_count,
     response_description, created_at, updated_at
 ) VALUES
+    ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', '勿忧管家', '', '13900000001', 1, 0.00, 0, '平台自营', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('landlord-1', 'landlord-1', '张先生', '', '13900139000', 1, 4.90, 23, '回复及时', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
     ('landlord-2', 'landlord-2', '李女士', '', '13700137000', 1, 4.80, 18, '服务专业', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
