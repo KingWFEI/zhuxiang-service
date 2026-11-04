@@ -15,19 +15,6 @@ jobs:
     environment: test
     permissions:
       contents: read
-    services:
-      mysql:
-        image: mysql:8.0.43
-        env:
-          MYSQL_ROOT_PASSWORD: "132135"
-          MYSQL_DATABASE: zhuxiang_test
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -p132135 --silent"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=20
 
     steps:
       - name: Checkout
@@ -43,18 +30,16 @@ jobs:
       - name: Verify backend
         run: |
           chmod +x mvnw
-          # 只运行不依赖数据库的单元测试；集成测试待独立测试容器补齐后再纳入门禁。
           ./mvnw -B clean verify
 
       - name: Prepare release
         run: |
           mkdir -p release/backend/target release/deploy
-          cp target/zhuxiang-service-0.0.1-SNAPSHOT.jar \
-            release/backend/target/zhuxiang-service-0.0.1-SNAPSHOT.jar
+          cp target/zhuxiang-service-0.0.1-SNAPSHOT.jar release/backend/target/
           cp Dockerfile .dockerignore release/backend/
-          cp deploy/docker-compose.prod.yml deploy/docker-compose.test.yml deploy/nginx.conf release/deploy/
-          cp deploy/backup-mysql.sh deploy/reload-gateway.sh release/deploy/
-          cp deploy/easenest-backup.service deploy/easenest-backup.timer release/deploy/
+          cp deploy/docker-compose.yml deploy/docker-compose.test.yml deploy/nginx.conf \
+            deploy/backup-mysql.sh deploy/deploy-test.sh \
+            deploy/easenest-backup.service deploy/easenest-backup.timer release/deploy/
 
       - name: Configure SSH
         env:
@@ -74,28 +59,5 @@ jobs:
         run: |
           remote_dir="/home/${TEST_SERVER_USER}/easenest-release-${GITHUB_SHA}"
           scp -r release "${TEST_SERVER_USER}@${TEST_SERVER_HOST}:${remote_dir}"
-          # 服务器内存只有 1.6G，buildkit 构建期间容易超时/OOM。
-          # 先停掉应用容器释放内存，构建完成后再启动，healthz 校验会确认最终状态。
           ssh "${TEST_SERVER_USER}@${TEST_SERVER_HOST}" \
-            "sudo rm -rf -- /tmp/easenest-migration-check; \
-             sudo install -d /opt/apps/easenest/backend/target /opt/apps/easenest/deploy && \
-             sudo cp '${remote_dir}/backend/target/zhuxiang-service-0.0.1-SNAPSHOT.jar' \
-               /opt/apps/easenest/backend/target/zhuxiang-service-0.0.1-SNAPSHOT.jar && \
-             sudo cp '${remote_dir}/backend/Dockerfile' /opt/apps/easenest/backend/Dockerfile && \
-             sudo cp '${remote_dir}/backend/.dockerignore' /opt/apps/easenest/backend/.dockerignore && \
-             sudo cp '${remote_dir}/deploy/'* /opt/apps/easenest/deploy/ && \
-             cd /opt/apps/easenest/deploy && \
-             sudo docker stop easenest-backend-1 easenest-gateway easenest-redis-1 >/dev/null 2>&1 || true; \
-             sudo docker compose --env-file ../secrets/compose.env \
-               -f docker-compose.prod.yml -f docker-compose.test.yml up -d --build && \
-             rm -rf -- '${remote_dir}'"
-
-      - name: Verify deployment
-        run: |
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error https://kingwangf.fun/healthz >/dev/null; then
-              exit 0
-            fi
-            sleep 5
-          done
-          exit 1
+            "sudo bash '${remote_dir}/deploy/deploy-test.sh' '${remote_dir}'"
