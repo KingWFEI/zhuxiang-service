@@ -1,4 +1,4 @@
-# 基础配置：无论启用哪个 Spring Profile，都会加载本文件；application-dev.yml 和 application-prod.yml 可覆盖其中的同名项。
+# 唯一的配置文件，所有环境差异通过环境变量注入：本地开发使用 .env，服务器使用 docker-compose 与 secrets 目录。
 spring:
   config:
     # 从项目根目录读取本地 .env；文件不存在时忽略。生产环境也可直接使用系统环境变量。
@@ -6,6 +6,15 @@ spring:
   application:
     # Spring 应用名称，用于日志和服务识别。
     name: zhuxiang-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      username: ${REDIS_USERNAME:}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:2s}
+      timeout: ${REDIS_COMMAND_TIMEOUT:2s}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL:jdbc:mysql://127.0.0.1:3307/ease_nest?characterEncoding=UTF-8&connectionCollation=utf8mb4_0900_ai_ci&serverTimezone=Asia/Shanghai}
@@ -108,8 +117,8 @@ app:
     # 访问令牌有效秒数和刷新令牌有效天数。
     access-token-seconds: ${ACCESS_TOKEN_SECONDS:86400}
     refresh-token-days: ${REFRESH_TOKEN_DAYS:30}
-    # Token 签名密钥；部署环境必须替换本地默认值。
-    token-secret: ${TOKEN_SECRET:change-this-secret-in-production}
+    # Token 签名密钥，必须通过环境变量提供，未配置时服务启动失败。
+    token-secret: ${TOKEN_SECRET}
     sms:
       # 短信验证码有效期、重发间隔及单次校验最大尝试次数。
       expires-seconds: ${SMS_CODE_EXPIRES_SECONDS:300}
@@ -121,7 +130,8 @@ app:
       ip-minute-limit: ${SMS_IP_MINUTE_LIMIT:10}
       ip-daily-limit: ${SMS_IP_DAILY_LIMIT:50}
       # 限流计数存储方式，以及仅供本地调试的固定验证码和是否返回验证码。
-      rate-limit-store: ${SMS_RATE_LIMIT_STORE:memory}
+      # 默认值为安全配置；本地开发在 .env 中设置 SMS_RATE_LIMIT_STORE=memory、FIXED_SMS_CODE、SMS_EXPOSE_CODE=true。
+      rate-limit-store: ${SMS_RATE_LIMIT_STORE:redis}
       fixed-code: ${FIXED_SMS_CODE:}
       expose-code: ${SMS_EXPOSE_CODE:false}
   storage:
@@ -190,31 +200,35 @@ app:
     scan-window-seconds: ${AUTO_UNLOCK_SCAN_WINDOW_SECONDS:900}
     min-rssi-samples: ${AUTO_UNLOCK_MIN_RSSI_SAMPLES:5}
 
-# 支付宝支付参数；生产网关和生产凭证在 application-prod.yml 中单独配置。
+# 支付宝支付参数；生产网关和生产凭证由 docker-compose.yml 注入环境变量。
 alipay:
-  # 支付宝网关地址；默认值为沙箱地址。
+  # 支付宝网关地址；默认值为沙箱地址，正式环境在 docker-compose.yml 中覆盖。
   gateway-url: ${ALIPAY_GATEWAY_URL:https://openapi-sandbox.dl.alipaydev.com/gateway.do}
   # 支付宝应用 ID、商户应用私钥和支付宝公钥。
-  app-id: ${ALIPAY_APP_ID:9021000165654404}
+  app-id: ${ALIPAY_APP_ID:}
   merchant-private-key: ${ALIPAY_MERCHANT_PRIVATE_KEY:}
   alipay-public-key: ${ALIPAY_ALIPAY_PUBLIC_KEY:}
   # 异步通知地址和支付完成后的同步跳转地址。
   notify-url: ${ALIPAY_NOTIFY_URL:http://localhost:8000/api/payments/alipay/notify}
   return-url: ${ALIPAY_RETURN_URL:http://localhost/zhuxiang-payment-done}
+  # 支付方式：h5 为网页支付，app 为 APP 支付；生产环境必须为 app。
+  pay-type: ${ALIPAY_PAY_TYPE:h5}
+  # 模拟支付开关；仅 dev 环境可通过 ALIPAY_MOCK_ENABLED=true 打开，其他环境由校验器拒绝启动。
+  mock-enabled: ${ALIPAY_MOCK_ENABLED:false}
 
 # 高德地图 Web 服务 API 配置。
 amap:
   # 高德 Web 服务接口地址和控制台申请的 API Key。
   base-url: ${AMAP_BASE_URL:https://restapi.amap.com}
-  web-service-key: ${AMAP_WEB_SERVICE_KEY:34467f081797ade37c2eb007a8d0dbdc}
+  web-service-key: ${AMAP_WEB_SERVICE_KEY:}
 
 # TTLock 智能门锁开放平台连接及账号凭证。
 ttlock:
-  client-id: ${TTLOCK_CLIENT_ID:cb5534587e624eb59a9244cc14b8e281}
-  client-secret: ${TTLOCK_CLIENT_SECRET:b73051c1d61c6c3aa7a5bb4917a495e8}
+  client-id: ${TTLOCK_CLIENT_ID:}
+  client-secret: ${TTLOCK_CLIENT_SECRET:}
   # TTLock 登录账号、密码和可选访问令牌。
-  username: ${TTLOCK_USERNAME:15282398801}
-  password: ${TTLOCK_PASSWORD:wf010931}
+  username: ${TTLOCK_USERNAME:}
+  password: ${TTLOCK_PASSWORD:}
   access-token: ${TTLOCK_ACCESS_TOKEN:}
   # TTLock API 地址，正式环境可按服务商要求调整。
   base-url: ${TTLOCK_BASE_URL:https://api.sciener.com}
@@ -224,8 +238,8 @@ esign:
   # 总开关、API 地址及 e签宝应用凭证。
   enabled: true
   base-url: ${ESIGN_HOST:https://smlopenapi.esign.cn}
-  app-id: ${ESIGN_APP_ID:7439124670}
-  app-secret: ${ESIGN_APP_SECRET:b1ef6eb0d232a048d42c6db5d36895d4}
+  app-id: ${ESIGN_APP_ID:}
+  app-secret: ${ESIGN_APP_SECRET:}
   # 自动完成签署开关和多方签署顺序模式。
   auto-finish: true
   sign-order-mode: SIMULTANEOUS
