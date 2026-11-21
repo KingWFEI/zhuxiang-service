@@ -1,5 +1,6 @@
 package com.zhuxiang.service.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhuxiang.service.common.BusinessException;
@@ -16,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,6 +46,24 @@ public class CustomerServiceMessageServiceImpl
         // 校验会话归属
         sessionService.requireOwnedSession(userId, sessionId);
         return getMessagesBySessionId(sessionId);
+    }
+
+    @Override
+    public List<CustomerServiceDtos.MessageItem> getMessagesPage(
+            String userId, String sessionId, Long beforeSequenceNo, int limit) {
+        sessionService.requireOwnedSession(userId, sessionId);
+        int safeLimit = Math.max(1, Math.min(limit, 100));
+        LambdaQueryWrapper<CustomerServiceMessage> query = Wrappers.lambdaQuery();
+        query.eq(CustomerServiceMessage::getSessionId, sessionId);
+        if (beforeSequenceNo != null) {
+            query.lt(CustomerServiceMessage::getSequenceNo, beforeSequenceNo);
+        }
+        query.orderByDesc(CustomerServiceMessage::getSequenceNo)
+                .last("LIMIT " + safeLimit);
+
+        List<CustomerServiceMessage> messages = new ArrayList<>(list(query));
+        Collections.reverse(messages);
+        return messages.stream().map(this::toItem).toList();
     }
 
     @Override
@@ -183,7 +204,8 @@ public class CustomerServiceMessageServiceImpl
                 message.getContent(),
                 message.getMetadataJson(),
                 message.getStatus(),
-                message.getCreatedAt()
+                message.getCreatedAt(),
+                message.getSequenceNo()
         );
     }
 }

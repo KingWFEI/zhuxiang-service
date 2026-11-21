@@ -51,12 +51,12 @@ services:
 
   backend:
     build:
-      context: ../backend
+      context: ..
       dockerfile: Dockerfile
     image: easenest-backend:local
     restart: unless-stopped
     env_file:
-      - ../secrets/backend.env
+      - ./backend.env
     environment:
       TZ: Asia/Shanghai
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70.0 -Duser.timezone=Asia/Shanghai
@@ -77,8 +77,8 @@ services:
       MESSAGE_EVENT_BROKER: redis
       ALIPAY_GATEWAY_URL: https://openapi.alipay.com/gateway.do
       ALIPAY_PAY_TYPE: app
-      ALIPAY_NOTIFY_URL: https://kingwangf.fun/api/payments/alipay/notify
-      ALIPAY_RETURN_URL: https://kingwangf.fun/zhuxiang-payment-done
+      ALIPAY_NOTIFY_URL: https://liuzongxian.top/api/payments/alipay/notify
+      ALIPAY_RETURN_URL: https://liuzongxian.top/zhuxiang-payment-done
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?SUPER_ADMIN_PASSWORD is required}
     volumes:
       - uploads:/app/uploads

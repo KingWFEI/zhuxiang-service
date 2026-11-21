@@ -16,6 +16,10 @@ public interface CustomerServiceMessageService extends IService<CustomerServiceM
      */
     List<CustomerServiceDtos.MessageItem> getMessages(String userId, String sessionId);
 
+    /** 查询会话中指定序号之前的一页消息，按会话内顺序号正序返回。 */
+    List<CustomerServiceDtos.MessageItem> getMessagesPage(
+            String userId, String sessionId, Long beforeSequenceNo, int limit);
+
     /**
      * 保存一条用户消息并返回。
      */

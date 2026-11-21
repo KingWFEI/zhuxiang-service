@@ -101,7 +101,8 @@ CREATE DATABASE ease_nest
 | 服务端口 | `SERVER_PORT` | `8000` |
 | API 前缀 | `API_PREFIX` | `/api` |
 | Token 密钥 | `TOKEN_SECRET` | 本地开发默认值 |
-| 固定验证码 | `FIXED_SMS_CODE` | `123456` |
+| 短信限流存储 | `SMS_RATE_LIMIT_STORE` | `redis` |
+| 固定验证码 | `FIXED_SMS_CODE` | 空（本地生成随机验证码） |
 | 图片存储类型 | `STORAGE_TYPE` | `local` |
 | 本地公开文件目录 | `LOCAL_STORAGE_DIRECTORY` | `./uploads` |
 | 本地敏感文件目录 | `LOCAL_PRIVATE_STORAGE_DIRECTORY` | `./uploads-private` |
@@ -114,8 +115,10 @@ CREATE DATABASE ease_nest
 | COS 访问域名 | `TENCENT_COS_PUBLIC_BASE_URL` | COS 默认域名 |
 | COS 对象前缀 | `TENCENT_COS_KEY_PREFIX` | `zhuxiang` |
 
-当前阶段尚未对接短信供应商，本地验证码默认固定为 `123456`。部署到非开发
-环境时必须设置安全的 `TOKEN_SECRET`，并在接入短信服务后移除固定验证码。
+短信验证码限流统一使用 Redis；本地 Redis 默认连接 `localhost:6379`，可通过
+`REDIS_HOST`、`REDIS_PORT` 覆盖。本地 `.env` 配置阿里云短信，固定验证码为空时会生成随机 6 位码；
+`SMS_EXPOSE_CODE=true` 时验证码会写入本地服务日志。非开发环境必须使用 Redis 和阿里云短信，
+并关闭验证码日志输出、清空固定验证码。
 
 ### 初始化账号
 

@@ -43,3 +43,5 @@ src/main/resources/application.yml
 !.env.example
 !.env.docker.example
 .env.docker
+/deploy/backend.env
+/uploads/

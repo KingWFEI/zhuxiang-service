@@ -80,10 +80,16 @@ public class CustomerServiceController {
     @Operation(summary = "获取历史消息")
     public ApiResponse<List<CustomerServiceDtos.MessageItem>> getMessages(
             @Parameter(description = "会话ID") @PathVariable String sessionId,
+            @RequestParam(required = false) @Min(1) @Max(100) Integer limit,
+            @RequestParam(required = false) Long beforeSequenceNo,
             HttpServletRequest request
     ) {
-        return ApiResponse.success(
-                messageService.getMessages(CurrentUser.id(request), sessionId));
+        List<CustomerServiceDtos.MessageItem> messages = limit == null && beforeSequenceNo == null
+                ? messageService.getMessages(CurrentUser.id(request), sessionId)
+                : messageService.getMessagesPage(
+                        CurrentUser.id(request), sessionId,
+                        beforeSequenceNo, limit == null ? 50 : limit);
+        return ApiResponse.success(messages);
     }
 
     @PostMapping("/sessions/{sessionId}/close")

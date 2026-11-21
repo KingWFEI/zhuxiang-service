@@ -10,3 +10,4 @@ uploads
 *.json
 target/*
 !target/zhuxiang-service-0.0.1-SNAPSHOT.jar
+deploy/*.env

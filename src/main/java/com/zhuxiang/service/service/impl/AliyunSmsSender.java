@@ -42,10 +42,24 @@ public class AliyunSmsSender implements SmsSender {
     public void sendVerificationCode(String phone, String code) {
         SendSmsResponseBody body = send(phone, code);
         if (!SUCCESS_CODE.equals(body.getCode())) {
-            log.warn("阿里云短信发送失败: code={}, message={}, requestId={}",
-                    body.getCode(), body.getMessage(), body.getRequestId());
+            log.warn(
+                    "阿里云短信发送失败: endpoint={}, signName='{}', templateCode={}, code={}, message={}, requestId={}",
+                    properties.getEndpoint(),
+                    properties.getSignName(),
+                    properties.getTemplateCode(),
+                    body.getCode(),
+                    body.getMessage(),
+                    body.getRequestId()
+            );
             throw BusinessException.serviceUnavailable("短信发送失败，请稍后重试");
         }
+        log.info(
+                "阿里云短信请求已受理: endpoint={}, signName='{}', templateCode={}, requestId={}",
+                properties.getEndpoint(),
+                properties.getSignName(),
+                properties.getTemplateCode(),
+                body.getRequestId()
+        );
     }
 
     private SendSmsResponseBody send(String phone, String code) {
@@ -57,7 +71,13 @@ public class AliyunSmsSender implements SmsSender {
                     .setTemplateParam(objectMapper.writeValueAsString(Map.of("code", code)));
             return client.sendSms(request).getBody();
         } catch (Exception exception) {
-            log.error("调用阿里云短信接口异常", exception);
+            log.error(
+                    "调用阿里云短信接口异常: endpoint={}, signName='{}', templateCode={}",
+                    properties.getEndpoint(),
+                    properties.getSignName(),
+                    properties.getTemplateCode(),
+                    exception
+            );
             throw BusinessException.serviceUnavailable("短信发送失败，请稍后重试");
         }
     }

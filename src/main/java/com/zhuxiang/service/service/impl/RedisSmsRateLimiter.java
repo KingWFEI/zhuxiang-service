@@ -17,6 +17,7 @@ public class RedisSmsRateLimiter implements SmsRateLimiter {
 
     private static final DefaultRedisScript<Long> ACQUIRE_SCRIPT = new DefaultRedisScript<>("""
             local retry = 0
+            local limitingBucket = 0
             for i = 1, #KEYS do
                 local argIndex = (i - 1) * 2 + 1
                 local limit = tonumber(ARGV[argIndex])
@@ -25,10 +26,13 @@ public class RedisSmsRateLimiter implements SmsRateLimiter {
                 if current >= limit then
                     local ttl = redis.call('TTL', KEYS[i])
                     if ttl < 1 then ttl = window end
-                    if ttl > retry then retry = ttl end
+                    if ttl > retry then
+                        retry = ttl
+                        limitingBucket = i
+                    end
                 end
             end
-            if retry > 0 then return retry end
+            if retry > 0 then return retry * 10 + limitingBucket end
             for i = 1, #KEYS do
                 local argIndex = (i - 1) * 2 + 1
                 local window = tonumber(ARGV[argIndex + 1])
@@ -65,12 +69,15 @@ public class RedisSmsRateLimiter implements SmsRateLimiter {
                 String.valueOf(properties.getIpDailyLimit()), "86400"
         };
         try {
-            Long retryAfter = redisTemplate.execute(ACQUIRE_SCRIPT, keys, args);
-            if (retryAfter == null) {
+            Long encodedDecision = redisTemplate.execute(ACQUIRE_SCRIPT, keys, args);
+            if (encodedDecision == null) {
                 throw BusinessException.serviceUnavailable("验证码服务暂时不可用，请稍后重试");
             }
-            return retryAfter > 0
-                    ? RateLimitDecision.rejected(retryAfter)
+            return encodedDecision > 0
+                    ? RateLimitDecision.rejected(
+                            encodedDecision / 10,
+                            LimitType.fromRedisCode((int) (encodedDecision % 10))
+                    )
                     : RateLimitDecision.permit();
         } catch (DataAccessException exception) {
             throw BusinessException.serviceUnavailable("验证码服务暂时不可用，请稍后重试");

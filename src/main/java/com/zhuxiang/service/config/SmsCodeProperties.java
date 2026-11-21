@@ -1,6 +1,7 @@
 package com.zhuxiang.service.config;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
@@ -31,7 +32,8 @@ public class SmsCodeProperties {
     @Min(1)
     private int ipDailyLimit = 50;
 
-    private String rateLimitStore = "memory";
+    @Pattern(regexp = "(?i)redis", message = "短信限流存储必须使用 Redis")
+    private String rateLimitStore = "redis";
     private String fixedCode = "";
     private boolean exposeCode = false;
     private String provider = "none";

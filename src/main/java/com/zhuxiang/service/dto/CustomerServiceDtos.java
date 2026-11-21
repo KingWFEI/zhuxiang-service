@@ -48,7 +48,8 @@ public final class CustomerServiceDtos {
             String content,
             String metadataJson,
             String status,
-            LocalDateTime createdAt
+            LocalDateTime createdAt,
+            Long sequenceNo
     ) {}
 
     // ========== 知识库相关 ==========

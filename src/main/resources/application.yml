@@ -3,9 +3,7 @@ spring:
   # 直接本地启动时默认使用 dev；部署配置显式设置 prod 或 test 时会覆盖此默认值。
   profiles:
     default: dev
-  config:
-    # 从项目根目录读取本地 .env；文件不存在时忽略。生产环境也可直接使用系统环境变量。
-    import: "optional:file:.env[.properties]"
+  # 文件不存在时忽略；系统环境变量和启动参数优先于 .env。
   application:
     # Spring 应用名称，用于日志和服务识别。
     name: zhuxiang-service
@@ -20,9 +18,9 @@ spring:
       timeout: ${REDIS_COMMAND_TIMEOUT:2s}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DB_URL:jdbc:mysql://127.0.0.1:3307/ease_nest?characterEncoding=UTF-8&connectionCollation=utf8mb4_0900_ai_ci&serverTimezone=Asia/Shanghai}
-    username:   ${DB_USERNAME:zhuxiang_app}
-    password: ${DB_PASSWORD:}
+    url: ${DB_URL}
+    username:   ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   flyway:
     # 是否在启动时自动执行数据库迁移。
     enabled: ${FLYWAY_ENABLED:true}
@@ -132,8 +130,8 @@ app:
       phone-daily-limit: ${SMS_PHONE_DAILY_LIMIT:10}
       ip-minute-limit: ${SMS_IP_MINUTE_LIMIT:10}
       ip-daily-limit: ${SMS_IP_DAILY_LIMIT:50}
-      # 限流计数存储方式，以及仅供本地调试的固定验证码和是否返回验证码。
-      # 默认值为安全配置；本地开发在 .env 中设置 SMS_RATE_LIMIT_STORE=memory、FIXED_SMS_CODE、SMS_EXPOSE_CODE=true。
+      # 所有环境都使用 Redis 保存限流计数；固定验证码和日志输出仅供本地调试。
+      # 本地开发可在 .env 中设置 FIXED_SMS_CODE、SMS_EXPOSE_CODE=true。
       rate-limit-store: ${SMS_RATE_LIMIT_STORE:redis}
       fixed-code: ${FIXED_SMS_CODE:}
       expose-code: ${SMS_EXPOSE_CODE:false}

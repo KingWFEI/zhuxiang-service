@@ -61,10 +61,25 @@ public class SmsCodeServiceImpl extends ServiceImpl<SmsCodeMapper, SmsCode>
                 request.phone(), request.scene(), clientIp
         );
         if (!decision.allowed()) {
-            throw BusinessException.tooManyRequests(
-                    decision.retryAfter() + " 秒后可重新获取验证码",
-                    new AuthDtos.SmsCodeRetry(decision.retryAfter())
-            );
+            throw switch (decision.limitType()) {
+                case PHONE_SCENE_COOLDOWN -> BusinessException.tooManyRequests(
+                        decision.retryAfter() + " 秒后可重新获取验证码",
+                        new AuthDtos.SmsCodeRetry(decision.retryAfter())
+                );
+                case PHONE_HOURLY -> BusinessException.tooManyRequests(
+                        "验证码发送次数已超过每小时限制，请一小时后重试"
+                );
+                case PHONE_DAILY -> BusinessException.tooManyRequests(
+                        "验证码发送次数已超过当日限制，请明天再试"
+                );
+                case IP_MINUTE -> BusinessException.tooManyRequests(
+                        decision.retryAfter() + " 秒内请求过于频繁，请稍后重试",
+                        new AuthDtos.SmsCodeRetry(decision.retryAfter())
+                );
+                case IP_DAILY -> BusinessException.tooManyRequests(
+                        "当前网络验证码请求次数已超过当日限制，请明天再试"
+                );
+            };
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -87,6 +102,8 @@ public class SmsCodeServiceImpl extends ServiceImpl<SmsCodeMapper, SmsCode>
         save(smsCode);
 
         smsSender.sendVerificationCode(request.phone(), smsCode.getCode());
+        log.info("短信发送器返回成功: sender={}, phone={}, scene={}",
+                smsSender.getClass().getSimpleName(), maskPhone(request.phone()), request.scene());
         if (properties.isExposeCode()) {
             log.info("【仅限开发测试】手机号 {}，场景 {} 的验证码是：{}",
                     maskPhone(request.phone()), request.scene(), smsCode.getCode());
